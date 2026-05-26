@@ -4,6 +4,7 @@ import swaggerUi from "swagger-ui-express";
 import swaggerDocument from "./config/swagger";
 import coreRoutes from "./core/core.routes";
 import escritorioRoutes from "./modulos/escritorio/escritorio.routes";
+import folhaRoutes from "./modulos/folha/folha.routes";
 import errorMiddleware from "./shared/middlewares/error.middleware";
 
 const app = express();
@@ -24,6 +25,7 @@ app.get("/api-docs.json", (_req, res) => {
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use("/core", coreRoutes);
 app.use("/escritorio", escritorioRoutes);
+app.use("/folha", folhaRoutes);
 app.use(errorMiddleware);
 
 export default app;
