@@ -1,5 +1,6 @@
 import { Model, DataTypes } from "sequelize";
 import sequelize from "../../config/database";
+import { MODULOS, Modulo } from "../permissoes/modulo.enum";
 import Usuario from "./usuario.model";
 
 class UsuarioModulo extends Model {
@@ -7,18 +8,7 @@ class UsuarioModulo extends Model {
 
   usuario_id: number | undefined;
 
-  modulo:
-    | "ADMIN"
-    | "GERENTE"
-    | "ESCRITORIO"
-    | "FOLHA"
-    | "BALANCA"
-    | "SILO"
-    | "BARRACAO"
-    | "LAVOURA"
-    | "ALMOXARIFADO"
-    | "FINANCEIRO"
-    | undefined;
+  modulo: Modulo | undefined;
 
   pode_visualizar: boolean | undefined;
   pode_criar: boolean | undefined;
@@ -41,18 +31,7 @@ UsuarioModulo.init(
     },
 
     modulo: {
-      type: DataTypes.ENUM(
-        "ADMIN",
-        "GERENTE",
-        "ESCRITORIO",
-        "FOLHA",
-        "BALANCA",
-        "SILO",
-        "BARRACAO",
-        "LAVOURA",
-        "ALMOXARIFADO",
-        "FINANCEIRO",
-      ),
+      type: DataTypes.ENUM(...MODULOS),
       allowNull: false,
     },
 
