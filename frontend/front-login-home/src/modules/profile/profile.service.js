@@ -1,10 +1,10 @@
-import { requestJson } from '../../shared/services/api'
+import { requestJson } from "../../shared/services/api";
 
-const CORE_BASE = '/api/core'
+const CORE_BASE = "/api/core";
 
 export function updateProfile(usuarioId, data) {
   return requestJson(`${CORE_BASE}/usuarios/${usuarioId}`, {
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(data),
-  })
+  });
 }

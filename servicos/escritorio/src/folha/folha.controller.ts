@@ -9,7 +9,6 @@ import {
   Req,
   Res,
   UseGuards,
-  UsePipes,
 } from "@nestjs/common";
 import { Request, Response } from "express";
 import { AuthContext } from "../auth-client/auth.types";
@@ -18,6 +17,7 @@ import { PermissionGuard } from "../auth-client/permission.guard";
 import { RequirePermission } from "../auth-client/require-permission.decorator";
 import { CurrentUser } from "../shared/current-user.decorator";
 import { ZodValidationPipe } from "../shared/zod-validation.pipe";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { FolhaService } from "./folha.service";
 import {
   anoQuerySchema,
@@ -41,6 +41,8 @@ function enviarPlanilha(
   res.send(arquivo.buffer);
 }
 
+@ApiTags("folha")
+@ApiBearerAuth("JWT")
 @Controller("folha")
 @UseGuards(EscritorioAuthGuard, PermissionGuard)
 export class FolhaController {
@@ -72,10 +74,9 @@ export class FolhaController {
 
   @Post("participantes/:id/registros-salariais")
   @RequirePermission("FOLHA", "criar")
-  @UsePipes(new ZodValidationPipe(registroSalarialSchema))
   criarRegistroSalarial(
     @Param(new ZodValidationPipe(participanteIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(registroSalarialSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -97,10 +98,9 @@ export class FolhaController {
 
   @Post("participantes/:id/ferias")
   @RequirePermission("FOLHA", "criar")
-  @UsePipes(new ZodValidationPipe(feriasSchema))
   criarFerias(
     @Param(new ZodValidationPipe(participanteIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(feriasSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -118,10 +118,9 @@ export class FolhaController {
 
   @Put("participantes/:id/lancamentos-mensais")
   @RequirePermission("FOLHA", "editar")
-  @UsePipes(new ZodValidationPipe(folhaMensalSchema))
   salvarLancamentosMensais(
     @Param(new ZodValidationPipe(participanteIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(folhaMensalSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {

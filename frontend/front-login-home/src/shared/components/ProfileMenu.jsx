@@ -1,38 +1,38 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from "react";
 
-function getInitials(name = '') {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
+function getInitials(name = "") {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
 
   if (!parts.length) {
-    return 'U'
+    return "U";
   }
 
   return parts
     .slice(0, 2)
     .map((part) => part[0])
-    .join('')
-    .toUpperCase()
+    .join("")
+    .toUpperCase();
 }
 
 function ProfileMenu({ usuario, onNavigate, onLogout }) {
-  const [open, setOpen] = useState(false)
-  const menuRef = useRef(null)
-  const canManage = usuario?.possuiAdmin || usuario?.possuiGerente
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+  const canManage = usuario?.possuiAdmin || usuario?.possuiGerente;
 
   useEffect(() => {
     function handleClick(event) {
       if (!menuRef.current?.contains(event.target)) {
-        setOpen(false)
+        setOpen(false);
       }
     }
 
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   function navigate(target) {
-    setOpen(false)
-    onNavigate(target)
+    setOpen(false);
+    onNavigate(target);
   }
 
   return (
@@ -55,11 +55,11 @@ function ProfileMenu({ usuario, onNavigate, onLogout }) {
         <div className="profile-popover">
           <strong>{usuario?.nome}</strong>
           <span>{usuario?.email}</span>
-          <button type="button" onClick={() => navigate('profile')}>
+          <button type="button" onClick={() => navigate("profile")}>
             Meu perfil
           </button>
           {canManage ? (
-            <button type="button" onClick={() => navigate('admin')}>
+            <button type="button" onClick={() => navigate("admin")}>
               Menu Admin
             </button>
           ) : null}
@@ -69,7 +69,7 @@ function ProfileMenu({ usuario, onNavigate, onLogout }) {
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
-export default ProfileMenu
+export default ProfileMenu;

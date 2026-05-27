@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 const optionalText = z
-  .string()
-  .trim()
-  .optional()
-  .or(z.literal(""))
+  .preprocess(
+    (value) => (value === null ? undefined : value),
+    z.string().trim().optional().or(z.literal("")),
+  )
   .transform((value) => value || null);
 
 export const entidadeTipoSchema = z.enum([
@@ -16,9 +16,21 @@ export const entidadeTipoSchema = z.enum([
 
 export const entidadeSchema = z.object({
   nome: z.string().trim().min(2, "Nome e obrigatorio."),
-  cpf_cnpj: z.string().trim().min(11, "CPF/CNPJ invalido."),
-  tipo_pessoa: z.enum(["FISICA", "JURIDICA"]),
-  email: z.string().trim().email().optional().or(z.literal("")).transform((v) => v || null),
+  cpf_cnpj: z.preprocess(
+    (value) => (typeof value === "string" ? value.replace(/\D/g, "") : value),
+    z.string().trim().min(11, "CPF/CNPJ invalido."),
+  ),
+  tipo_pessoa: z.preprocess(
+    (value) => (typeof value === "string" ? value.toUpperCase() : value),
+    z.enum(["FISICA", "JURIDICA"]),
+  ),
+  email: z
+    .string()
+    .trim()
+    .email()
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => v || null),
   telefone: optionalText,
   celular: optionalText,
   cep: optionalText,
@@ -26,17 +38,32 @@ export const entidadeSchema = z.object({
   numero: optionalText,
   bairro: optionalText,
   cidade: optionalText,
-  estado: z.string().trim().length(2).optional().or(z.literal("")).transform((v) => v ? v.toUpperCase() : null),
+  estado: z
+    .string()
+    .trim()
+    .length(2)
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v ? v.toUpperCase() : null)),
   complemento: optionalText,
   data_nascimento: optionalText,
   nacionalidade: optionalText,
   filiacao: optionalText,
-  estado_civil: z.enum(["SOLTEIRO", "CASADO", "DIVORCIADO", "VIUVO", "UNIAO_ESTAVEL"]).optional().nullable(),
-  genero: z.enum(["MASCULINO", "FEMININO", "OUTRO", "NAO_INFORMADO"]).optional().nullable(),
+  estado_civil: z
+    .enum(["SOLTEIRO", "CASADO", "DIVORCIADO", "VIUVO", "UNIAO_ESTAVEL"])
+    .optional()
+    .nullable(),
+  genero: z
+    .enum(["MASCULINO", "FEMININO", "OUTRO", "NAO_INFORMADO"])
+    .optional()
+    .nullable(),
   participa_folha: z.boolean().default(false),
   observacao: optionalText,
   ativo: z.boolean().default(true),
-  tipos: z.array(entidadeTipoSchema).min(1, "Informe pelo menos um tipo."),
+  tipos: z
+    .array(entidadeTipoSchema)
+    .min(1, "Informe pelo menos um tipo.")
+    .default(["CLIENTE"]),
 });
 
 export const atualizarEntidadeSchema = entidadeSchema.partial().extend({

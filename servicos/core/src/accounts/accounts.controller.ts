@@ -7,7 +7,6 @@ import {
   Post,
   Req,
   UseGuards,
-  UsePipes,
 } from "@nestjs/common";
 import { Request } from "express";
 import { CoreAuthGuard } from "../auth/core-auth.guard";
@@ -15,6 +14,7 @@ import { OptionalCoreAuthGuard } from "../auth/optional-core-auth.guard";
 import { AuthContext } from "../auth/auth.types";
 import { CurrentUser } from "../shared/current-user.decorator";
 import { ZodValidationPipe } from "../shared/zod-validation.pipe";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { AccountsService } from "./accounts.service";
 import {
   atualizarStatusContaSchema,
@@ -24,8 +24,15 @@ import {
   recusarSolicitacaoSchema,
   solicitacaoIdParamSchema,
   solicitarContaSchema,
+  AtualizarStatusContaInput,
+  AprovarSolicitacaoInput,
+  CriarContaInput,
+  RecusarSolicitacaoInput,
+  SolicitarContaInput,
 } from "./accounts.schema";
 
+@ApiTags("contas")
+@ApiBearerAuth("JWT")
 @Controller("contas")
 export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
@@ -38,9 +45,8 @@ export class AccountsController {
 
   @Post()
   @UseGuards(OptionalCoreAuthGuard)
-  @UsePipes(new ZodValidationPipe(criarContaSchema))
   criar(
-    @Body() body: never,
+    @Body(new ZodValidationPipe(criarContaSchema)) body: CriarContaInput,
     @CurrentUser() usuario: AuthContext | undefined,
     @Req() request: Request,
   ) {
@@ -48,8 +54,11 @@ export class AccountsController {
   }
 
   @Post("solicitacoes")
-  @UsePipes(new ZodValidationPipe(solicitarContaSchema))
-  solicitar(@Body() body: never, @Req() request: Request) {
+  solicitar(
+    @Body(new ZodValidationPipe(solicitarContaSchema))
+    body: SolicitarContaInput,
+    @Req() request: Request,
+  ) {
     return this.accountsService.solicitar(body, request.ip);
   }
 
@@ -61,11 +70,11 @@ export class AccountsController {
 
   @Patch("solicitacoes/:id/aprovar")
   @UseGuards(CoreAuthGuard)
-  @UsePipes(new ZodValidationPipe(aprovarSolicitacaoSchema))
   aprovarSolicitacao(
     @Param(new ZodValidationPipe(solicitacaoIdParamSchema))
     params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(aprovarSolicitacaoSchema))
+    body: AprovarSolicitacaoInput,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -79,11 +88,11 @@ export class AccountsController {
 
   @Patch("solicitacoes/:id/recusar")
   @UseGuards(CoreAuthGuard)
-  @UsePipes(new ZodValidationPipe(recusarSolicitacaoSchema))
   recusarSolicitacao(
     @Param(new ZodValidationPipe(solicitacaoIdParamSchema))
     params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(recusarSolicitacaoSchema))
+    body: RecusarSolicitacaoInput,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -106,10 +115,10 @@ export class AccountsController {
 
   @Patch(":id/status")
   @UseGuards(CoreAuthGuard)
-  @UsePipes(new ZodValidationPipe(atualizarStatusContaSchema))
   atualizarStatus(
     @Param(new ZodValidationPipe(contaIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(atualizarStatusContaSchema))
+    body: AtualizarStatusContaInput,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {

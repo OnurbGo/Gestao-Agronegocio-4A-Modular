@@ -34,6 +34,15 @@ export class PermissionsService {
       throw new ForbiddenException("Apenas ADMIN ou GERENTE pode alterar permissoes.");
     }
 
+    const permissoesAtuais = await this.contaModuloModel.findAll({
+      where: { conta_id: contaId },
+    });
+
+    this.validarPermissaoGerente(permissoesAtuais, data.modulos, ator);
+    const modulos = data.modulos.filter((modulo) =>
+      this.moduloTemPermissaoAtiva(modulo),
+    );
+
     const transaction = await this.contaModuloModel.sequelize!.transaction();
 
     try {
@@ -42,7 +51,7 @@ export class PermissionsService {
         transaction,
       });
       await this.contaModuloModel.bulkCreate(
-        data.modulos.map((modulo) => ({ ...modulo, conta_id: contaId })),
+        modulos.map((modulo) => ({ ...modulo, conta_id: contaId })),
         { transaction },
       );
       await transaction.commit();
@@ -53,5 +62,51 @@ export class PermissionsService {
 
     this.eventsService.emitPermissionsUpdated(contaId);
     return this.listar(contaId);
+  }
+
+  private validarPermissaoGerente(
+    permissoesAtuais: ContaModulo[],
+    proximasPermissoes: SalvarPermissoesInput["modulos"],
+    ator: AuthContext,
+  ) {
+    if (ator.possuiAdmin || !ator.possuiGerente) {
+      return;
+    }
+
+    const alvoPossuiAdmin = permissoesAtuais.some(
+      (permissao) =>
+        permissao.modulo === "ADMIN" &&
+        this.moduloTemPermissaoAtiva(permissao),
+    );
+
+    if (alvoPossuiAdmin) {
+      throw new ForbiddenException(
+        "GERENTE nao pode alterar permissoes de conta ADMIN.",
+      );
+    }
+
+    const concedendoAdmin = proximasPermissoes.some(
+      (permissao) =>
+        permissao.modulo === "ADMIN" &&
+        this.moduloTemPermissaoAtiva(permissao),
+    );
+
+    if (concedendoAdmin) {
+      throw new ForbiddenException(
+        "GERENTE nao pode conceder permissao ADMIN.",
+      );
+    }
+  }
+
+  private moduloTemPermissaoAtiva(
+    modulo: SalvarPermissoesInput["modulos"][number] | ContaModulo,
+  ) {
+    return Boolean(
+      modulo.pode_visualizar ||
+        modulo.pode_criar ||
+        modulo.pode_editar ||
+        modulo.pode_excluir ||
+        modulo.pode_restaurar,
+    );
   }
 }

@@ -1,187 +1,267 @@
-import { useEffect, useMemo, useState } from 'react'
-import { listarEntidades } from '../entidades/entidades.service'
-import { listarImoveis } from '../imoveis/imoveis.service'
-import StatusMessage from '../../shared/components/StatusMessage'
+import { useEffect, useMemo, useState } from "react";
+import { listarEntidades } from "../entidades/entidades.service";
+import { listarImoveis } from "../imoveis/imoveis.service";
+import StatusMessage from "../../shared/components/StatusMessage";
 import {
   atualizarContrato,
   buscarContrato,
   criarContrato,
   listarContratos,
   removerContrato,
-} from './contratos.service'
+} from "./contratos.service";
 
 const emptyForm = {
-  numero: '',
-  entidade_id: '',
-  imovel_id: '',
-  safra: '',
-  produto: '',
-  quantidade_prevista: '0',
-  unidade: 'KG',
-  data_inicial: '',
-  data_final: '',
-  status: 'RASCUNHO',
-  observacao: '',
-  ativo: true,
+  numero: "",
+  entidade_id: "",
+  imovel_id: "",
+  safra: "",
+  produto: "",
+  quantidade_prevista: "0",
+  unidade: "KG",
+  data_inicial: "",
+  data_final: "",
+  status: "RASCUNHO",
+  observacao: "",
+};
+
+const SAFRA_OPTIONS = ["soja", "milho", "trigo", "outro"];
+
+function capitalizeWords(value = "") {
+  return String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function normalizeSafra(value = "") {
+  const normalized = String(value).trim().toLowerCase();
+
+  if (!normalized) {
+    return "";
+  }
+
+  if (SAFRA_OPTIONS.includes(normalized)) {
+    return normalized;
+  }
+
+  return "outro";
 }
 
 function normalizeForm(contrato) {
   if (!contrato) {
-    return emptyForm
+    return emptyForm;
   }
+
+  const safraNormalizada = normalizeSafra(contrato.safra);
 
   return {
     ...emptyForm,
     ...contrato,
-    entidade_id: contrato.entidade_id || '',
-    imovel_id: contrato.imovel_id || '',
-    quantidade_prevista: contrato.quantidade_prevista || '0',
-    observacao: contrato.observacao || '',
-  }
+    entidade_id: contrato.entidade_id || "",
+    imovel_id: contrato.imovel_id || "",
+    quantidade_prevista: contrato.quantidade_prevista || "0",
+    observacao: contrato.observacao || "",
+    safra: safraNormalizada || "",
+  };
+}
+
+function montarPayload(form, safraPersonalizada) {
+  return {
+    numero: form.numero,
+    entidade_id: form.entidade_id,
+    imovel_id: form.imovel_id,
+    safra:
+      form.safra === "outro"
+        ? capitalizeWords(safraPersonalizada)
+        : capitalizeWords(form.safra),
+    produto: form.produto,
+    quantidade_prevista: form.quantidade_prevista,
+    unidade: form.unidade,
+    data_inicial: form.data_inicial,
+    data_final: form.data_final,
+    status: form.status,
+    observacao: form.observacao,
+  };
 }
 
 function ContratosPage({ onBack }) {
-  const [termo, setTermo] = useState('')
-  const [contratos, setContratos] = useState([])
-  const [entidades, setEntidades] = useState([])
-  const [imoveis, setImoveis] = useState([])
-  const [selectedId, setSelectedId] = useState(null)
-  const [form, setForm] = useState(emptyForm)
-  const [status, setStatus] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [termo, setTermo] = useState("");
+  const [contratos, setContratos] = useState([]);
+  const [entidades, setEntidades] = useState([]);
+  const [imoveis, setImoveis] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [safraPersonalizada, setSafraPersonalizada] = useState("");
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const selected = useMemo(
     () => contratos.find((contrato) => contrato.id_contrato === selectedId),
     [contratos, selectedId],
-  )
+  );
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function carregarInicial() {
-      setLoading(true)
-      setStatus(null)
+      setLoading(true);
+      setStatus(null);
 
       try {
-        const [loadedContratos, loadedEntidades, loadedImoveis] = await Promise.all([
-          listarContratos({}),
-          listarEntidades({ ativo: true }),
-          listarImoveis({ ativo: true }),
-        ])
+        const [loadedContratos, loadedEntidades, loadedImoveis] =
+          await Promise.all([
+            listarContratos({}),
+            listarEntidades({ ativo: true }),
+            listarImoveis({ ativo: true }),
+          ]);
 
-        if (!active) return
-        setContratos(loadedContratos)
-        setEntidades(loadedEntidades)
-        setImoveis(loadedImoveis)
+        if (!active) return;
+        setContratos(loadedContratos);
+        setEntidades(loadedEntidades);
+        setImoveis(loadedImoveis);
 
         if (loadedContratos[0]) {
-          setSelectedId(loadedContratos[0].id_contrato)
-          setForm(normalizeForm(loadedContratos[0]))
+          setSelectedId(loadedContratos[0].id_contrato);
+          setForm(normalizeForm(loadedContratos[0]));
+          setSafraPersonalizada(
+            normalizeSafra(loadedContratos[0].safra) === "outro"
+              ? capitalizeWords(loadedContratos[0].safra)
+              : "",
+          );
         }
       } catch (error) {
-        if (active) setStatus({ type: 'error', message: error.message })
+        if (active) setStatus({ type: "error", message: error.message });
       } finally {
-        if (active) setLoading(false)
+        if (active) setLoading(false);
       }
     }
 
-    carregarInicial()
+    carregarInicial();
     return () => {
-      active = false
-    }
-  }, [])
+      active = false;
+    };
+  }, []);
 
   async function carregarDados() {
-    setLoading(true)
-    setStatus(null)
+    setLoading(true);
+    setStatus(null);
 
     try {
-      const [loadedContratos, loadedEntidades, loadedImoveis] = await Promise.all([
-        listarContratos({ termo }),
-        listarEntidades({ ativo: true }),
-        listarImoveis({ ativo: true }),
-      ])
+      const [loadedContratos, loadedEntidades, loadedImoveis] =
+        await Promise.all([
+          listarContratos({ termo }),
+          listarEntidades({ ativo: true }),
+          listarImoveis({ ativo: true }),
+        ]);
 
-      setContratos(loadedContratos)
-      setEntidades(loadedEntidades)
-      setImoveis(loadedImoveis)
+      setContratos(loadedContratos);
+      setEntidades(loadedEntidades);
+      setImoveis(loadedImoveis);
 
       if (!selectedId && loadedContratos[0]) {
-        setSelectedId(loadedContratos[0].id_contrato)
-        setForm(normalizeForm(loadedContratos[0]))
+        setSelectedId(loadedContratos[0].id_contrato);
+        setForm(normalizeForm(loadedContratos[0]));
+        setSafraPersonalizada(
+          normalizeSafra(loadedContratos[0].safra) === "outro"
+            ? capitalizeWords(loadedContratos[0].safra)
+            : "",
+        );
       }
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function selecionar(id) {
-    setLoading(true)
-    setStatus(null)
+    setLoading(true);
+    setStatus(null);
 
     try {
-      const contrato = await buscarContrato(id)
-      setSelectedId(id)
-      setForm(normalizeForm(contrato))
+      const contrato = await buscarContrato(id);
+      setSelectedId(id);
+      setForm(normalizeForm(contrato));
+      setSafraPersonalizada(
+        normalizeSafra(contrato.safra) === "outro"
+          ? capitalizeWords(contrato.safra)
+          : "",
+      );
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   function novoContrato() {
-    setSelectedId(null)
-    setForm(emptyForm)
-    setStatus(null)
+    setSelectedId(null);
+    setForm(emptyForm);
+    setSafraPersonalizada("");
+    setStatus(null);
   }
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }))
+    setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateSafra(value) {
+    const normalized = normalizeSafra(value);
+    setForm((current) => ({ ...current, safra: normalized }));
+    if (normalized !== "outro") {
+      setSafraPersonalizada("");
+    }
   }
 
   async function salvar(event) {
-    event.preventDefault()
-    setLoading(true)
-    setStatus(null)
+    event.preventDefault();
+    setLoading(true);
+    setStatus(null);
 
     try {
+      const payload = montarPayload(form, safraPersonalizada);
       const saved = selectedId
-        ? await atualizarContrato(selectedId, form)
-        : await criarContrato(form)
+        ? await atualizarContrato(selectedId, payload)
+        : await criarContrato(payload);
 
-      setSelectedId(saved.id_contrato)
-      setForm(normalizeForm(saved))
-      setStatus({ type: 'success', message: 'Contrato salvo.' })
-      const data = await listarContratos({ termo })
-      setContratos(data)
+      setSelectedId(saved.id_contrato);
+      setForm(normalizeForm(saved));
+      setSafraPersonalizada(
+        normalizeSafra(saved.safra) === "outro"
+          ? capitalizeWords(saved.safra)
+          : "",
+      );
+      setStatus({ type: "success", message: "Contrato salvo." });
+      const data = await listarContratos({ termo });
+      setContratos(data);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function remover() {
     if (!selectedId) {
-      return
+      return;
     }
 
-    setLoading(true)
-    setStatus(null)
+    setLoading(true);
+    setStatus(null);
 
     try {
-      await removerContrato(selectedId)
-      setStatus({ type: 'success', message: 'Contrato removido.' })
-      setSelectedId(null)
-      setForm(emptyForm)
-      await carregarDados()
+      await removerContrato(selectedId);
+      setStatus({ type: "success", message: "Contrato removido." });
+      setSelectedId(null);
+      setForm(emptyForm);
+      setSafraPersonalizada("");
+      await carregarDados();
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -221,21 +301,25 @@ function ContratosPage({ onBack }) {
               Buscar
             </button>
           </div>
-          <button className="primary-button full" onClick={novoContrato} type="button">
+          <button
+            className="primary-button full"
+            onClick={novoContrato}
+            type="button"
+          >
             Novo contrato
           </button>
           <div className="record-list">
             {contratos.map((contrato) => (
               <button
                 className={`record-row ${
-                  contrato.id_contrato === selectedId ? 'active' : ''
+                  contrato.id_contrato === selectedId ? "active" : ""
                 }`}
                 key={contrato.id_contrato}
                 onClick={() => selecionar(contrato.id_contrato)}
                 type="button"
               >
                 <strong>{contrato.numero}</strong>
-                <span>{contrato.entidade?.nome || 'Sem entidade'}</span>
+                <span>{contrato.entidade?.nome || "Sem entidade"}</span>
                 <small>
                   {contrato.safra} - {contrato.produto}
                 </small>
@@ -243,7 +327,7 @@ function ContratosPage({ onBack }) {
             ))}
             {!contratos.length ? (
               <p className="empty-state">
-                {loading ? 'Carregando...' : 'Nenhum contrato encontrado.'}
+                {loading ? "Carregando..." : "Nenhum contrato encontrado."}
               </p>
             ) : null}
           </div>
@@ -251,14 +335,14 @@ function ContratosPage({ onBack }) {
 
         <form className="panel form-grid" onSubmit={salvar}>
           <div className="panel-heading span-2">
-            <h2>{selected ? selected.numero : 'Novo contrato'}</h2>
+            <h2>{selected ? selected.numero : "Novo contrato"}</h2>
             <span>{form.status}</span>
           </div>
 
           <label>
             Numero
             <input
-              onChange={(event) => updateField('numero', event.target.value)}
+              onChange={(event) => updateField("numero", event.target.value)}
               required
               value={form.numero}
             />
@@ -266,7 +350,7 @@ function ContratosPage({ onBack }) {
           <label>
             Status
             <select
-              onChange={(event) => updateField('status', event.target.value)}
+              onChange={(event) => updateField("status", event.target.value)}
               value={form.status}
             >
               <option value="RASCUNHO">Rascunho</option>
@@ -278,7 +362,9 @@ function ContratosPage({ onBack }) {
           <label>
             Entidade
             <select
-              onChange={(event) => updateField('entidade_id', event.target.value)}
+              onChange={(event) =>
+                updateField("entidade_id", event.target.value)
+              }
               required
               value={form.entidade_id}
             >
@@ -293,7 +379,7 @@ function ContratosPage({ onBack }) {
           <label>
             Imovel
             <select
-              onChange={(event) => updateField('imovel_id', event.target.value)}
+              onChange={(event) => updateField("imovel_id", event.target.value)}
               value={form.imovel_id}
             >
               <option value="">Sem imovel</option>
@@ -306,16 +392,35 @@ function ContratosPage({ onBack }) {
           </label>
           <label>
             Safra
-            <input
-              onChange={(event) => updateField('safra', event.target.value)}
-              required
+            <select
+              onChange={(event) => updateSafra(event.target.value)}
               value={form.safra}
-            />
+            >
+              <option value="">Selecione</option>
+              {SAFRA_OPTIONS.map((safra) => (
+                <option key={safra} value={safra}>
+                  {capitalizeWords(safra)}
+                </option>
+              ))}
+            </select>
           </label>
+          {form.safra === "outro" ? (
+            <label>
+              Safra personalizada
+              <input
+                onChange={(event) =>
+                  setSafraPersonalizada(capitalizeWords(event.target.value))
+                }
+                placeholder="Ex.: Sorgo"
+                required
+                value={safraPersonalizada}
+              />
+            </label>
+          ) : null}
           <label>
             Produto
             <input
-              onChange={(event) => updateField('produto', event.target.value)}
+              onChange={(event) => updateField("produto", event.target.value)}
               required
               value={form.produto}
             />
@@ -325,7 +430,7 @@ function ContratosPage({ onBack }) {
             <input
               min="0"
               onChange={(event) =>
-                updateField('quantidade_prevista', event.target.value)
+                updateField("quantidade_prevista", event.target.value)
               }
               step="0.01"
               type="number"
@@ -335,7 +440,7 @@ function ContratosPage({ onBack }) {
           <label>
             Unidade
             <input
-              onChange={(event) => updateField('unidade', event.target.value)}
+              onChange={(event) => updateField("unidade", event.target.value)}
               required
               value={form.unidade}
             />
@@ -343,7 +448,9 @@ function ContratosPage({ onBack }) {
           <label>
             Data inicial
             <input
-              onChange={(event) => updateField('data_inicial', event.target.value)}
+              onChange={(event) =>
+                updateField("data_inicial", event.target.value)
+              }
               required
               type="date"
               value={form.data_inicial}
@@ -352,7 +459,9 @@ function ContratosPage({ onBack }) {
           <label>
             Data final
             <input
-              onChange={(event) => updateField('data_final', event.target.value)}
+              onChange={(event) =>
+                updateField("data_final", event.target.value)
+              }
               required
               type="date"
               value={form.data_final}
@@ -361,7 +470,9 @@ function ContratosPage({ onBack }) {
           <label className="span-2">
             Observacao
             <textarea
-              onChange={(event) => updateField('observacao', event.target.value)}
+              onChange={(event) =>
+                updateField("observacao", event.target.value)
+              }
               value={form.observacao}
             />
           </label>
@@ -384,7 +495,7 @@ function ContratosPage({ onBack }) {
         </form>
       </section>
     </main>
-  )
+  );
 }
 
-export default ContratosPage
+export default ContratosPage;

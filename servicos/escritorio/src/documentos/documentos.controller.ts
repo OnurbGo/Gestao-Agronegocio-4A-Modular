@@ -26,12 +26,15 @@ import {
   donoArquivoParamSchema,
   uploadArquivoSchema,
 } from "./documentos.schema";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { DocumentosService } from "./documentos.service";
 
 function filenameHeader(nome: string) {
   return `attachment; filename="${encodeURIComponent(nome)}"`;
 }
 
+@ApiTags("documentos")
+@ApiBearerAuth("JWT")
 @Controller()
 @UseGuards(EscritorioAuthGuard, PermissionGuard)
 export class DocumentosController {

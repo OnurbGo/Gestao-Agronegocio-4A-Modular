@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import StatusMessage from '../../shared/components/StatusMessage'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import StatusMessage from "../../shared/components/StatusMessage";
 import {
   ADMIN_MODULES,
   PERMISSION_ACTIONS,
   buildDefaultPermissions,
-} from '../home/modules.constants'
+} from "../home/modules.constants";
 import {
   approveAccessRequest,
   createAccount,
@@ -13,17 +13,19 @@ import {
   rejectAccessRequest,
   savePermissions,
   updateAccountStatus,
-} from './admin.service'
+} from "./admin.service";
 
 const EMPTY_ACCOUNT = {
-  nome: '',
-  email: '',
-  senha: '',
-  modulos: ['ESCRITORIO'],
-}
+  nome: "",
+  email: "",
+  senha: "",
+  modulos: ["ESCRITORIO"],
+};
 
 function normalizePermissions(modulos = []) {
-  const byModule = new Map(modulos.map((permissao) => [permissao.modulo, permissao]))
+  const byModule = new Map(
+    modulos.map((permissao) => [permissao.modulo, permissao]),
+  );
 
   return ADMIN_MODULES.map((modulo) => ({
     modulo,
@@ -33,7 +35,7 @@ function normalizePermissions(modulos = []) {
     pode_excluir: false,
     pode_restaurar: false,
     ...byModule.get(modulo),
-  }))
+  }));
 }
 
 function serializePermissions(modulos) {
@@ -44,220 +46,273 @@ function serializePermissions(modulos) {
     pode_editar: Boolean(permissao.pode_editar),
     pode_excluir: Boolean(permissao.pode_excluir),
     pode_restaurar: Boolean(permissao.pode_restaurar),
-  }))
+  }));
 }
 
 function formatRequestedModules(value) {
   if (!value) {
-    return 'ESCRITORIO'
+    return "ESCRITORIO";
   }
 
   if (Array.isArray(value)) {
-    return value.join(', ')
+    return value.join(", ");
   }
 
-  return Object.values(value).join(', ')
+  return Object.values(value).join(", ");
 }
 
 function getRequestedModules(value) {
   if (Array.isArray(value) && value.length) {
-    return value
+    return value;
   }
 
-  if (value && typeof value === 'object') {
-    const modules = Object.values(value).filter(Boolean)
-    return modules.length ? modules : ['ESCRITORIO']
+  if (value && typeof value === "object") {
+    const modules = Object.values(value).filter(Boolean);
+    return modules.length ? modules : ["ESCRITORIO"];
   }
 
-  return ['ESCRITORIO']
+  return ["ESCRITORIO"];
 }
 
-function AdminPage({ onBack }) {
-  const [accounts, setAccounts] = useState([])
-  const [requests, setRequests] = useState([])
-  const [selectedAccountId, setSelectedAccountId] = useState(null)
-  const [permissions, setPermissions] = useState([])
-  const [newAccount, setNewAccount] = useState(EMPTY_ACCOUNT)
-  const [rejectReasons, setRejectReasons] = useState({})
-  const [status, setStatus] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
+function hasActiveModule(modulos = [], moduleId) {
+  return modulos.some(
+    (permissao) => permissao.modulo === moduleId && permissao.pode_visualizar,
+  );
+}
+
+function filterModulesForActor(modulos, usuario) {
+  if (usuario?.possuiGerente && !usuario?.possuiAdmin) {
+    return modulos.filter((moduleId) => moduleId !== "ADMIN");
+  }
+
+  return modulos;
+}
+
+function AdminPage({ onBack, usuario }) {
+  const [accounts, setAccounts] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState(null);
+  const [permissions, setPermissions] = useState([]);
+  const [newAccount, setNewAccount] = useState(EMPTY_ACCOUNT);
+  const [rejectReasons, setRejectReasons] = useState({});
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.id_conta === selectedAccountId),
     [accounts, selectedAccountId],
-  )
+  );
+  const gerenteSemAdmin = usuario?.possuiGerente && !usuario?.possuiAdmin;
+  const selectedAccountIsAdmin = hasActiveModule(
+    selectedAccount?.modulos,
+    "ADMIN",
+  );
+  const selectedAccountLocked = Boolean(
+    gerenteSemAdmin && selectedAccountIsAdmin,
+  );
 
   const loadAdminData = useCallback(async (preferredAccountId = null) => {
-    setLoading(true)
-    setStatus(null)
+    setLoading(true);
+    setStatus(null);
 
     try {
       const [loadedAccounts, loadedRequests] = await Promise.all([
         listAccounts(),
         listAccessRequests(),
-      ])
+      ]);
 
       const nextSelectedId = loadedAccounts.some(
         (account) => account.id_conta === preferredAccountId,
       )
         ? preferredAccountId
-        : loadedAccounts[0]?.id_conta || null
+        : loadedAccounts[0]?.id_conta || null;
       const nextSelectedAccount = loadedAccounts.find(
         (account) => account.id_conta === nextSelectedId,
-      )
+      );
 
-      setAccounts(loadedAccounts)
-      setRequests(loadedRequests)
-      setSelectedAccountId(nextSelectedId)
-      setPermissions(normalizePermissions(nextSelectedAccount?.modulos))
+      setAccounts(loadedAccounts);
+      setRequests(loadedRequests);
+      setSelectedAccountId(nextSelectedId);
+      setPermissions(normalizePermissions(nextSelectedAccount?.modulos));
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    let mounted = true
+    let mounted = true;
 
     Promise.resolve().then(() => {
       if (mounted) {
-        loadAdminData()
+        loadAdminData();
       }
-    })
+    });
 
     return () => {
-      mounted = false
-    }
-  }, [loadAdminData])
+      mounted = false;
+    };
+  }, [loadAdminData]);
 
   function updateNewAccount(field, value) {
-    setNewAccount((current) => ({ ...current, [field]: value }))
+    setNewAccount((current) => ({ ...current, [field]: value }));
   }
 
   function toggleNewAccountModule(moduleId) {
+    if (gerenteSemAdmin && moduleId === "ADMIN") {
+      return;
+    }
+
     setNewAccount((current) => {
-      const exists = current.modulos.includes(moduleId)
+      const exists = current.modulos.includes(moduleId);
       const modulos = exists
         ? current.modulos.filter((module) => module !== moduleId)
-        : [...current.modulos, moduleId]
+        : [...current.modulos, moduleId];
 
-      return { ...current, modulos: modulos.length ? modulos : ['ESCRITORIO'] }
-    })
+      return { ...current, modulos: modulos.length ? modulos : ["ESCRITORIO"] };
+    });
   }
 
   function togglePermission(moduleId, actionKey) {
+    if (selectedAccountLocked || (gerenteSemAdmin && moduleId === "ADMIN")) {
+      return;
+    }
+
     setPermissions((current) =>
       current.map((permissao) =>
         permissao.modulo === moduleId
           ? { ...permissao, [actionKey]: !permissao[actionKey] }
           : permissao,
       ),
-    )
+    );
   }
 
   function selectAccount(account) {
-    setSelectedAccountId(account.id_conta)
-    setPermissions(normalizePermissions(account.modulos))
+    setSelectedAccountId(account.id_conta);
+    setPermissions(normalizePermissions(account.modulos));
   }
 
   async function handleCreateAccount(event) {
-    event.preventDefault()
-    setSaving(true)
-    setStatus(null)
+    event.preventDefault();
+    setSaving(true);
+    setStatus(null);
 
     try {
       await createAccount({
         nome: newAccount.nome,
         email: newAccount.email,
         senha: newAccount.senha,
-        modulos: buildDefaultPermissions(newAccount.modulos),
-      })
-      setNewAccount(EMPTY_ACCOUNT)
-      setStatus({ type: 'success', message: 'Conta criada.' })
-      await loadAdminData(selectedAccountId)
+        modulos: buildDefaultPermissions(
+          filterModulesForActor(newAccount.modulos, usuario),
+        ),
+      });
+      setNewAccount(EMPTY_ACCOUNT);
+      setStatus({ type: "success", message: "Conta criada." });
+      await loadAdminData(selectedAccountId);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleStatusChange(account) {
-    setSaving(true)
-    setStatus(null)
+    if (gerenteSemAdmin && hasActiveModule(account.modulos, "ADMIN")) {
+      setStatus({
+        type: "error",
+        message: "GERENTE não pode alterar uma conta ADMIN.",
+      });
+      return;
+    }
+
+    setSaving(true);
+    setStatus(null);
 
     try {
-      await updateAccountStatus(account.id_conta, !account.ativo)
+      await updateAccountStatus(account.id_conta, !account.ativo);
       setStatus({
-        type: 'success',
-        message: account.ativo ? 'Conta desativada.' : 'Conta ativada.',
-      })
-      await loadAdminData(selectedAccountId)
+        type: "success",
+        message: account.ativo ? "Conta desativada." : "Conta ativada.",
+      });
+      await loadAdminData(selectedAccountId);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleSavePermissions() {
     if (!selectedAccount) {
-      return
+      return;
     }
 
-    setSaving(true)
-    setStatus(null)
+    setSaving(true);
+    setStatus(null);
 
     try {
+      if (selectedAccountLocked) {
+        setStatus({
+          type: "error",
+          message: "GERENTE não pode alterar permissões de uma conta ADMIN.",
+        });
+        return;
+      }
+
       await savePermissions(
         selectedAccount.id_conta,
         serializePermissions(permissions),
-      )
-      setStatus({ type: 'success', message: 'Permissões salvas.' })
-      await loadAdminData(selectedAccountId)
+      );
+      setStatus({ type: "success", message: "Permissões salvas." });
+      await loadAdminData(selectedAccountId);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleApproveRequest(request) {
-    setSaving(true)
-    setStatus(null)
+    setSaving(true);
+    setStatus(null);
 
     try {
+      const requestedModules = filterModulesForActor(
+        getRequestedModules(request.modulos_solicitados),
+        usuario,
+      );
+
       await approveAccessRequest(
         request.id_solicitacao_conta,
-        buildDefaultPermissions(getRequestedModules(request.modulos_solicitados)),
-      )
-      setStatus({ type: 'success', message: 'Pedido aprovado.' })
-      await loadAdminData(selectedAccountId)
+        buildDefaultPermissions(requestedModules),
+      );
+      setStatus({ type: "success", message: "Pedido aprovado." });
+      await loadAdminData(selectedAccountId);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleRejectRequest(request) {
     const reason =
       rejectReasons[request.id_solicitacao_conta] ||
-      'Solicitação recusada pelo administrador.'
+      "Solicitação recusada pelo administrador.";
 
-    setSaving(true)
-    setStatus(null)
+    setSaving(true);
+    setStatus(null);
 
     try {
-      await rejectAccessRequest(request.id_solicitacao_conta, reason)
-      setStatus({ type: 'success', message: 'Pedido recusado.' })
-      await loadAdminData(selectedAccountId)
+      await rejectAccessRequest(request.id_solicitacao_conta, reason);
+      setStatus({ type: "success", message: "Pedido recusado." });
+      await loadAdminData(selectedAccountId);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
@@ -281,10 +336,14 @@ function AdminPage({ onBack }) {
             <h2>Nova conta</h2>
             <span>{newAccount.modulos.length} módulos</span>
           </div>
+          <p className="empty-state">
+            Marque um módulo para liberar tudo dele. A personalização por ação
+            fica disponível na grade de permissões abaixo.
+          </p>
           <label>
             Nome
             <input
-              onChange={(event) => updateNewAccount('nome', event.target.value)}
+              onChange={(event) => updateNewAccount("nome", event.target.value)}
               required
               type="text"
               value={newAccount.nome}
@@ -293,7 +352,9 @@ function AdminPage({ onBack }) {
           <label>
             E-mail
             <input
-              onChange={(event) => updateNewAccount('email', event.target.value)}
+              onChange={(event) =>
+                updateNewAccount("email", event.target.value)
+              }
               required
               type="email"
               value={newAccount.email}
@@ -303,7 +364,9 @@ function AdminPage({ onBack }) {
             Senha
             <input
               minLength={6}
-              onChange={(event) => updateNewAccount('senha', event.target.value)}
+              onChange={(event) =>
+                updateNewAccount("senha", event.target.value)
+              }
               required
               type="password"
               value={newAccount.senha}
@@ -314,6 +377,7 @@ function AdminPage({ onBack }) {
               <label className="check-row" key={moduleId}>
                 <input
                   checked={newAccount.modulos.includes(moduleId)}
+                  disabled={gerenteSemAdmin && moduleId === "ADMIN"}
                   onChange={() => toggleNewAccountModule(moduleId)}
                   type="checkbox"
                 />
@@ -329,19 +393,26 @@ function AdminPage({ onBack }) {
         <section className="panel">
           <div className="panel-heading">
             <h2>Pedidos de acesso</h2>
-            <span>{requests.filter((item) => item.status === 'PENDENTE').length}</span>
+            <span>
+              {requests.filter((item) => item.status === "PENDENTE").length}
+            </span>
           </div>
           <div className="request-list">
             {requests.length ? (
               requests.map((request) => (
-                <article className="request-row" key={request.id_solicitacao_conta}>
+                <article
+                  className="request-row"
+                  key={request.id_solicitacao_conta}
+                >
                   <div>
                     <strong>{request.nome}</strong>
                     <span>{request.email}</span>
-                    <small>{formatRequestedModules(request.modulos_solicitados)}</small>
+                    <small>
+                      {formatRequestedModules(request.modulos_solicitados)}
+                    </small>
                   </div>
                   <input
-                    disabled={request.status !== 'PENDENTE'}
+                    disabled={request.status !== "PENDENTE"}
                     onChange={(event) =>
                       setRejectReasons((current) => ({
                         ...current,
@@ -350,12 +421,12 @@ function AdminPage({ onBack }) {
                     }
                     placeholder="Motivo da recusa"
                     type="text"
-                    value={rejectReasons[request.id_solicitacao_conta] || ''}
+                    value={rejectReasons[request.id_solicitacao_conta] || ""}
                   />
                   <div className="row-actions">
                     <button
                       className="secondary-button"
-                      disabled={saving || request.status !== 'PENDENTE'}
+                      disabled={saving || request.status !== "PENDENTE"}
                       onClick={() => handleRejectRequest(request)}
                       type="button"
                     >
@@ -363,7 +434,7 @@ function AdminPage({ onBack }) {
                     </button>
                     <button
                       className="primary-button"
-                      disabled={saving || request.status !== 'PENDENTE'}
+                      disabled={saving || request.status !== "PENDENTE"}
                       onClick={() => handleApproveRequest(request)}
                       type="button"
                     >
@@ -392,7 +463,7 @@ function AdminPage({ onBack }) {
               accounts.map((account) => (
                 <button
                   className={`account-row ${
-                    account.id_conta === selectedAccountId ? 'active' : ''
+                    account.id_conta === selectedAccountId ? "active" : ""
                   }`}
                   key={account.id_conta}
                   onClick={() => selectAccount(account)}
@@ -402,7 +473,7 @@ function AdminPage({ onBack }) {
                     <strong>{account.usuario?.nome || account.email}</strong>
                     <small>{account.email}</small>
                   </span>
-                  <em>{account.ativo ? 'Ativo' : 'Inativo'}</em>
+                  <em>{account.ativo ? "Ativo" : "Inativo"}</em>
                 </button>
               ))
             )}
@@ -411,15 +482,15 @@ function AdminPage({ onBack }) {
 
         <section className="panel permissions-panel">
           <div className="panel-heading">
-            <h2>{selectedAccount?.usuario?.nome || 'Permissões'}</h2>
+            <h2>{selectedAccount?.usuario?.nome || "Permissões"}</h2>
             {selectedAccount ? (
               <button
                 className="secondary-button"
-                disabled={saving}
+                disabled={saving || selectedAccountLocked}
                 onClick={() => handleStatusChange(selectedAccount)}
                 type="button"
               >
-                {selectedAccount.ativo ? 'Desativar' : 'Ativar'}
+                {selectedAccount.ativo ? "Desativar" : "Ativar"}
               </button>
             ) : null}
           </div>
@@ -442,6 +513,10 @@ function AdminPage({ onBack }) {
                       <td key={action.key}>
                         <input
                           checked={Boolean(permissao[action.key])}
+                          disabled={
+                            selectedAccountLocked ||
+                            (gerenteSemAdmin && permissao.modulo === "ADMIN")
+                          }
                           onChange={() =>
                             togglePermission(permissao.modulo, action.key)
                           }
@@ -458,7 +533,7 @@ function AdminPage({ onBack }) {
           <div className="panel-actions">
             <button
               className="primary-button"
-              disabled={saving || !selectedAccount}
+              disabled={saving || !selectedAccount || selectedAccountLocked}
               onClick={handleSavePermissions}
               type="button"
             >
@@ -468,7 +543,7 @@ function AdminPage({ onBack }) {
         </section>
       </section>
     </main>
-  )
+  );
 }
 
-export default AdminPage
+export default AdminPage;

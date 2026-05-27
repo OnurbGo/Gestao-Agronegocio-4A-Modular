@@ -1,33 +1,29 @@
+import { Banknote, FileText, MapPinned, Users } from 'lucide-react'
+
 const cards = [
   {
     id: 'entidades',
     title: 'Entidades',
-    description: 'Pessoas, empresas, funcionários e participantes da folha.',
-    metric: 'Cadastro base',
+    description: 'Pessoas, empresas, funcionários e cadastros base.',
+    icon: Users,
   },
   {
     id: 'imoveis',
-    title: 'Imoveis',
+    title: 'Imóveis',
     description: 'Propriedades, matrículas, localização e anexos rurais.',
-    metric: 'Rural',
-  },
-  {
-    id: 'documentos',
-    title: 'Anexos',
-    description: 'Documentos vinculados a entidades e imóveis.',
-    metric: 'Arquivos',
+    icon: MapPinned,
   },
   {
     id: 'contratos',
     title: 'Contratos',
     description: 'Contratos preparados para integração futura com a balança.',
-    metric: 'Safra',
+    icon: FileText,
   },
   {
     id: 'folha',
     title: 'Folha de Pagamento',
     description: 'Lançamentos, férias, salários e relatório mensal.',
-    metric: 'Financeiro',
+    icon: Banknote,
   },
 ]
 
@@ -36,17 +32,17 @@ function EscritorioHome({ usuario, onNavigate }) {
     <main className="module-home">
       <section className="module-hero">
         <div>
-          <span>Escritorio</span>
+          <span>Escritório</span>
           <h1>Área operacional</h1>
           <p>
-            Escolha uma rotina para consultar cadastros, documentos, contratos ou a
-            folha de pagamento.
+            Escolha uma rotina para consultar cadastros, contratos e folha de
+            pagamento.
           </p>
         </div>
-        <strong>{usuario?.nome || 'Usuario'}</strong>
+        <strong>{usuario?.nome || 'Usuário'}</strong>
       </section>
 
-      <section className="module-card-grid" aria-label="Rotinas do escritorio">
+      <section className="module-card-grid" aria-label="Rotinas do escritório">
         {cards.map((card) => (
           <button
             className="module-card"
@@ -54,8 +50,10 @@ function EscritorioHome({ usuario, onNavigate }) {
             onClick={() => onNavigate(card.id)}
             type="button"
           >
-            <span>{card.metric}</span>
-            <strong>{card.title}</strong>
+            <span className="module-card-title">
+              <card.icon aria-hidden="true" />
+              <strong>{card.title}</strong>
+            </span>
             <small>{card.description}</small>
           </button>
         ))}

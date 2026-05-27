@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { atualizarEntidade, listarEntidades } from '../entidades/entidades.service'
+import Modal from '../../shared/components/Modal'
 import StatusMessage from '../../shared/components/StatusMessage'
 import {
   buscarParticipante,
@@ -15,7 +17,7 @@ import {
 const meses = [
   { valor: 1, label: 'Janeiro' },
   { valor: 2, label: 'Fevereiro' },
-  { valor: 3, label: 'Marco' },
+  { valor: 3, label: 'Março' },
   { valor: 4, label: 'Abril' },
   { valor: 5, label: 'Maio' },
   { valor: 6, label: 'Junho' },
@@ -41,6 +43,31 @@ const camposEditaveis = [
   'desconto_diverso_3',
 ]
 
+const descontoCampos = [
+  { campo: 'desconto_bar', label: 'Bar' },
+  { campo: 'desconto_diverso_1', label: 'Desconto diverso 1' },
+  { campo: 'desconto_diverso_2', label: 'Desconto diverso 2' },
+  { campo: 'desconto_diverso_3', label: 'Desconto diverso 3' },
+]
+
+const salarioInicial = {
+  inicio_vigencia: '',
+  salario: '',
+  percentual: '',
+  observacao: '',
+}
+
+const feriasInicial = {
+  periodo_aquisitivo_inicio: '',
+  periodo_aquisitivo_fim: '',
+  dias_totais: '',
+  dias_gozados: '',
+  valor_abono: '',
+  periodo_inicio: '',
+  periodo_fim: '',
+  data_retorno: '',
+}
+
 function numero(value) {
   if (value === '' || value === null || value === undefined) return 0
   const parsed = Number(String(value).replace(',', '.'))
@@ -54,6 +81,10 @@ function dinheiro(value) {
   }).format(numero(value))
 }
 
+function totalDescontos(linha) {
+  return descontoCampos.reduce((total, item) => total + numero(linha[item.campo]), 0)
+}
+
 function calcularLinha(linha) {
   const salarioLiquido =
     numero(linha.salario_bruto) +
@@ -63,11 +94,7 @@ function calcularLinha(linha) {
     numero(linha.irrf) -
     numero(linha.inss_adicional)
 
-  const descontos =
-    numero(linha.desconto_bar) +
-    numero(linha.desconto_diverso_1) +
-    numero(linha.desconto_diverso_2) +
-    numero(linha.desconto_diverso_3)
+  const descontos = totalDescontos(linha)
 
   return {
     ...linha,
@@ -160,22 +187,14 @@ function FolhaPage({ onBack }) {
   const [carregando, setCarregando] = useState(false)
   const [status, setStatus] = useState(null)
   const [alterado, setAlterado] = useState(false)
-  const [salarioForm, setSalarioForm] = useState({
-    inicio_vigencia: '',
-    salario: '',
-    percentual: '',
-    observacao: '',
-  })
-  const [feriasForm, setFeriasForm] = useState({
-    periodo_aquisitivo_inicio: '',
-    periodo_aquisitivo_fim: '',
-    dias_totais: '',
-    dias_gozados: '',
-    valor_abono: '',
-    periodo_inicio: '',
-    periodo_fim: '',
-    data_retorno: '',
-  })
+  const [modalAberto, setModalAberto] = useState(null)
+  const [mesDescontos, setMesDescontos] = useState(null)
+  const [entidadesFolha, setEntidadesFolha] = useState([])
+  const [termoEntidadesFolha, setTermoEntidadesFolha] = useState('')
+  const [carregandoEntidadesFolha, setCarregandoEntidadesFolha] = useState(false)
+  const [salvandoParticipante, setSalvandoParticipante] = useState(null)
+  const [salarioForm, setSalarioForm] = useState(salarioInicial)
+  const [feriasForm, setFeriasForm] = useState(feriasInicial)
 
   useEffect(() => {
     let active = true
@@ -201,7 +220,10 @@ function FolhaPage({ onBack }) {
   }, [termo])
 
   useEffect(() => {
-    if (!participanteId) return
+    if (!participanteId) {
+      return
+    }
+
     let active = true
 
     async function carregar() {
@@ -267,12 +289,46 @@ function FolhaPage({ onBack }) {
     [linhas],
   )
 
+  const entidadesFiltradasFolha = useMemo(() => {
+    const termoNormalizado = termoEntidadesFolha.trim().toLowerCase()
+    if (!termoNormalizado) return entidadesFolha
+
+    return entidadesFolha.filter((entidade) =>
+      [entidade.nome, entidade.cpf_cnpj]
+        .filter(Boolean)
+        .some((valor) => String(valor).toLowerCase().includes(termoNormalizado)),
+    )
+  }, [entidadesFolha, termoEntidadesFolha])
+
+  const linhaDescontos = useMemo(
+    () => linhas.find((linha) => linha.mes === mesDescontos),
+    [linhas, mesDescontos],
+  )
+
   async function carregarRelatorio() {
     try {
       const data = await buscarRelatorioMensal({ ano, mes: mesRelatorio })
       setRelatorio(data)
     } catch {
       setRelatorio(null)
+    }
+  }
+
+  async function recarregarParticipantes() {
+    const data = await listarParticipantes({ termo })
+    const proximoId = data.some(
+      (participante) => participante.id_entidade === participanteId,
+    )
+      ? participanteId
+      : data[0]?.id_entidade || null
+
+    setParticipantes(data)
+    setParticipanteId(proximoId)
+
+    if (!proximoId) {
+      setDetalhe(null)
+      setLinhas(meses.map((mes) => criarLinhaBase(mes.valor)))
+      setAlterado(false)
     }
   }
 
@@ -284,6 +340,51 @@ function FolhaPage({ onBack }) {
     )
     setAlterado(true)
     setStatus(null)
+  }
+
+  function abrirDescontos(mes) {
+    setMesDescontos(mes)
+    setModalAberto('descontos')
+  }
+
+  async function abrirParticipantes() {
+    setModalAberto('participantes')
+    setCarregandoEntidadesFolha(true)
+    setStatus(null)
+
+    try {
+      const data = await listarEntidades({ ativo: true })
+      setEntidadesFolha(data)
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message })
+    } finally {
+      setCarregandoEntidadesFolha(false)
+    }
+  }
+
+  async function alternarParticipacao(entidade) {
+    const id = entidade.id_entidade
+    const participa = !entidade.participa_folha
+
+    setSalvandoParticipante(id)
+    setStatus(null)
+
+    try {
+      const atualizada = await atualizarEntidade(id, { participa_folha: participa })
+      setEntidadesFolha((atuais) =>
+        atuais.map((item) =>
+          item.id_entidade === id
+            ? { ...item, participa_folha: atualizada.participa_folha }
+            : item,
+        ),
+      )
+      await recarregarParticipantes()
+      await carregarRelatorio()
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message })
+    } finally {
+      setSalvandoParticipante(null)
+    }
   }
 
   async function salvar() {
@@ -300,7 +401,7 @@ function FolhaPage({ onBack }) {
       const porMes = new Map(registros.map((linha) => [Number(linha.mes), linha]))
       setLinhas(meses.map((mes) => normalizarLinha(porMes.get(mes.valor), mes.valor)))
       setAlterado(false)
-      setStatus({ type: 'success', message: 'Lancamentos salvos.' })
+      setStatus({ type: 'success', message: 'Lançamentos salvos.' })
       await carregarRelatorio()
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
@@ -335,12 +436,7 @@ function FolhaPage({ onBack }) {
       })
       const participante = await buscarParticipante(participanteId)
       setDetalhe(participante)
-      setSalarioForm({
-        inicio_vigencia: '',
-        salario: '',
-        percentual: '',
-        observacao: '',
-      })
+      setSalarioForm(salarioInicial)
       setStatus({ type: 'success', message: 'Registro salarial criado.' })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
@@ -359,17 +455,8 @@ function FolhaPage({ onBack }) {
       })
       const participante = await buscarParticipante(participanteId)
       setDetalhe(participante)
-      setFeriasForm({
-        periodo_aquisitivo_inicio: '',
-        periodo_aquisitivo_fim: '',
-        dias_totais: '',
-        dias_gozados: '',
-        valor_abono: '',
-        periodo_inicio: '',
-        periodo_fim: '',
-        data_retorno: '',
-      })
-      setStatus({ type: 'success', message: 'Ferias cadastradas.' })
+      setFeriasForm(feriasInicial)
+      setStatus({ type: 'success', message: 'Férias cadastradas.' })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
     }
@@ -406,7 +493,7 @@ function FolhaPage({ onBack }) {
         <StatusMessage
           status={{
             type: 'warning',
-            message: 'Existem alteracoes pendentes. Salve antes de exportar.',
+            message: 'Existem alterações pendentes. Salve antes de exportar.',
           }}
         />
       ) : null}
@@ -417,14 +504,14 @@ function FolhaPage({ onBack }) {
           onClick={() => setAba('relatorio')}
           type="button"
         >
-          Relatorio mensal
+          Relatório mensal
         </button>
         <button
           className={aba === 'lancamentos' ? 'active' : ''}
           onClick={() => setAba('lancamentos')}
           type="button"
         >
-          Lancamentos
+          Lançamentos
         </button>
       </div>
 
@@ -442,7 +529,7 @@ function FolhaPage({ onBack }) {
               />
             </label>
             <label>
-              Mes
+              Mês
               <select
                 onChange={(event) => setMesRelatorio(Number(event.target.value))}
                 value={mesRelatorio}
@@ -474,18 +561,18 @@ function FolhaPage({ onBack }) {
 
           <section className="panel printable-report">
             <div className="report-title">
-              <span>Relatorio mensal</span>
+              <span>Relatório mensal</span>
               <h2>
                 {relatorio?.nome_mes || meses[mesRelatorio - 1]?.label} / {ano}
               </h2>
             </div>
             <div className="summary-grid">
               <div>
-                <span>Lancamentos</span>
+                <span>Lançamentos</span>
                 <strong>{relatorio?.itens?.length || 0}</strong>
               </div>
               <div>
-                <span>Total liquido</span>
+                <span>Total líquido</span>
                 <strong>{dinheiro(relatorio?.total)}</strong>
               </div>
             </div>
@@ -495,7 +582,7 @@ function FolhaPage({ onBack }) {
                   <tr>
                     <th>Participante</th>
                     <th>Bruto</th>
-                    <th>Liquido</th>
+                    <th>Líquido</th>
                     <th>Final</th>
                   </tr>
                 </thead>
@@ -511,7 +598,7 @@ function FolhaPage({ onBack }) {
                 </tbody>
               </table>
               {!relatorio?.itens?.length ? (
-                <p className="empty-state">Nenhum lancamento no periodo.</p>
+                <p className="empty-state">Nenhum lançamento no período.</p>
               ) : null}
             </div>
           </section>
@@ -523,6 +610,13 @@ function FolhaPage({ onBack }) {
               <h2>Participantes</h2>
               <span>{participantes.length}</span>
             </div>
+            <button
+              className="primary-button full"
+              onClick={abrirParticipantes}
+              type="button"
+            >
+              Gerenciar participantes
+            </button>
             <input
               onChange={(event) => setTermo(event.target.value)}
               placeholder="Buscar participante"
@@ -557,7 +651,7 @@ function FolhaPage({ onBack }) {
                 <strong>{detalhe?.nome || '-'}</strong>
               </div>
               <div>
-                <span>Salario atual</span>
+                <span>Salário atual</span>
                 <strong>{dinheiro(detalhe?.salario_atual)}</strong>
               </div>
               <div>
@@ -572,7 +666,7 @@ function FolhaPage({ onBack }) {
 
             <section className="panel">
               <div className="panel-heading">
-                <h2>Lancamentos de {ano}</h2>
+                <h2>Lançamentos de {ano}</h2>
                 <div className="row-actions">
                   <label className="compact-field">
                     Ano
@@ -607,19 +701,16 @@ function FolhaPage({ onBack }) {
                 <table className="payroll-table">
                   <thead>
                     <tr>
-                      <th>Mes</th>
+                      <th>Mês</th>
                       <th>Dias</th>
                       <th>Bruto</th>
                       <th>INSS</th>
                       <th>IRRF</th>
                       <th>INSS adic.</th>
-                      <th>Ferias</th>
-                      <th>Comissao</th>
-                      <th>Liquido</th>
-                      <th>Bar</th>
-                      <th>Div. 1</th>
-                      <th>Div. 2</th>
-                      <th>Div. 3</th>
+                      <th>Férias</th>
+                      <th>Comissão</th>
+                      <th>Líquido</th>
+                      <th>Descontos</th>
                       <th>Final</th>
                     </tr>
                   </thead>
@@ -693,36 +784,16 @@ function FolhaPage({ onBack }) {
                         </td>
                         <td>{dinheiro(linha.salario_liquido)}</td>
                         <td>
-                          <MoneyInput
-                            onChange={(value) =>
-                              alterarLinha(linha.mes, 'desconto_bar', value)
-                            }
-                            value={linha.desconto_bar}
-                          />
-                        </td>
-                        <td>
-                          <MoneyInput
-                            onChange={(value) =>
-                              alterarLinha(linha.mes, 'desconto_diverso_1', value)
-                            }
-                            value={linha.desconto_diverso_1}
-                          />
-                        </td>
-                        <td>
-                          <MoneyInput
-                            onChange={(value) =>
-                              alterarLinha(linha.mes, 'desconto_diverso_2', value)
-                            }
-                            value={linha.desconto_diverso_2}
-                          />
-                        </td>
-                        <td>
-                          <MoneyInput
-                            onChange={(value) =>
-                              alterarLinha(linha.mes, 'desconto_diverso_3', value)
-                            }
-                            value={linha.desconto_diverso_3}
-                          />
+                          <div className="discount-cell">
+                            <span>{dinheiro(totalDescontos(linha))}</span>
+                            <button
+                              className="secondary-button tiny-button"
+                              onClick={() => abrirDescontos(linha.mes)}
+                              type="button"
+                            >
+                              Editar
+                            </button>
+                          </div>
                         </td>
                         <td>{dinheiro(linha.salario_liquido_com_desconto)}</td>
                       </tr>
@@ -738,39 +809,14 @@ function FolhaPage({ onBack }) {
                   <h2>Registros salariais</h2>
                   <span>{detalhe?.registros_salariais?.length || 0}</span>
                 </div>
-                <form className="compact-form" onSubmit={adicionarSalario}>
-                  <label>
-                    Inicio
-                    <input
-                      onChange={(event) =>
-                        setSalarioForm((form) => ({
-                          ...form,
-                          inicio_vigencia: event.target.value,
-                        }))
-                      }
-                      required
-                      type="date"
-                      value={salarioForm.inicio_vigencia}
-                    />
-                  </label>
-                  <label>
-                    Salario
-                    <input
-                      onChange={(event) =>
-                        setSalarioForm((form) => ({
-                          ...form,
-                          salario: event.target.value,
-                        }))
-                      }
-                      required
-                      type="number"
-                      value={salarioForm.salario}
-                    />
-                  </label>
-                  <button className="secondary-button" type="submit">
-                    Adicionar
-                  </button>
-                </form>
+                <button
+                  className="secondary-button full"
+                  disabled={!participanteId}
+                  onClick={() => setModalAberto('salarios')}
+                  type="button"
+                >
+                  Gerenciar salários
+                </button>
                 <div className="mini-list">
                   {(detalhe?.registros_salariais || []).slice(0, 5).map((registro) => (
                     <div key={registro.id_registro_salarial}>
@@ -778,61 +824,25 @@ function FolhaPage({ onBack }) {
                       <span>{registro.inicio_vigencia}</span>
                     </div>
                   ))}
+                  {!detalhe?.registros_salariais?.length ? (
+                    <p className="empty-state">Nenhum registro salarial.</p>
+                  ) : null}
                 </div>
               </section>
 
               <section className="panel">
                 <div className="panel-heading">
-                  <h2>Ferias</h2>
+                  <h2>Férias</h2>
                   <span>{detalhe?.ferias?.length || 0}</span>
                 </div>
-                <form className="compact-form" onSubmit={adicionarFerias}>
-                  <label>
-                    Aquisitivo inicio
-                    <input
-                      onChange={(event) =>
-                        setFeriasForm((form) => ({
-                          ...form,
-                          periodo_aquisitivo_inicio: event.target.value,
-                        }))
-                      }
-                      required
-                      type="date"
-                      value={feriasForm.periodo_aquisitivo_inicio}
-                    />
-                  </label>
-                  <label>
-                    Aquisitivo fim
-                    <input
-                      onChange={(event) =>
-                        setFeriasForm((form) => ({
-                          ...form,
-                          periodo_aquisitivo_fim: event.target.value,
-                        }))
-                      }
-                      required
-                      type="date"
-                      value={feriasForm.periodo_aquisitivo_fim}
-                    />
-                  </label>
-                  <label>
-                    Dias totais
-                    <input
-                      onChange={(event) =>
-                        setFeriasForm((form) => ({
-                          ...form,
-                          dias_totais: event.target.value,
-                        }))
-                      }
-                      required
-                      type="number"
-                      value={feriasForm.dias_totais}
-                    />
-                  </label>
-                  <button className="secondary-button" type="submit">
-                    Adicionar
-                  </button>
-                </form>
+                <button
+                  className="secondary-button full"
+                  disabled={!participanteId}
+                  onClick={() => setModalAberto('ferias')}
+                  type="button"
+                >
+                  Gerenciar férias
+                </button>
                 <div className="mini-list">
                   {(detalhe?.ferias || []).slice(0, 5).map((item) => (
                     <div key={item.id_ferias}>
@@ -844,12 +854,308 @@ function FolhaPage({ onBack }) {
                       </span>
                     </div>
                   ))}
+                  {!detalhe?.ferias?.length ? (
+                    <p className="empty-state">Nenhum registro de férias.</p>
+                  ) : null}
                 </div>
               </section>
             </section>
           </section>
         </section>
       )}
+
+      {modalAberto === 'participantes' ? (
+        <Modal
+          onClose={() => setModalAberto(null)}
+          title="Gerenciar participantes da folha"
+          width="lg"
+        >
+          <div className="modal-body">
+            <input
+              onChange={(event) => setTermoEntidadesFolha(event.target.value)}
+              placeholder="Buscar entidade"
+              type="search"
+              value={termoEntidadesFolha}
+            />
+            <div className="toggle-list">
+              {entidadesFiltradasFolha.map((entidade) => (
+                <button
+                  className="toggle-row"
+                  disabled={salvandoParticipante === entidade.id_entidade}
+                  key={entidade.id_entidade}
+                  onClick={() => alternarParticipacao(entidade)}
+                  type="button"
+                >
+                  <span>
+                    <strong>{entidade.nome}</strong>
+                    <small>{entidade.cpf_cnpj || 'Sem documento'}</small>
+                  </span>
+                  <span
+                    className={`toggle-pill ${
+                      entidade.participa_folha ? 'active' : ''
+                    }`}
+                  >
+                    {entidade.participa_folha ? 'Na folha' : 'Fora da folha'}
+                  </span>
+                </button>
+              ))}
+              {!entidadesFiltradasFolha.length ? (
+                <p className="empty-state">
+                  {carregandoEntidadesFolha
+                    ? 'Carregando entidades...'
+                    : 'Nenhuma entidade encontrada.'}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {modalAberto === 'descontos' && linhaDescontos ? (
+        <Modal
+          onClose={() => setModalAberto(null)}
+          title={`Descontos de ${meses[Number(linhaDescontos.mes) - 1]?.label}`}
+        >
+          <div className="modal-body">
+            <div className="form-grid one-column">
+              {descontoCampos.map((item) => (
+                <label key={item.campo}>
+                  {item.label}
+                  <MoneyInput
+                    onChange={(value) => alterarLinha(linhaDescontos.mes, item.campo, value)}
+                    value={linhaDescontos[item.campo]}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="modal-summary">
+              <span>Total de descontos</span>
+              <strong>{dinheiro(totalDescontos(linhaDescontos))}</strong>
+            </div>
+            <div className="form-actions">
+              <button
+                className="primary-button"
+                onClick={() => setModalAberto(null)}
+                type="button"
+              >
+                Aplicar
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {modalAberto === 'salarios' ? (
+        <Modal onClose={() => setModalAberto(null)} title="Registros salariais">
+          <div className="modal-body">
+            <form className="compact-form" onSubmit={adicionarSalario}>
+              <label>
+                Início
+                <input
+                  onChange={(event) =>
+                    setSalarioForm((form) => ({
+                      ...form,
+                      inicio_vigencia: event.target.value,
+                    }))
+                  }
+                  required
+                  type="date"
+                  value={salarioForm.inicio_vigencia}
+                />
+              </label>
+              <label>
+                Salário
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    setSalarioForm((form) => ({
+                      ...form,
+                      salario: event.target.value,
+                    }))
+                  }
+                  required
+                  step="0.01"
+                  type="number"
+                  value={salarioForm.salario}
+                />
+              </label>
+              <label>
+                Percentual
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    setSalarioForm((form) => ({
+                      ...form,
+                      percentual: event.target.value,
+                    }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={salarioForm.percentual}
+                />
+              </label>
+              <label>
+                Observação
+                <input
+                  onChange={(event) =>
+                    setSalarioForm((form) => ({
+                      ...form,
+                      observacao: event.target.value,
+                    }))
+                  }
+                  value={salarioForm.observacao}
+                />
+              </label>
+              <button className="primary-button" type="submit">
+                Adicionar
+              </button>
+            </form>
+            <div className="mini-list">
+              {(detalhe?.registros_salariais || []).map((registro) => (
+                <div key={registro.id_registro_salarial}>
+                  <strong>{dinheiro(registro.salario)}</strong>
+                  <span>{registro.inicio_vigencia}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {modalAberto === 'ferias' ? (
+        <Modal onClose={() => setModalAberto(null)} title="Registro de férias" width="lg">
+          <div className="modal-body">
+            <form className="compact-form" onSubmit={adicionarFerias}>
+              <label>
+                Aquisitivo início
+                <input
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      periodo_aquisitivo_inicio: event.target.value,
+                    }))
+                  }
+                  required
+                  type="date"
+                  value={feriasForm.periodo_aquisitivo_inicio}
+                />
+              </label>
+              <label>
+                Aquisitivo fim
+                <input
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      periodo_aquisitivo_fim: event.target.value,
+                    }))
+                  }
+                  required
+                  type="date"
+                  value={feriasForm.periodo_aquisitivo_fim}
+                />
+              </label>
+              <label>
+                Dias totais
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      dias_totais: event.target.value,
+                    }))
+                  }
+                  required
+                  type="number"
+                  value={feriasForm.dias_totais}
+                />
+              </label>
+              <label>
+                Dias gozados
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      dias_gozados: event.target.value,
+                    }))
+                  }
+                  type="number"
+                  value={feriasForm.dias_gozados}
+                />
+              </label>
+              <label>
+                Valor abono
+                <input
+                  min="0"
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      valor_abono: event.target.value,
+                    }))
+                  }
+                  step="0.01"
+                  type="number"
+                  value={feriasForm.valor_abono}
+                />
+              </label>
+              <label>
+                Início gozado
+                <input
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      periodo_inicio: event.target.value,
+                    }))
+                  }
+                  type="date"
+                  value={feriasForm.periodo_inicio}
+                />
+              </label>
+              <label>
+                Fim gozado
+                <input
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      periodo_fim: event.target.value,
+                    }))
+                  }
+                  type="date"
+                  value={feriasForm.periodo_fim}
+                />
+              </label>
+              <label>
+                Retorno
+                <input
+                  onChange={(event) =>
+                    setFeriasForm((form) => ({
+                      ...form,
+                      data_retorno: event.target.value,
+                    }))
+                  }
+                  type="date"
+                  value={feriasForm.data_retorno}
+                />
+              </label>
+              <button className="primary-button" type="submit">
+                Adicionar
+              </button>
+            </form>
+            <div className="mini-list">
+              {(detalhe?.ferias || []).map((item) => (
+                <div key={item.id_ferias}>
+                  <strong>
+                    {item.dias_gozados}/{item.dias_totais} dias
+                  </strong>
+                  <span>
+                    {item.periodo_aquisitivo_inicio} a {item.periodo_aquisitivo_fim}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </main>
   )
 }

@@ -77,6 +77,45 @@ export function toQuery(params = {}) {
   return serialized ? `?${serialized}` : ''
 }
 
+function getIssueMessage(issue) {
+  if (!issue) {
+    return null
+  }
+
+  const field = issue.field || issue.path
+  const message = issue.message || issue
+
+  return field ? `${field}: ${message}` : String(message)
+}
+
+function getErrorMessage(payload, fallback) {
+  if (!payload) {
+    return fallback
+  }
+
+  if (Array.isArray(payload.errors) && payload.errors.length) {
+    return payload.errors.map(getIssueMessage).filter(Boolean).join('; ')
+  }
+
+  if (Array.isArray(payload.message)) {
+    return payload.message.join('; ')
+  }
+
+  if (payload.message && typeof payload.message === 'object') {
+    return getErrorMessage(payload.message, fallback)
+  }
+
+  if (typeof payload.message === 'string') {
+    return payload.message
+  }
+
+  if (typeof payload.error === 'string') {
+    return payload.error
+  }
+
+  return fallback
+}
+
 export async function requestJson(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
@@ -86,11 +125,9 @@ export async function requestJson(path, options = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
-    const message =
-      payload?.message ||
-      payload?.errors?.[0]?.message ||
-      'Nao foi possivel concluir a requisicao.'
-    throw new Error(message)
+    throw new Error(
+      getErrorMessage(payload, 'Nao foi possivel concluir a requisicao.'),
+    )
   }
 
   return payload?.data ?? payload
@@ -107,11 +144,9 @@ export async function requestFormData(path, formData, options = {}) {
   const payload = await response.json().catch(() => null)
 
   if (!response.ok) {
-    const message =
-      payload?.message ||
-      payload?.errors?.[0]?.message ||
-      'Nao foi possivel concluir a requisicao.'
-    throw new Error(message)
+    throw new Error(
+      getErrorMessage(payload, 'Nao foi possivel concluir a requisicao.'),
+    )
   }
 
   return payload?.data ?? payload
@@ -125,7 +160,9 @@ export async function downloadFile(path, fallbackFilename) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
-    throw new Error(payload?.message || 'Nao foi possivel exportar o arquivo.')
+    throw new Error(
+      getErrorMessage(payload, 'Nao foi possivel exportar o arquivo.'),
+    )
   }
 
   const blob = await response.blob()

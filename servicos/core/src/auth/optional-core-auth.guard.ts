@@ -14,7 +14,12 @@ export class OptionalCoreAuthGuard implements CanActivate {
     }
 
     const token = authorization.replace("Bearer ", "").trim();
-    request.user = await this.authService.validarToken(token);
+    try {
+      request.user = await this.authService.validarToken(token);
+    } catch {
+      request.user = undefined;
+    }
+
     return true;
   }
 }

@@ -38,10 +38,13 @@ export class AccountsService {
 
   async listar(ator: AuthContext) {
     if (!this.podeAdministrarAcessos(ator)) {
-      throw new ForbiddenException("Apenas ADMIN ou GERENTE pode listar contas.");
+      throw new ForbiddenException(
+        "Apenas ADMIN ou GERENTE pode listar contas.",
+      );
     }
 
     return this.contaModel.findAll({
+      attributes: { exclude: ["senha_hash"] },
       include: [
         { model: Usuario, as: "usuario" },
         { model: ContaModulo, as: "modulos" },
@@ -52,9 +55,12 @@ export class AccountsService {
 
   async criar(data: CriarContaInput, ator?: AuthContext, ip?: string) {
     const totalContas = await this.contaModel.count({ paranoid: false });
+    const primeiraConta = totalContas === 0;
 
-    if (totalContas > 0 && !this.podeAdministrarAcessos(ator)) {
-      throw new ForbiddenException("Apenas ADMIN ou GERENTE pode criar contas.");
+    if (!primeiraConta && !this.podeAdministrarAcessos(ator)) {
+      throw new ForbiddenException(
+        "Apenas ADMIN ou GERENTE pode criar contas.",
+      );
     }
 
     const senha_hash = await bcrypt.hash(data.senha, 10);
@@ -81,12 +87,9 @@ export class AccountsService {
         { transaction },
       );
 
-      const modulos =
-        data.modulos && data.modulos.length
-          ? data.modulos
-          : totalContas === 0
-            ? this.getAdminPadrao()
-            : [];
+      const modulos = primeiraConta
+        ? this.getAdminPadrao()
+        : this.prepararModulos(data.modulos || [], ator);
 
       await this.contaModuloModel.bulkCreate(
         modulos.map((modulo) => ({
@@ -122,10 +125,13 @@ export class AccountsService {
       ator.conta_id !== id_conta &&
       !this.podeAdministrarAcessos(ator)
     ) {
-      throw new ForbiddenException("Usuario sem permissao para acessar esta conta.");
+      throw new ForbiddenException(
+        "Usuario sem permissao para acessar esta conta.",
+      );
     }
 
     const conta = await this.contaModel.findByPk(id_conta, {
+      attributes: { exclude: ["senha_hash"] },
       include: [
         { model: Usuario, as: "usuario" },
         { model: ContaModulo, as: "modulos" },
@@ -146,10 +152,14 @@ export class AccountsService {
     ip?: string,
   ) {
     if (!this.podeAdministrarAcessos(ator)) {
-      throw new ForbiddenException("Apenas ADMIN ou GERENTE pode alterar status.");
+      throw new ForbiddenException(
+        "Apenas ADMIN ou GERENTE pode alterar status.",
+      );
     }
 
     const conta = await this.buscarPorId(id_conta);
+    this.garantirGerenteNaoAlteraAdmin(ator, conta.modulos || []);
+
     const anterior = conta.get({ plain: true });
 
     await conta.update({ ativo: data.ativo });
@@ -190,7 +200,9 @@ export class AccountsService {
     });
 
     if (solicitacaoAberta) {
-      throw new BadRequestException("Ja existe uma solicitacao pendente para este e-mail.");
+      throw new BadRequestException(
+        "Ja existe uma solicitacao pendente para este e-mail.",
+      );
     }
 
     const senha_hash = await bcrypt.hash(data.senha, 10);
@@ -235,10 +247,13 @@ export class AccountsService {
     ip?: string,
   ) {
     if (!this.podeAdministrarAcessos(ator)) {
-      throw new ForbiddenException("Apenas ADMIN ou GERENTE pode aprovar solicitacoes.");
+      throw new ForbiddenException(
+        "Apenas ADMIN ou GERENTE pode aprovar solicitacoes.",
+      );
     }
 
     const solicitacao = await this.buscarSolicitacaoPendente(idSolicitacao);
+    const modulos = this.prepararModulos(data.modulos, ator);
     const contaExistente = await this.contaModel.findOne({
       where: { email: solicitacao.email },
       paranoid: false,
@@ -272,7 +287,7 @@ export class AccountsService {
       );
 
       await this.contaModuloModel.bulkCreate(
-        data.modulos.map((modulo) => ({
+        modulos.map((modulo) => ({
           ...modulo,
           conta_id: conta.id_conta,
         })),
@@ -315,7 +330,9 @@ export class AccountsService {
     ip?: string,
   ) {
     if (!this.podeAdministrarAcessos(ator)) {
-      throw new ForbiddenException("Apenas ADMIN ou GERENTE pode recusar solicitacoes.");
+      throw new ForbiddenException(
+        "Apenas ADMIN ou GERENTE pode recusar solicitacoes.",
+      );
     }
 
     const solicitacao = await this.buscarSolicitacaoPendente(idSolicitacao);
@@ -357,6 +374,61 @@ export class AccountsService {
 
   private podeAdministrarAcessos(ator?: AuthContext) {
     return Boolean(ator?.possuiAdmin || ator?.possuiGerente);
+  }
+
+  private prepararModulos(
+    modulos: PermissaoModulo[],
+    ator?: AuthContext,
+  ): PermissaoModulo[] {
+    this.validarGerenteNaoConcedeAdmin(modulos, ator);
+    return modulos.filter((modulo) => this.moduloTemPermissaoAtiva(modulo));
+  }
+
+  private garantirGerenteNaoAlteraAdmin(
+    ator: AuthContext,
+    modulosAlvo: PermissaoModulo[],
+  ) {
+    if (ator.possuiAdmin || !ator.possuiGerente) {
+      return;
+    }
+
+    if (this.possuiModuloAtivo(modulosAlvo, "ADMIN")) {
+      throw new ForbiddenException(
+        "GERENTE nao pode alterar contas com permissao ADMIN.",
+      );
+    }
+  }
+
+  private validarGerenteNaoConcedeAdmin(
+    modulos: PermissaoModulo[],
+    ator?: AuthContext,
+  ) {
+    if (ator?.possuiAdmin || !ator?.possuiGerente) {
+      return;
+    }
+
+    if (this.possuiModuloAtivo(modulos, "ADMIN")) {
+      throw new ForbiddenException(
+        "GERENTE nao pode conceder permissao ADMIN.",
+      );
+    }
+  }
+
+  private possuiModuloAtivo(modulos: PermissaoModulo[], modulo: string) {
+    return modulos.some(
+      (permissao) =>
+        permissao.modulo === modulo && this.moduloTemPermissaoAtiva(permissao),
+    );
+  }
+
+  private moduloTemPermissaoAtiva(modulo: PermissaoModulo) {
+    return Boolean(
+      modulo.pode_visualizar ||
+        modulo.pode_criar ||
+        modulo.pode_editar ||
+        modulo.pode_excluir ||
+        modulo.pode_restaurar,
+    );
   }
 
   private async buscarSolicitacaoPendente(idSolicitacao: number) {

@@ -9,7 +9,6 @@ import {
   Query,
   Req,
   UseGuards,
-  UsePipes,
 } from "@nestjs/common";
 import { Request } from "express";
 import { EscritorioAuthGuard } from "../auth-client/escritorio-auth.guard";
@@ -18,6 +17,7 @@ import { RequirePermission } from "../auth-client/require-permission.decorator";
 import { CurrentUser } from "../shared/current-user.decorator";
 import { ZodValidationPipe } from "../shared/zod-validation.pipe";
 import { AuthContext } from "../auth-client/auth.types";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { EntidadesService } from "./entidades.service";
 import {
   atualizarEntidadeSchema,
@@ -26,6 +26,8 @@ import {
   listarEntidadesQuerySchema,
 } from "./entidades.schema";
 
+@ApiTags("entidades")
+@ApiBearerAuth("JWT")
 @Controller("entidades")
 @UseGuards(EscritorioAuthGuard, PermissionGuard)
 export class EntidadesController {
@@ -39,9 +41,8 @@ export class EntidadesController {
 
   @Post()
   @RequirePermission("ESCRITORIO", "criar")
-  @UsePipes(new ZodValidationPipe(entidadeSchema))
   criar(
-    @Body() body: never,
+    @Body(new ZodValidationPipe(entidadeSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -56,10 +57,9 @@ export class EntidadesController {
 
   @Put(":id")
   @RequirePermission("ESCRITORIO", "editar")
-  @UsePipes(new ZodValidationPipe(atualizarEntidadeSchema))
   atualizar(
     @Param(new ZodValidationPipe(entidadeIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(atualizarEntidadeSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {

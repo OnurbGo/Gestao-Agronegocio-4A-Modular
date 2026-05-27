@@ -1,11 +1,18 @@
-import { Body, Controller, Get, Param, Patch, UseGuards, UsePipes } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, UseGuards } from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { AuthContext } from "../auth/auth.types";
 import { CoreAuthGuard } from "../auth/core-auth.guard";
 import { CurrentUser } from "../shared/current-user.decorator";
 import { ZodValidationPipe } from "../shared/zod-validation.pipe";
 import { UsersService } from "./users.service";
-import { atualizarUsuarioSchema, usuarioIdParamSchema } from "./users.schema";
+import {
+  atualizarUsuarioSchema,
+  usuarioIdParamSchema,
+  AtualizarUsuarioInput,
+} from "./users.schema";
 
+@ApiTags("usuarios")
+@ApiBearerAuth("JWT")
 @Controller("usuarios")
 @UseGuards(CoreAuthGuard)
 export class UsersController {
@@ -25,10 +32,10 @@ export class UsersController {
   }
 
   @Patch(":id")
-  @UsePipes(new ZodValidationPipe(atualizarUsuarioSchema))
   atualizar(
     @Param(new ZodValidationPipe(usuarioIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(atualizarUsuarioSchema))
+    body: AtualizarUsuarioInput,
     @CurrentUser() usuario: AuthContext,
   ) {
     return this.usersService.atualizar(params.id, body, usuario);

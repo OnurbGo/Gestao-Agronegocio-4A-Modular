@@ -20,7 +20,6 @@ const emptyForm = {
   cidade: '',
   estado: '',
   observacao: '',
-  ativo: true,
 }
 
 function normalizeForm(imovel) {
@@ -29,8 +28,7 @@ function normalizeForm(imovel) {
   }
 
   return {
-    ...emptyForm,
-    ...imovel,
+    nome: imovel.nome || '',
     codigo: imovel.codigo || '',
     matricula: imovel.matricula || '',
     proprietario_entidade_id: imovel.proprietario_entidade_id || '',
@@ -39,6 +37,20 @@ function normalizeForm(imovel) {
     cidade: imovel.cidade || '',
     estado: imovel.estado || '',
     observacao: imovel.observacao || '',
+  }
+}
+
+function montarPayload(form) {
+  return {
+    nome: form.nome,
+    codigo: form.codigo,
+    matricula: form.matricula,
+    proprietario_entidade_id: form.proprietario_entidade_id,
+    area_total: form.area_total,
+    area_agricultavel: form.area_agricultavel,
+    cidade: form.cidade,
+    estado: form.estado,
+    observacao: form.observacao,
   }
 }
 
@@ -145,13 +157,14 @@ function ImoveisPage({ onBack }) {
     setStatus(null)
 
     try {
+      const payload = montarPayload(form)
       const saved = selectedId
-        ? await atualizarImovel(selectedId, form)
-        : await criarImovel(form)
+        ? await atualizarImovel(selectedId, payload)
+        : await criarImovel(payload)
 
       setSelectedId(saved.id_imovel)
       setForm(normalizeForm(saved))
-      setStatus({ type: 'success', message: 'Imovel salvo.' })
+      setStatus({ type: 'success', message: 'Imóvel salvo.' })
       const data = await listarImoveis({ termo })
       setImoveis(data)
     } catch (error) {
@@ -171,7 +184,7 @@ function ImoveisPage({ onBack }) {
 
     try {
       await removerImovel(selectedId)
-      setStatus({ type: 'success', message: 'Imovel removido.' })
+      setStatus({ type: 'success', message: 'Imóvel removido.' })
       setSelectedId(null)
       setForm(emptyForm)
       await carregarDados()
@@ -190,7 +203,7 @@ function ImoveisPage({ onBack }) {
         </button>
         <div>
           <span>Cadastro rural</span>
-          <h1>Imoveis</h1>
+          <h1>Imóveis</h1>
         </div>
       </section>
 
@@ -205,7 +218,7 @@ function ImoveisPage({ onBack }) {
           <div className="search-row">
             <input
               onChange={(event) => setTermo(event.target.value)}
-              placeholder="Buscar por nome, codigo ou matricula"
+              placeholder="Buscar por nome, código ou matrícula"
               type="search"
               value={termo}
             />
@@ -219,7 +232,7 @@ function ImoveisPage({ onBack }) {
             </button>
           </div>
           <button className="primary-button full" onClick={novoImovel} type="button">
-            Novo imovel
+            Novo imóvel
           </button>
           <div className="record-list">
             {imoveis.map((imovel) => (
@@ -232,13 +245,13 @@ function ImoveisPage({ onBack }) {
                 type="button"
               >
                 <strong>{imovel.nome}</strong>
-                <span>{imovel.matricula || imovel.codigo || 'Sem codigo'}</span>
+                <span>{imovel.matricula || imovel.codigo || 'Sem código'}</span>
                 <small>{imovel.cidade || 'Sem cidade'}</small>
               </button>
             ))}
             {!imoveis.length ? (
               <p className="empty-state">
-                {loading ? 'Carregando...' : 'Nenhum imovel encontrado.'}
+                {loading ? 'Carregando...' : 'Nenhum imóvel encontrado.'}
               </p>
             ) : null}
           </div>
@@ -246,9 +259,8 @@ function ImoveisPage({ onBack }) {
 
         <section className="detail-stack">
           <form className="panel form-grid" onSubmit={salvar}>
-            <div className="panel-heading">
-              <h2>{selected ? selected.nome : 'Novo imovel'}</h2>
-              <span>{form.ativo ? 'Ativo' : 'Inativo'}</span>
+            <div className="panel-heading span-2">
+              <h2>{selected ? selected.nome : 'Novo imóvel'}</h2>
             </div>
 
             <label>
@@ -260,28 +272,28 @@ function ImoveisPage({ onBack }) {
               />
             </label>
             <label>
-              Codigo
+              Código
               <input
                 onChange={(event) => updateField('codigo', event.target.value)}
                 value={form.codigo}
               />
             </label>
             <label>
-              Matricula
+              Matrícula
               <input
                 onChange={(event) => updateField('matricula', event.target.value)}
                 value={form.matricula}
               />
             </label>
             <label>
-              Proprietario
+              Proprietário
               <select
                 onChange={(event) =>
                   updateField('proprietario_entidade_id', event.target.value)
                 }
                 value={form.proprietario_entidade_id}
               >
-                <option value="">Sem proprietario</option>
+                <option value="">Sem proprietário</option>
                 {entidades.map((entidade) => (
                   <option key={entidade.id_entidade} value={entidade.id_entidade}>
                     {entidade.nome}
@@ -290,7 +302,7 @@ function ImoveisPage({ onBack }) {
               </select>
             </label>
             <label>
-              Area total
+              Área total
               <input
                 min="0"
                 onChange={(event) => updateField('area_total', event.target.value)}
@@ -300,7 +312,7 @@ function ImoveisPage({ onBack }) {
               />
             </label>
             <label>
-              Area agricultavel
+              Área agricultável
               <input
                 min="0"
                 onChange={(event) =>
@@ -327,19 +339,11 @@ function ImoveisPage({ onBack }) {
               />
             </label>
             <label className="span-2">
-              Observacao
+              Observação
               <textarea
                 onChange={(event) => updateField('observacao', event.target.value)}
                 value={form.observacao}
               />
-            </label>
-            <label className="check-row span-2">
-              <input
-                checked={form.ativo}
-                onChange={(event) => updateField('ativo', event.target.checked)}
-                type="checkbox"
-              />
-              Ativo
             </label>
 
             <div className="form-actions span-2">

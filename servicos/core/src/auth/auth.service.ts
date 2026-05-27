@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/sequelize";
 import bcrypt from "bcrypt";
 import { Conta } from "../accounts/conta.model";
@@ -31,13 +27,13 @@ export class AuthService {
     });
 
     if (!conta || !conta.ativo) {
-      throw new BadRequestException("E-mail ou senha invalidos.");
+      throw new UnauthorizedException("E-mail ou senha inválidos.");
     }
 
     const senhaValida = await bcrypt.compare(data.senha, conta.senha_hash);
 
     if (!senhaValida) {
-      throw new BadRequestException("E-mail ou senha invalidos.");
+      throw new UnauthorizedException("E-mail ou senha inválidos.");
     }
 
     await conta.update({ ultimo_login: new Date() });
@@ -103,8 +99,12 @@ export class AuthService {
       observacao: conta.usuario?.observacao || null,
       email: conta.email,
       modulos,
-      possuiAdmin: modulos.some((item) => item.modulo === "ADMIN"),
-      possuiGerente: modulos.some((item) => item.modulo === "GERENTE"),
+      possuiAdmin: modulos.some(
+        (item) => item.modulo === "ADMIN" && item.pode_visualizar,
+      ),
+      possuiGerente: modulos.some(
+        (item) => item.modulo === "GERENTE" && item.pode_visualizar,
+      ),
     };
   }
 }

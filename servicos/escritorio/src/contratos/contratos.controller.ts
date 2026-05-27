@@ -9,7 +9,6 @@ import {
   Query,
   Req,
   UseGuards,
-  UsePipes,
 } from "@nestjs/common";
 import { Request } from "express";
 import { AuthContext } from "../auth-client/auth.types";
@@ -18,6 +17,7 @@ import { PermissionGuard } from "../auth-client/permission.guard";
 import { RequirePermission } from "../auth-client/require-permission.decorator";
 import { CurrentUser } from "../shared/current-user.decorator";
 import { ZodValidationPipe } from "../shared/zod-validation.pipe";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   atualizarContratoSchema,
   contratoIdParamSchema,
@@ -26,6 +26,8 @@ import {
 } from "./contratos.schema";
 import { ContratosService } from "./contratos.service";
 
+@ApiTags("contratos")
+@ApiBearerAuth("JWT")
 @Controller("contratos")
 @UseGuards(EscritorioAuthGuard, PermissionGuard)
 export class ContratosController {
@@ -39,9 +41,8 @@ export class ContratosController {
 
   @Post()
   @RequirePermission("ESCRITORIO", "criar")
-  @UsePipes(new ZodValidationPipe(contratoSchema))
   criar(
-    @Body() body: never,
+    @Body(new ZodValidationPipe(contratoSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -58,10 +59,9 @@ export class ContratosController {
 
   @Put(":id")
   @RequirePermission("ESCRITORIO", "editar")
-  @UsePipes(new ZodValidationPipe(atualizarContratoSchema))
   atualizar(
     @Param(new ZodValidationPipe(contratoIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(atualizarContratoSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {

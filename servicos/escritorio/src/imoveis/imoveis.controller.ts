@@ -9,7 +9,6 @@ import {
   Query,
   Req,
   UseGuards,
-  UsePipes,
 } from "@nestjs/common";
 import { Request } from "express";
 import { AuthContext } from "../auth-client/auth.types";
@@ -18,6 +17,7 @@ import { PermissionGuard } from "../auth-client/permission.guard";
 import { RequirePermission } from "../auth-client/require-permission.decorator";
 import { CurrentUser } from "../shared/current-user.decorator";
 import { ZodValidationPipe } from "../shared/zod-validation.pipe";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import {
   atualizarImovelSchema,
   imovelIdParamSchema,
@@ -26,6 +26,8 @@ import {
 } from "./imoveis.schema";
 import { ImoveisService } from "./imoveis.service";
 
+@ApiTags("imoveis")
+@ApiBearerAuth("JWT")
 @Controller("imoveis")
 @UseGuards(EscritorioAuthGuard, PermissionGuard)
 export class ImoveisController {
@@ -39,9 +41,8 @@ export class ImoveisController {
 
   @Post()
   @RequirePermission("ESCRITORIO", "criar")
-  @UsePipes(new ZodValidationPipe(imovelSchema))
   criar(
-    @Body() body: never,
+    @Body(new ZodValidationPipe(imovelSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
@@ -56,10 +57,9 @@ export class ImoveisController {
 
   @Put(":id")
   @RequirePermission("ESCRITORIO", "editar")
-  @UsePipes(new ZodValidationPipe(atualizarImovelSchema))
   atualizar(
     @Param(new ZodValidationPipe(imovelIdParamSchema)) params: { id: number },
-    @Body() body: never,
+    @Body(new ZodValidationPipe(atualizarImovelSchema)) body: never,
     @CurrentUser() usuario: AuthContext,
     @Req() request: Request,
   ) {
