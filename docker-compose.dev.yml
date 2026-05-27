@@ -1,0 +1,17 @@
+services:
+  front-login-home:
+    profiles:
+      - docker-fronts
+
+  front-escritorio:
+    profiles:
+      - docker-fronts
+
+  nginx:
+    depends_on:
+      - core-service
+      - escritorio-service
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
