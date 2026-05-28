@@ -13,9 +13,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Escritório API")
-    .setDescription(
-      "Entidades, imóveis, contratos, documentos e folha de pagamento",
-    )
+    .setDescription("Entidades, imóveis, documentos e folha de pagamento")
     .setVersion("1.0")
     .addServer("/api/escritorio", "Via Nginx")
     .addBearerAuth(

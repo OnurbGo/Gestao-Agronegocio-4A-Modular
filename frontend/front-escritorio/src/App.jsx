@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'react'
-import { Building2, Home, ShieldAlert } from 'lucide-react'
-import ContratosPage from './modules/contratos/ContratosPage'
-import EntidadesPage from './modules/entidades/EntidadesPage'
-import FolhaPage from './modules/folha/FolhaPage'
-import EscritorioHome from './modules/home/EscritorioHome'
-import ImoveisPage from './modules/imoveis/ImoveisPage'
-import { getCurrentUser, hasEscritorioAccess } from './modules/auth/auth.service'
-import { clearToken, consumeAccessTokenFromUrl } from './shared/services/api'
-import './App.css'
+import { useEffect, useState } from "react";
+import { Building2, Home, ShieldAlert } from "lucide-react";
+import EntidadesPage from "./modules/entidades/EntidadesPage";
+import FolhaPage from "./modules/folha/FolhaPage";
+import EscritorioHome from "./modules/home/EscritorioHome";
+import ImoveisPage from "./modules/imoveis/ImoveisPage";
+import {
+  getCurrentUser,
+  hasEscritorioAccess,
+} from "./modules/auth/auth.service";
+import { clearToken, consumeAccessTokenFromUrl } from "./shared/services/api";
+import "./App.css";
 
 function AccessGate({ title, message, action }) {
   return (
@@ -33,14 +35,14 @@ function AccessGate({ title, message, action }) {
         ) : null}
       </section>
     </main>
-  )
+  );
 }
 
 function EscritorioShell({ usuario }) {
-  const [view, setView] = useState('home')
+  const [view, setView] = useState("home");
 
   function goHome() {
-    setView('home')
+    setView("home");
   }
 
   return (
@@ -64,7 +66,7 @@ function EscritorioShell({ usuario }) {
             className="inline-flex items-center gap-2 rounded-md border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"
             onClick={() => {
               window.location.href =
-                import.meta.env.VITE_LOGIN_HOME_URL || 'http://localhost:5173'
+                import.meta.env.VITE_LOGIN_HOME_URL || "http://localhost:5173";
             }}
             type="button"
           >
@@ -74,86 +76,84 @@ function EscritorioShell({ usuario }) {
         </div>
       </header>
 
-      {view === 'entidades' ? (
+      {view === "entidades" ? (
         <EntidadesPage onBack={goHome} />
-      ) : view === 'imoveis' ? (
+      ) : view === "imoveis" ? (
         <ImoveisPage onBack={goHome} />
-      ) : view === 'contratos' ? (
-        <ContratosPage onBack={goHome} />
-      ) : view === 'folha' ? (
+      ) : view === "folha" ? (
         <FolhaPage onBack={goHome} />
       ) : (
         <EscritorioHome onNavigate={setView} usuario={usuario} />
       )}
     </div>
-  )
+  );
 }
 
 function App() {
-  const [usuario, setUsuario] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [usuario, setUsuario] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let mounted = true
+    let mounted = true;
 
     async function validateAccess() {
-      consumeAccessTokenFromUrl()
+      consumeAccessTokenFromUrl();
 
       try {
-        const currentUser = await getCurrentUser()
+        const currentUser = await getCurrentUser();
 
         if (!mounted) {
-          return
+          return;
         }
 
         if (!hasEscritorioAccess(currentUser)) {
-          setError('Você não tem acesso a este módulo.')
-          return
+          setError("Você não tem acesso a este módulo.");
+          return;
         }
 
-        setUsuario(currentUser)
+        setUsuario(currentUser);
       } catch (requestError) {
-        clearToken()
+        clearToken();
 
         if (mounted) {
-          setError(requestError.message)
+          setError(requestError.message);
         }
       } finally {
         if (mounted) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     }
 
-    validateAccess()
+    validateAccess();
 
     return () => {
-      mounted = false
-    }
-  }, [])
+      mounted = false;
+    };
+  }, []);
 
   if (loading) {
-    return <AccessGate message="Validando sua sessão." title="Carregando" />
+    return <AccessGate message="Validando sua sessão." title="Carregando" />;
   }
 
   if (error || !usuario) {
     return (
       <AccessGate
         action={{
-          label: 'Voltar ao login',
+          label: "Voltar ao login",
           onClick: () => {
             window.location.href =
-              import.meta.env.VITE_LOGIN_HOME_URL || 'http://localhost:5173'
+              import.meta.env.VITE_LOGIN_HOME_URL || "http://localhost:5173";
           },
         }}
-        message={error || 'Entre novamente para continuar.'}
+        message={error || "Entre novamente para continuar."}
         title="Acesso bloqueado"
       />
-    )
+    );
   }
 
-  return <EscritorioShell usuario={usuario} />
+  return <EscritorioShell usuario={usuario} />;
 }
 
-export default App
+export default App;

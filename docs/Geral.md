@@ -179,13 +179,7 @@ backend/src/
 │   │   │   ├── imovel.routes.ts
 │   │   │   └── imovel.schema.ts
 │   │   │
-│   │   ├── contratos/
-│   │   │   ├── contrato.model.ts
-│   │   │   ├── contrato.controller.ts
-│   │   │   ├── contrato.service.ts
-│   │   │   ├── contrato.routes.ts
-│   │   │   └── contrato.schema.ts
-│   │   │
+
 │   │   └── escritorio.routes.ts
 │   │
 │   ├── folha/
@@ -322,10 +316,7 @@ frontend/src/
 │   │   │   ├── ImovelDetails.jsx
 │   │   │   └── imovel.service.js
 │   │   │
-│   │   └── contratos/
-│   │       ├── ContratosPage.jsx
-│   │       ├── ContratoForm.jsx
-│   │       └── contrato.service.js
+
 │   │
 │   └── folha/
 │       ├── participantes/
@@ -444,7 +435,6 @@ Ele deve conter:
 ```txt
 - Entidades
 - Imóveis
-- Contratos
 - Documentos vinculados a entidades e imóveis
 ```
 
@@ -821,7 +811,6 @@ Não excluir registros fisicamente, principalmente:
 - entidades
 - documentos
 - imóveis
-- contratos
 - lançamentos de folha
 ```
 
@@ -978,13 +967,12 @@ Implementar nesta ordem:
    - Soft delete
 
 2. Escritório
-   - Entidade
-   - EntidadeTipo
-   - TipoDocumento
-   - EntidadeArquivo
-   - Upload de documentos
-   - Imóveis
-   - Contratos
+  - Entidade
+  - EntidadeTipo
+  - TipoDocumento
+  - EntidadeArquivo
+  - Upload de documentos
+  - Imóveis
 
 3. Folha de Pagamento
    - Participantes

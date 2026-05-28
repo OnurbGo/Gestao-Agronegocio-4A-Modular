@@ -13,7 +13,6 @@ import {
   UpdatedAt,
 } from "sequelize-typescript";
 import { Entidade } from "../entidades/entidade.model";
-import { Contrato } from "../contratos/contrato.model";
 import { ImovelArquivo } from "./imovel-arquivo.model";
 
 @Table({
@@ -90,7 +89,4 @@ export class Imovel extends Model {
 
   @HasMany(() => ImovelArquivo, { foreignKey: "imovel_id", as: "arquivos" })
   declare arquivos?: ImovelArquivo[];
-
-  @HasMany(() => Contrato, { foreignKey: "imovel_id", as: "contratos" })
-  declare contratos?: Contrato[];
 }
