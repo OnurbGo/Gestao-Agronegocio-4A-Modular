@@ -1,0 +1,26 @@
+services:
+  front-login-home:
+    profiles:
+      - docker-fronts
+
+  front-escritorio:
+    profiles:
+      - docker-fronts
+
+  core-service:
+    environment:
+      DB_SYNC_ALTER: "true"
+
+  escritorio-service:
+    environment:
+      DB_SYNC_ALTER: "true"
+
+  nginx:
+    depends_on:
+      - core-service
+      - escritorio-service
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/api-docs:/usr/share/nginx/html/api-docs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

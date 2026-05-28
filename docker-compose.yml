@@ -1,16 +1,40 @@
 services:
-  database:
+  core-db:
     image: mysql:8.0
-    container_name: gestao-agro-mysql
+    container_name: gestao-agro-core-db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-gestao_agro}
-      MYSQL_USER: ${MYSQL_USER:-gestao_agro}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me}
+      MYSQL_ROOT_PASSWORD: ${CORE_MYSQL_ROOT_PASSWORD:-change-me-root}
+      MYSQL_DATABASE: ${CORE_MYSQL_DATABASE:-gestao_agro_core}
+      MYSQL_USER: ${CORE_MYSQL_USER:-gestao_core}
+      MYSQL_PASSWORD: ${CORE_MYSQL_PASSWORD:-change-me}
       MYSQL_ROOT_HOST: "%"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - core_mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app-network
+
+  escritorio-db:
+    image: mysql:8.0
+    container_name: gestao-agro-escritorio-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${ESCRITORIO_MYSQL_ROOT_PASSWORD:-change-me-root}
+      MYSQL_DATABASE: ${ESCRITORIO_MYSQL_DATABASE:-gestao_agro_escritorio}
+      MYSQL_USER: ${ESCRITORIO_MYSQL_USER:-gestao_escritorio}
+      MYSQL_PASSWORD: ${ESCRITORIO_MYSQL_PASSWORD:-change-me}
+      MYSQL_ROOT_HOST: "%"
+    volumes:
+      - escritorio_mysql_data:/var/lib/mysql
     healthcheck:
       test:
         [
@@ -33,28 +57,28 @@ services:
     networks:
       - app-network
 
-  backend:
+  core-service:
     build:
-      context: ./backend
+      context: ./servicos/core
       dockerfile: Dockerfile
-    container_name: gestao-agro-backend
+    container_name: gestao-agro-core
     restart: always
     environment:
       NODE_ENV: production
       PORT: 3000
-      DB_HOST: database
+      DB_HOST: core-db
       DB_PORT: 3306
-      DB_USER: ${MYSQL_USER:-gestao_agro}
-      DB_PASS: ${MYSQL_PASSWORD:-change-me}
-      DB_NAME: ${MYSQL_DATABASE:-gestao_agro}
-      DB_SYNC_ALTER: ${DB_SYNC_ALTER:-false}
+      DB_USER: ${CORE_MYSQL_USER:-gestao_core}
+      DB_PASS: ${CORE_MYSQL_PASSWORD:-change-me}
+      DB_NAME: ${CORE_MYSQL_DATABASE:-gestao_agro_core}
+      DB_SYNC_ALTER: ${DB_SYNC_ALTER:-true}
       DB_LOGGING: ${DB_LOGGING:-false}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       REDIS_HOST: redis
       REDIS_PORT: 6379
     depends_on:
-      database:
+      core-db:
         condition: service_healthy
       redis:
         condition: service_started
@@ -63,22 +87,90 @@ services:
     networks:
       - app-network
 
+  escritorio-service:
+    build:
+      context: ./servicos/escritorio
+      dockerfile: Dockerfile
+    container_name: gestao-agro-escritorio
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: escritorio-db
+      DB_PORT: 3306
+      DB_USER: ${ESCRITORIO_MYSQL_USER:-gestao_escritorio}
+      DB_PASS: ${ESCRITORIO_MYSQL_PASSWORD:-change-me}
+      DB_NAME: ${ESCRITORIO_MYSQL_DATABASE:-gestao_agro_escritorio}
+      DB_SYNC_ALTER: ${DB_SYNC_ALTER:-true}
+      DB_LOGGING: ${DB_LOGGING:-false}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AUTH_CACHE_TTL_MS: ${AUTH_CACHE_TTL_MS:-15000}
+      UPLOAD_DIR: /app/uploads/escritorio
+    depends_on:
+      escritorio-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      core-service:
+        condition: service_started
+    expose:
+      - "3000"
+    volumes:
+      - escritorio_uploads:/app/uploads
+    networks:
+      - app-network
+
+  front-login-home:
+    build:
+      context: ./frontend/front-login-home
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+        VITE_ESCRITORIO_URL: /escritorio/
+        VITE_BASE_PATH: /
+    container_name: gestao-agro-front-login-home
+    restart: always
+    expose:
+      - "80"
+    networks:
+      - app-network
+
+  front-escritorio:
+    build:
+      context: ./frontend/front-escritorio
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+        VITE_LOGIN_HOME_URL: /
+        VITE_BASE_PATH: /escritorio/
+    container_name: gestao-agro-front-escritorio
+    restart: always
+    expose:
+      - "80"
+    networks:
+      - app-network
+
   nginx:
     image: nginx:alpine
     container_name: gestao-agro-nginx
     restart: always
     depends_on:
-      - backend
+      - core-service
+      - escritorio-service
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/api-docs:/usr/share/nginx/html/api-docs:ro
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
     networks:
       - app-network
 
 volumes:
-  mysql_data:
+  core_mysql_data:
+  escritorio_mysql_data:
   redis_data:
+  escritorio_uploads:
 
 networks:
   app-network:
