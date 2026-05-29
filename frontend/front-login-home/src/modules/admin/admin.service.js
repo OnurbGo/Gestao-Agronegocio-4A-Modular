@@ -1,9 +1,9 @@
-import { requestJson } from "../../shared/services/api";
+import { requestJson, toQuery } from "../../shared/services/api";
 
 const CORE_BASE = "/api/core";
 
-export function listAccounts() {
-  return requestJson(`${CORE_BASE}/contas`);
+export function listAccounts(params = {}) {
+  return requestJson(`${CORE_BASE}/contas${toQuery(params)}`);
 }
 
 export function createAccount(data) {
@@ -27,8 +27,8 @@ export function savePermissions(contaId, modulos) {
   });
 }
 
-export function listAccessRequests() {
-  return requestJson(`${CORE_BASE}/contas/solicitacoes`);
+export function listAccessRequests(params = {}) {
+  return requestJson(`${CORE_BASE}/contas/solicitacoes${toQuery(params)}`);
 }
 
 export function approveAccessRequest(requestId, modulos) {

@@ -2,13 +2,14 @@ import { Module } from "@nestjs/common";
 import { SequelizeModule } from "@nestjs/sequelize";
 import { AuditModule } from "../audit/audit.module";
 import { AuthModule } from "../auth/auth.module";
-import { ContaModulo } from "../permissions/conta-modulo.model";
-import { Usuario } from "../users/usuario.model";
-import { Conta } from "./conta.model";
-import { SolicitacaoConta } from "./solicitacao-conta.model";
-import { AccountsController } from "./accounts.controller";
-import { AccountsEventsService } from "./accounts.events";
-import { AccountsService } from "./accounts.service";
+import { ContaModulo } from "../permissions/entities/conta-modulo.entity";
+import { Usuario } from "../users/entities/usuario.entity";
+import { Conta } from "./entities/conta.entity";
+import { SolicitacaoConta } from "./entities/solicitacao-conta.entity";
+import { AccountsController } from "./controllers/accounts.controller";
+import { AccountsRepository } from "./repositories/accounts.repository";
+import { AccountsEventsService } from "./services/accounts-events.service";
+import { AccountsService } from "./services/accounts.service";
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { AccountsService } from "./accounts.service";
     AuthModule,
   ],
   controllers: [AccountsController],
-  providers: [AccountsService, AccountsEventsService],
+  providers: [AccountsService, AccountsEventsService, AccountsRepository],
   exports: [AccountsEventsService],
 })
 export class AccountsModule {}
+

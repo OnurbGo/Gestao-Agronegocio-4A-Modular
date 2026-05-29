@@ -4,7 +4,7 @@ export function getCurrentUser() {
   return requestJson('/api/core/auth/me')
 }
 
-export function hasEscritorioAccess(usuario) {
+export function hasModuleAccess(usuario, moduleId) {
   if (usuario?.possuiAdmin || usuario?.possuiGerente) {
     return true
   }
@@ -12,7 +12,11 @@ export function hasEscritorioAccess(usuario) {
   return Boolean(
     usuario?.modulos?.some(
       (permissao) =>
-        permissao.modulo === 'ESCRITORIO' && permissao.pode_visualizar,
+        permissao.modulo === moduleId && permissao.pode_visualizar,
     ),
   )
+}
+
+export function hasEscritorioAccess(usuario) {
+  return hasModuleAccess(usuario, 'ESCRITORIO')
 }

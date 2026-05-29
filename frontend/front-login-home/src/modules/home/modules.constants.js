@@ -2,7 +2,7 @@ export const SYSTEM_MODULES = [
   {
     id: "ESCRITORIO",
     nome: "Escritório",
-    descricao: "Entidades, documentos e folha de pagamento.",
+    descricao: "Pessoas/empresas e cadastros base.",
     status: "Disponível",
     url: import.meta.env.VITE_ESCRITORIO_URL || "http://localhost:5174",
   },
@@ -46,6 +46,16 @@ export const ADMIN_MODULES = [
   "FINANCEIRO",
 ];
 
+export const MODULE_LABELS = {
+  ADMIN: "Admin",
+  GERENTE: "Gerente",
+  FOLHA: "Folha de Pagamento",
+  FINANCEIRO: "Financeiro",
+  ...Object.fromEntries(
+    SYSTEM_MODULES.map((module) => [module.id, module.nome]),
+  ),
+};
+
 export const PERMISSION_ACTIONS = [
   { key: "pode_visualizar", label: "Ver" },
   { key: "pode_criar", label: "Criar" },
@@ -63,6 +73,10 @@ export function buildDefaultPermissions(selectedModules = []) {
     pode_excluir: true,
     pode_restaurar: true,
   }));
+}
+
+export function getModuleLabel(moduleId) {
+  return MODULE_LABELS[moduleId] || moduleId;
 }
 
 export function hasModuleAccess(usuario, moduleId) {

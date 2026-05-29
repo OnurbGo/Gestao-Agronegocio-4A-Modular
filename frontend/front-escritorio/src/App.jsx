@@ -7,6 +7,7 @@ import ImoveisPage from "./modules/imoveis/ImoveisPage";
 import {
   getCurrentUser,
   hasEscritorioAccess,
+  hasModuleAccess,
 } from "./modules/auth/auth.service";
 import { clearToken, consumeAccessTokenFromUrl } from "./shared/services/api";
 import "./App.css";
@@ -45,25 +46,45 @@ function EscritorioShell({ usuario }) {
     setView("home");
   }
 
+  function navigate(target) {
+    if (target === "folha" && !hasModuleAccess(usuario, "FOLHA")) {
+      setView("home");
+      return;
+    }
+
+    setView(target);
+  }
+
+  if (view === "folha" && !hasModuleAccess(usuario, "FOLHA")) {
+    return (
+      <AccessGate
+        action={{ label: "Voltar ao Escritório", onClick: goHome }}
+        message="Você não tem acesso à Folha de Pagamento."
+        title="Acesso bloqueado"
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f4f7f2] text-slate-900">
-      <header className="no-print sticky top-0 z-20 flex items-center justify-between border-b border-emerald-100 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
+      <header className="no-print sticky top-0 z-20 flex items-center justify-between border-b border-emerald-100 bg-white/95 px-4 py-8 shadow-sm backdrop-blur sm:px-6">
         <button
-          className="inline-flex items-center gap-3 rounded-md px-2 py-1.5 text-left font-bold text-emerald-900 transition hover:bg-emerald-50"
+          className="inline-flex items-center gap-4 rounded-md px-2 py-4 text-left font-bold text-emerald-900 transition hover:bg-emerald-50"
           onClick={goHome}
           type="button"
         >
-          <span className="grid h-10 w-10 place-items-center rounded-md bg-emerald-700 text-white">
-            <Building2 aria-hidden="true" className="h-5 w-5" />
+          <span className="grid h-12 w-12 place-items-center rounded-md bg-emerald-700 text-white">
+            <Building2 aria-hidden="true" className="h-6 w-6" />
           </span>
-          <span>Escritório</span>
+          <span className="text-lg">Escritório</span>
         </button>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-4">
           <span className="hidden text-sm font-semibold text-slate-600 sm:inline">
             {usuario.nome}
           </span>
           <button
-            className="inline-flex items-center gap-2 rounded-md border border-emerald-200 px-3 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"
+            className="inline-flex items-center gap-2 rounded-md border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"
             onClick={() => {
               window.location.href =
                 import.meta.env.VITE_LOGIN_HOME_URL || "http://localhost:5173";
@@ -83,7 +104,7 @@ function EscritorioShell({ usuario }) {
       ) : view === "folha" ? (
         <FolhaPage onBack={goHome} />
       ) : (
-        <EscritorioHome onNavigate={setView} usuario={usuario} />
+        <EscritorioHome onNavigate={navigate} usuario={usuario} />
       )}
     </div>
   );

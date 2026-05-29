@@ -77,6 +77,55 @@ export function toQuery(params = {}) {
   return serialized ? `?${serialized}` : ''
 }
 
+export function normalizePaginated(payload, fallbackLimit = 20) {
+  if (Array.isArray(payload)) {
+    return {
+      items: payload,
+      total: payload.length,
+      page: 1,
+      limit: fallbackLimit,
+      totalPages: 1,
+    }
+  }
+
+  return {
+    items: payload?.items || [],
+    total: payload?.total || 0,
+    page: payload?.page || 1,
+    limit: payload?.limit || fallbackLimit,
+    totalPages: payload?.totalPages || 1,
+  }
+}
+
+function traduzirErro(msg) {
+  if (typeof msg !== 'string') return String(msg)
+
+  if (/property \w+ should not exist/.test(msg))
+    return 'Campo desconhecido enviado ao servidor'
+  if (/\w+ should not be empty/.test(msg))
+    return 'Campo obrigatório não preenchido'
+  if (/\w+ must be a string/.test(msg))
+    return 'Valor inválido: deve ser texto'
+  if (/\w+ must be longer than or equal to (\d+) characters/.test(msg)) {
+    const n = msg.match(/(\d+)/)?.[1]
+    return `Mínimo de ${n} caracteres`
+  }
+  if (/\w+ must be an integer number/.test(msg))
+    return 'Deve ser um número inteiro'
+  if (/\w+ must be a number/.test(msg))
+    return 'Deve ser um número válido'
+  if (/\w+ must not be less than (\d+)/.test(msg)) {
+    const n = msg.match(/(\d+)/)?.[1]
+    return `Valor mínimo: ${n}`
+  }
+  if (/\w+ must be a valid enum value/.test(msg))
+    return 'Valor selecionado inválido'
+  if (/\w+ must be a boolean/.test(msg))
+    return 'Valor deve ser verdadeiro ou falso'
+
+  return msg
+}
+
 function getIssueMessage(issue) {
   if (!issue) {
     return null
@@ -94,11 +143,11 @@ function getErrorMessage(payload, fallback) {
   }
 
   if (Array.isArray(payload.errors) && payload.errors.length) {
-    return payload.errors.map(getIssueMessage).filter(Boolean).join('; ')
+    return payload.errors.map(getIssueMessage).filter(Boolean).join('\n')
   }
 
   if (Array.isArray(payload.message)) {
-    return payload.message.join('; ')
+    return [...new Set(payload.message.map(traduzirErro))].filter(Boolean).join('\n')
   }
 
   if (payload.message && typeof payload.message === 'object') {
@@ -106,7 +155,7 @@ function getErrorMessage(payload, fallback) {
   }
 
   if (typeof payload.message === 'string') {
-    return payload.message
+    return traduzirErro(payload.message)
   }
 
   if (typeof payload.error === 'string') {

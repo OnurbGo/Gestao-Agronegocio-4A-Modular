@@ -14,6 +14,18 @@ export function listarLancamentosMensais(id, ano) {
   )
 }
 
+export function listarRegistrosSalariais(id, params = {}) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/registros-salariais${toQuery(params)}`,
+  )
+}
+
+export function buscarPercentualSugerido(id, params) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/registros-salariais/percentual-sugerido${toQuery(params)}`,
+  )
+}
+
 export function salvarLancamentosMensais(id, ano, linhas) {
   return requestJson(`/api/escritorio/folha/participantes/${id}/lancamentos-mensais`, {
     method: 'PUT',
@@ -43,6 +55,12 @@ export function criarFerias(id, payload) {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+}
+
+export function listarFerias(id, params = {}) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/ferias${toQuery(params)}`,
+  )
 }
 
 export function buscarRelatorioMensal(params) {

@@ -77,6 +77,7 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      UPLOAD_DIR: /app/uploads/core/usuarios
     depends_on:
       core-db:
         condition: service_healthy
@@ -84,6 +85,8 @@ services:
         condition: service_started
     expose:
       - "3000"
+    volumes:
+      - core_uploads:/app/uploads
     networks:
       - app-network
 
@@ -118,6 +121,27 @@ services:
       - "3000"
     volumes:
       - escritorio_uploads:/app/uploads
+    networks:
+      - app-network
+
+  swagger-service:
+    build:
+      context: ./servicos/swagger-service
+      dockerfile: Dockerfile
+    container_name: gestao-agro-swagger
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      CORE_OPENAPI_URL: http://core-service:3000/openapi.json
+      ESCRITORIO_OPENAPI_URL: http://escritorio-service:3000/openapi.json
+    depends_on:
+      core-service:
+        condition: service_started
+      escritorio-service:
+        condition: service_started
+    expose:
+      - "3000"
     networks:
       - app-network
 
@@ -158,9 +182,9 @@ services:
     depends_on:
       - core-service
       - escritorio-service
+      - swagger-service
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/api-docs:/usr/share/nginx/html/api-docs:ro
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
     networks:
@@ -168,6 +192,7 @@ services:
 
 volumes:
   core_mysql_data:
+  core_uploads:
   escritorio_mysql_data:
   redis_data:
   escritorio_uploads:

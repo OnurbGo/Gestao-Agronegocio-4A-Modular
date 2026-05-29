@@ -2,15 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { atualizarEntidade, listarEntidades } from '../entidades/entidades.service'
 import Modal from '../../shared/components/Modal'
 import StatusMessage from '../../shared/components/StatusMessage'
+import { normalizePaginated } from '../../shared/services/api'
+import PayrollMonthlyChart from './PayrollMonthlyChart'
 import {
   buscarParticipante,
+  buscarPercentualSugerido,
   buscarRelatorioMensal,
   criarFerias,
   criarRegistroSalarial,
   exportarLancamentosMensais,
   exportarRelatorioMensal,
   listarLancamentosMensais,
+  listarFerias,
   listarParticipantes,
+  listarRegistrosSalariais,
   salvarLancamentosMensais,
 } from './folha.service'
 
@@ -28,6 +33,11 @@ const meses = [
   { valor: 11, label: 'Novembro' },
   { valor: 12, label: 'Dezembro' },
 ]
+
+const PARTICIPANTS_PAGE_SIZE = 10
+const ENTITIES_MODAL_PAGE_SIZE = 10
+const SALARY_PAGE_SIZE = 5
+const VACATION_PAGE_SIZE = 5
 
 const camposEditaveis = [
   'dias_trabalhados',
@@ -79,6 +89,29 @@ function dinheiro(value) {
     style: 'currency',
     currency: 'BRL',
   }).format(numero(value))
+}
+
+function parseDateOnly(value) {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00Z`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function calcularFeriasPreview(form) {
+  const inicio = parseDateOnly(form.periodo_aquisitivo_inicio)
+  const fim = parseDateOnly(form.periodo_aquisitivo_fim)
+
+  if (!inicio || !fim || fim.getTime() < inicio.getTime()) {
+    return { anos: 0, dias: 0 }
+  }
+
+  const diasCorridos = Math.floor((fim.getTime() - inicio.getTime()) / 86400000) + 1
+  const anos = diasCorridos / 365
+
+  return {
+    anos: Number(anos.toFixed(2)),
+    dias: Math.round(anos * 30),
+  }
 }
 
 function totalDescontos(linha) {
@@ -176,6 +209,10 @@ function FolhaPage({ onBack }) {
   const [ano, setAno] = useState(anoAtual)
   const [mesRelatorio, setMesRelatorio] = useState(mesAtual)
   const [participantes, setParticipantes] = useState([])
+  const [participantePage, setParticipantePage] = useState(1)
+  const [participantesMeta, setParticipantesMeta] = useState(() =>
+    normalizePaginated([], PARTICIPANTS_PAGE_SIZE),
+  )
   const [participanteId, setParticipanteId] = useState(null)
   const [detalhe, setDetalhe] = useState(null)
   const [linhas, setLinhas] = useState(() =>
@@ -191,8 +228,23 @@ function FolhaPage({ onBack }) {
   const [mesDescontos, setMesDescontos] = useState(null)
   const [entidadesFolha, setEntidadesFolha] = useState([])
   const [termoEntidadesFolha, setTermoEntidadesFolha] = useState('')
+  const [entidadesFolhaPage, setEntidadesFolhaPage] = useState(1)
+  const [entidadesFolhaMeta, setEntidadesFolhaMeta] = useState(() =>
+    normalizePaginated([], ENTITIES_MODAL_PAGE_SIZE),
+  )
   const [carregandoEntidadesFolha, setCarregandoEntidadesFolha] = useState(false)
   const [salvandoParticipante, setSalvandoParticipante] = useState(null)
+  const [registrosSalariais, setRegistrosSalariais] = useState([])
+  const [salarioPage, setSalarioPage] = useState(1)
+  const [salarioMeta, setSalarioMeta] = useState(() =>
+    normalizePaginated([], SALARY_PAGE_SIZE),
+  )
+  const [ferias, setFerias] = useState([])
+  const [feriasPage, setFeriasPage] = useState(1)
+  const [feriasMeta, setFeriasMeta] = useState(() =>
+    normalizePaginated([], VACATION_PAGE_SIZE),
+  )
+  const [feriasSummary, setFeriasSummary] = useState({ total_dias_gozados: 0 })
   const [salarioForm, setSalarioForm] = useState(salarioInicial)
   const [feriasForm, setFeriasForm] = useState(feriasInicial)
 
@@ -203,11 +255,21 @@ function FolhaPage({ onBack }) {
       setStatus(null)
 
       try {
-        const data = await listarParticipantes({ termo })
+        const data = normalizePaginated(
+          await listarParticipantes({
+            termo,
+            page: participantePage,
+            limit: PARTICIPANTS_PAGE_SIZE,
+          }),
+          PARTICIPANTS_PAGE_SIZE,
+        )
 
         if (!active) return
-        setParticipantes(data)
-        setParticipanteId((current) => current || data[0]?.id_entidade || null)
+        setParticipantes(data.items)
+        setParticipantesMeta(data)
+        setParticipanteId(
+          (current) => current || data.items[0]?.id_entidade || null,
+        )
       } catch (error) {
         if (active) setStatus({ type: 'error', message: error.message })
       }
@@ -217,7 +279,7 @@ function FolhaPage({ onBack }) {
     return () => {
       active = false
     }
-  }, [termo])
+  }, [termo, participantePage])
 
   useEffect(() => {
     if (!participanteId) {
@@ -262,6 +324,74 @@ function FolhaPage({ onBack }) {
     let active = true
 
     async function carregar() {
+      if (!participanteId) {
+        if (!active) return
+        setRegistrosSalariais([])
+        setSalarioMeta(normalizePaginated([], SALARY_PAGE_SIZE))
+        return
+      }
+
+      try {
+        const data = normalizePaginated(
+          await listarRegistrosSalariais(participanteId, {
+            page: salarioPage,
+            limit: SALARY_PAGE_SIZE,
+          }),
+          SALARY_PAGE_SIZE,
+        )
+
+        if (!active) return
+        setRegistrosSalariais(data.items)
+        setSalarioMeta(data)
+      } catch (error) {
+        if (active) setStatus({ type: 'error', message: error.message })
+      }
+    }
+
+    carregar()
+    return () => {
+      active = false
+    }
+  }, [participanteId, salarioPage])
+
+  useEffect(() => {
+    let active = true
+
+    async function carregar() {
+      if (!participanteId) {
+        if (!active) return
+        setFerias([])
+        setFeriasMeta(normalizePaginated([], VACATION_PAGE_SIZE))
+        setFeriasSummary({ total_dias_gozados: 0 })
+        return
+      }
+
+      try {
+        const payload = await listarFerias(participanteId, {
+          page: feriasPage,
+          limit: VACATION_PAGE_SIZE,
+        })
+        const data = normalizePaginated(payload, VACATION_PAGE_SIZE)
+
+        if (!active) return
+        setFerias(data.items)
+        setFeriasMeta(data)
+        setFeriasSummary(payload?.summary || { total_dias_gozados: 0 })
+      } catch (error) {
+        if (active) setStatus({ type: 'error', message: error.message })
+      }
+    }
+
+    carregar()
+    return () => {
+      active = false
+    }
+  }, [participanteId, feriasPage])
+
+  useEffect(() => {
+    let active = true
+
+    async function carregar() {
       try {
         const data = await buscarRelatorioMensal({ ano, mes: mesRelatorio })
         if (active) setRelatorio(data)
@@ -290,19 +420,17 @@ function FolhaPage({ onBack }) {
   )
 
   const entidadesFiltradasFolha = useMemo(() => {
-    const termoNormalizado = termoEntidadesFolha.trim().toLowerCase()
-    if (!termoNormalizado) return entidadesFolha
-
-    return entidadesFolha.filter((entidade) =>
-      [entidade.nome, entidade.cpf_cnpj]
-        .filter(Boolean)
-        .some((valor) => String(valor).toLowerCase().includes(termoNormalizado)),
-    )
-  }, [entidadesFolha, termoEntidadesFolha])
+    return entidadesFolha
+  }, [entidadesFolha])
 
   const linhaDescontos = useMemo(
     () => linhas.find((linha) => linha.mes === mesDescontos),
     [linhas, mesDescontos],
+  )
+
+  const feriasPreview = useMemo(
+    () => calcularFeriasPreview(feriasForm),
+    [feriasForm],
   )
 
   async function carregarRelatorio() {
@@ -315,14 +443,22 @@ function FolhaPage({ onBack }) {
   }
 
   async function recarregarParticipantes() {
-    const data = await listarParticipantes({ termo })
-    const proximoId = data.some(
+    const data = normalizePaginated(
+      await listarParticipantes({
+        termo,
+        page: participantePage,
+        limit: PARTICIPANTS_PAGE_SIZE,
+      }),
+      PARTICIPANTS_PAGE_SIZE,
+    )
+    const proximoId = data.items.some(
       (participante) => participante.id_entidade === participanteId,
     )
       ? participanteId
-      : data[0]?.id_entidade || null
+      : data.items[0]?.id_entidade || null
 
-    setParticipantes(data)
+    setParticipantes(data.items)
+    setParticipantesMeta(data)
     setParticipanteId(proximoId)
 
     if (!proximoId) {
@@ -347,19 +483,34 @@ function FolhaPage({ onBack }) {
     setModalAberto('descontos')
   }
 
-  async function abrirParticipantes() {
-    setModalAberto('participantes')
+  async function carregarEntidadesFolha(pageToLoad = entidadesFolhaPage) {
     setCarregandoEntidadesFolha(true)
     setStatus(null)
 
     try {
-      const data = await listarEntidades({ ativo: true })
-      setEntidadesFolha(data)
+      const data = normalizePaginated(
+        await listarEntidades({
+          ativo: true,
+          page: pageToLoad,
+          limit: ENTITIES_MODAL_PAGE_SIZE,
+          search: termoEntidadesFolha,
+        }),
+        ENTITIES_MODAL_PAGE_SIZE,
+      )
+      setEntidadesFolha(data.items)
+      setEntidadesFolhaMeta(data)
+      setEntidadesFolhaPage(data.page)
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
     } finally {
       setCarregandoEntidadesFolha(false)
     }
+  }
+
+  async function abrirParticipantes() {
+    setModalAberto('participantes')
+    setEntidadesFolhaPage(1)
+    await carregarEntidadesFolha(1)
   }
 
   async function alternarParticipacao(entidade) {
@@ -437,7 +588,56 @@ function FolhaPage({ onBack }) {
       const participante = await buscarParticipante(participanteId)
       setDetalhe(participante)
       setSalarioForm(salarioInicial)
+      const registros = normalizePaginated(
+        await listarRegistrosSalariais(participanteId, {
+          page: 1,
+          limit: SALARY_PAGE_SIZE,
+        }),
+        SALARY_PAGE_SIZE,
+      )
+      setSalarioPage(1)
+      setRegistrosSalariais(registros.items)
+      setSalarioMeta(registros)
+      await recarregarParticipantes()
       setStatus({ type: 'success', message: 'Registro salarial criado.' })
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message })
+    }
+  }
+
+  async function calcularPercentualSalario() {
+    if (!participanteId || !salarioForm.inicio_vigencia || !salarioForm.salario) {
+      setStatus({
+        type: 'warning',
+        message: 'Informe data e salário para calcular o percentual.',
+      })
+      return
+    }
+
+    setStatus(null)
+
+    try {
+      const sugestao = await buscarPercentualSugerido(participanteId, {
+        inicio_vigencia: salarioForm.inicio_vigencia,
+        salario: salarioForm.salario,
+      })
+
+      if (sugestao.percentual_sugerido === null) {
+        setStatus({
+          type: 'warning',
+          message: 'Não existe salário anterior para sugerir o percentual.',
+        })
+        return
+      }
+
+      setSalarioForm((form) => ({
+        ...form,
+        percentual: String(sugestao.percentual_sugerido),
+      }))
+      setStatus({
+        type: 'success',
+        message: `Percentual sugerido com base em ${dinheiro(sugestao.salario_base)}.`,
+      })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
     }
@@ -450,12 +650,26 @@ function FolhaPage({ onBack }) {
     setStatus(null)
     try {
       await criarFerias(participanteId, {
-        ...feriasForm,
+        periodo_aquisitivo_inicio: feriasForm.periodo_aquisitivo_inicio,
+        periodo_aquisitivo_fim: feriasForm.periodo_aquisitivo_fim,
+        dias_gozados: feriasForm.dias_gozados,
         valor_abono: feriasForm.valor_abono || null,
+        periodo_inicio: feriasForm.periodo_inicio,
+        periodo_fim: feriasForm.periodo_fim,
+        data_retorno: feriasForm.data_retorno,
       })
       const participante = await buscarParticipante(participanteId)
       setDetalhe(participante)
       setFeriasForm(feriasInicial)
+      const payload = await listarFerias(participanteId, {
+        page: 1,
+        limit: VACATION_PAGE_SIZE,
+      })
+      const data = normalizePaginated(payload, VACATION_PAGE_SIZE)
+      setFeriasPage(1)
+      setFerias(data.items)
+      setFeriasMeta(data)
+      setFeriasSummary(payload?.summary || { total_dias_gozados: 0 })
       setStatus({ type: 'success', message: 'Férias cadastradas.' })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
@@ -576,6 +790,7 @@ function FolhaPage({ onBack }) {
                 <strong>{dinheiro(relatorio?.total)}</strong>
               </div>
             </div>
+            <PayrollMonthlyChart relatorio={relatorio} />
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
@@ -608,7 +823,7 @@ function FolhaPage({ onBack }) {
           <aside className="panel list-panel">
             <div className="panel-heading">
               <h2>Participantes</h2>
-              <span>{participantes.length}</span>
+              <span>{participantesMeta.total}</span>
             </div>
             <button
               className="primary-button full"
@@ -618,7 +833,10 @@ function FolhaPage({ onBack }) {
               Gerenciar participantes
             </button>
             <input
-              onChange={(event) => setTermo(event.target.value)}
+              onChange={(event) => {
+                setParticipantePage(1)
+                setTermo(event.target.value)
+              }}
               placeholder="Buscar participante"
               type="search"
               value={termo}
@@ -630,7 +848,11 @@ function FolhaPage({ onBack }) {
                     participante.id_entidade === participanteId ? 'active' : ''
                   }`}
                   key={participante.id_entidade}
-                  onClick={() => setParticipanteId(participante.id_entidade)}
+                  onClick={() => {
+                    setParticipanteId(participante.id_entidade)
+                    setSalarioPage(1)
+                    setFeriasPage(1)
+                  }}
                   type="button"
                 >
                   <strong>{participante.nome}</strong>
@@ -641,6 +863,27 @@ function FolhaPage({ onBack }) {
               {!participantes.length ? (
                 <p className="empty-state">Nenhum participante encontrado.</p>
               ) : null}
+            </div>
+            <div className="pagination-row">
+              <button
+                className="secondary-button"
+                disabled={participantePage <= 1}
+                onClick={() => setParticipantePage((current) => current - 1)}
+                type="button"
+              >
+                Anterior
+              </button>
+              <span>
+                Pagina {participantesMeta.page} de {participantesMeta.totalPages}
+              </span>
+              <button
+                className="secondary-button"
+                disabled={participantePage >= participantesMeta.totalPages}
+                onClick={() => setParticipantePage((current) => current + 1)}
+                type="button"
+              >
+                Proxima
+              </button>
             </div>
           </aside>
 
@@ -807,7 +1050,7 @@ function FolhaPage({ onBack }) {
               <section className="panel">
                 <div className="panel-heading">
                   <h2>Registros salariais</h2>
-                  <span>{detalhe?.registros_salariais?.length || 0}</span>
+                  <span>{salarioMeta.total}</span>
                 </div>
                 <button
                   className="secondary-button full"
@@ -818,13 +1061,13 @@ function FolhaPage({ onBack }) {
                   Gerenciar salários
                 </button>
                 <div className="mini-list">
-                  {(detalhe?.registros_salariais || []).slice(0, 5).map((registro) => (
+                  {registrosSalariais.slice(0, 5).map((registro) => (
                     <div key={registro.id_registro_salarial}>
                       <strong>{dinheiro(registro.salario)}</strong>
                       <span>{registro.inicio_vigencia}</span>
                     </div>
                   ))}
-                  {!detalhe?.registros_salariais?.length ? (
+                  {!registrosSalariais.length ? (
                     <p className="empty-state">Nenhum registro salarial.</p>
                   ) : null}
                 </div>
@@ -833,7 +1076,7 @@ function FolhaPage({ onBack }) {
               <section className="panel">
                 <div className="panel-heading">
                   <h2>Férias</h2>
-                  <span>{detalhe?.ferias?.length || 0}</span>
+                  <span>{feriasMeta.total}</span>
                 </div>
                 <button
                   className="secondary-button full"
@@ -844,17 +1087,17 @@ function FolhaPage({ onBack }) {
                   Gerenciar férias
                 </button>
                 <div className="mini-list">
-                  {(detalhe?.ferias || []).slice(0, 5).map((item) => (
+                  {ferias.slice(0, 5).map((item) => (
                     <div key={item.id_ferias}>
                       <strong>
-                        {item.dias_gozados}/{item.dias_totais} dias
+                        {item.dias_gozados}/{item.ferias_adquiridas_dias} dias
                       </strong>
                       <span>
                         {item.periodo_aquisitivo_inicio} a {item.periodo_aquisitivo_fim}
                       </span>
                     </div>
                   ))}
-                  {!detalhe?.ferias?.length ? (
+                  {!ferias.length ? (
                     <p className="empty-state">Nenhum registro de férias.</p>
                   ) : null}
                 </div>
@@ -871,12 +1114,22 @@ function FolhaPage({ onBack }) {
           width="lg"
         >
           <div className="modal-body">
-            <input
-              onChange={(event) => setTermoEntidadesFolha(event.target.value)}
-              placeholder="Buscar entidade"
-              type="search"
-              value={termoEntidadesFolha}
-            />
+            <div className="search-row">
+              <input
+                onChange={(event) => setTermoEntidadesFolha(event.target.value)}
+                placeholder="Buscar pessoa/empresa"
+                type="search"
+                value={termoEntidadesFolha}
+              />
+              <button
+                className="secondary-button"
+                disabled={carregandoEntidadesFolha}
+                onClick={() => carregarEntidadesFolha(1)}
+                type="button"
+              >
+                Buscar
+              </button>
+            </div>
             <div className="toggle-list">
               {entidadesFiltradasFolha.map((entidade) => (
                 <button
@@ -902,10 +1155,34 @@ function FolhaPage({ onBack }) {
               {!entidadesFiltradasFolha.length ? (
                 <p className="empty-state">
                   {carregandoEntidadesFolha
-                    ? 'Carregando entidades...'
-                    : 'Nenhuma entidade encontrada.'}
+                    ? 'Carregando cadastros...'
+                    : 'Nenhum cadastro encontrado.'}
                 </p>
               ) : null}
+            </div>
+            <div className="pagination-row">
+              <button
+                className="secondary-button"
+                disabled={carregandoEntidadesFolha || entidadesFolhaPage <= 1}
+                onClick={() => carregarEntidadesFolha(entidadesFolhaPage - 1)}
+                type="button"
+              >
+                Anterior
+              </button>
+              <span>
+                Pagina {entidadesFolhaMeta.page} de {entidadesFolhaMeta.totalPages}
+              </span>
+              <button
+                className="secondary-button"
+                disabled={
+                  carregandoEntidadesFolha ||
+                  entidadesFolhaPage >= entidadesFolhaMeta.totalPages
+                }
+                onClick={() => carregarEntidadesFolha(entidadesFolhaPage + 1)}
+                type="button"
+              >
+                Proxima
+              </button>
             </div>
           </div>
         </Modal>
@@ -981,18 +1258,27 @@ function FolhaPage({ onBack }) {
               </label>
               <label>
                 Percentual
-                <input
-                  min="0"
-                  onChange={(event) =>
-                    setSalarioForm((form) => ({
-                      ...form,
-                      percentual: event.target.value,
-                    }))
-                  }
-                  step="0.01"
-                  type="number"
-                  value={salarioForm.percentual}
-                />
+                <span className="input-with-button">
+                  <input
+                    min="0"
+                    onChange={(event) =>
+                      setSalarioForm((form) => ({
+                        ...form,
+                        percentual: event.target.value,
+                      }))
+                    }
+                    step="0.01"
+                    type="number"
+                    value={salarioForm.percentual}
+                  />
+                  <button
+                    className="secondary-button"
+                    onClick={calcularPercentualSalario}
+                    type="button"
+                  >
+                    Calcular
+                  </button>
+                </span>
               </label>
               <label>
                 Observação
@@ -1011,12 +1297,39 @@ function FolhaPage({ onBack }) {
               </button>
             </form>
             <div className="mini-list">
-              {(detalhe?.registros_salariais || []).map((registro) => (
+              {registrosSalariais.map((registro) => (
                 <div key={registro.id_registro_salarial}>
                   <strong>{dinheiro(registro.salario)}</strong>
-                  <span>{registro.inicio_vigencia}</span>
+                  <span>
+                    {registro.inicio_vigencia}
+                    {registro.percentual ? ` - ${registro.percentual}%` : ''}
+                  </span>
                 </div>
               ))}
+              {!registrosSalariais.length ? (
+                <p className="empty-state">Nenhum registro salarial.</p>
+              ) : null}
+            </div>
+            <div className="pagination-row">
+              <button
+                className="secondary-button"
+                disabled={salarioPage <= 1}
+                onClick={() => setSalarioPage((current) => current - 1)}
+                type="button"
+              >
+                Anterior
+              </button>
+              <span>
+                Pagina {salarioMeta.page} de {salarioMeta.totalPages}
+              </span>
+              <button
+                className="secondary-button"
+                disabled={salarioPage >= salarioMeta.totalPages}
+                onClick={() => setSalarioPage((current) => current + 1)}
+                type="button"
+              >
+                Proxima
+              </button>
             </div>
           </div>
         </Modal>
@@ -1052,21 +1365,6 @@ function FolhaPage({ onBack }) {
                   required
                   type="date"
                   value={feriasForm.periodo_aquisitivo_fim}
-                />
-              </label>
-              <label>
-                Dias totais
-                <input
-                  min="0"
-                  onChange={(event) =>
-                    setFeriasForm((form) => ({
-                      ...form,
-                      dias_totais: event.target.value,
-                    }))
-                  }
-                  required
-                  type="number"
-                  value={feriasForm.dias_totais}
                 />
               </label>
               <label>
@@ -1141,17 +1439,91 @@ function FolhaPage({ onBack }) {
                 Adicionar
               </button>
             </form>
-            <div className="mini-list">
-              {(detalhe?.ferias || []).map((item) => (
-                <div key={item.id_ferias}>
-                  <strong>
-                    {item.dias_gozados}/{item.dias_totais} dias
-                  </strong>
-                  <span>
-                    {item.periodo_aquisitivo_inicio} a {item.periodo_aquisitivo_fim}
-                  </span>
-                </div>
-              ))}
+            <div className="summary-grid compact-summary">
+              <div>
+                <span>Anos aquisitivos</span>
+                <strong>{feriasPreview.anos}</strong>
+              </div>
+              <div>
+                <span>Férias adquiridas</span>
+                <strong>{feriasPreview.dias} dias</strong>
+              </div>
+              <div>
+                <span>Total gozadas</span>
+                <strong>{feriasSummary.total_dias_gozados || 0} dias</strong>
+              </div>
+            </div>
+            <div className="table-scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Aquisitivo</th>
+                    <th>Anos</th>
+                    <th>Adquiridas</th>
+                    <th>Gozadas</th>
+                    <th>Saldo</th>
+                    <th>Abono</th>
+                    <th>Férias</th>
+                    <th>Retorno</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ferias.map((item) => (
+                    <tr key={item.id_ferias}>
+                      <td>
+                        {item.periodo_aquisitivo_inicio} a{' '}
+                        {item.periodo_aquisitivo_fim}
+                      </td>
+                      <td>{item.anos_aquisitivos}</td>
+                      <td>{item.ferias_adquiridas_dias} dias</td>
+                      <td>{item.dias_gozados} dias</td>
+                      <td>{item.saldo_ferias_dias} dias</td>
+                      <td>{dinheiro(item.valor_abono)}</td>
+                      <td>
+                        {item.periodo_inicio && item.periodo_fim
+                          ? `${item.periodo_inicio} a ${item.periodo_fim}`
+                          : '-'}
+                      </td>
+                      <td>{item.data_retorno || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan="3">
+                      <strong>Total de férias gozadas</strong>
+                    </td>
+                    <td>
+                      <strong>{feriasSummary.total_dias_gozados || 0} dias</strong>
+                    </td>
+                    <td colSpan="4" />
+                  </tr>
+                </tfoot>
+              </table>
+              {!ferias.length ? (
+                <p className="empty-state">Nenhum registro de férias.</p>
+              ) : null}
+            </div>
+            <div className="pagination-row">
+              <button
+                className="secondary-button"
+                disabled={feriasPage <= 1}
+                onClick={() => setFeriasPage((current) => current - 1)}
+                type="button"
+              >
+                Anterior
+              </button>
+              <span>
+                Pagina {feriasMeta.page} de {feriasMeta.totalPages}
+              </span>
+              <button
+                className="secondary-button"
+                disabled={feriasPage >= feriasMeta.totalPages}
+                onClick={() => setFeriasPage((current) => current + 1)}
+                type="button"
+              >
+                Proxima
+              </button>
             </div>
           </div>
         </Modal>

@@ -54,6 +54,15 @@ function getHeaders(extraHeaders = {}) {
   };
 }
 
+function getAuthHeaders(extraHeaders = {}) {
+  const token = getToken();
+
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extraHeaders,
+  };
+}
+
 function getFilename(response, fallback) {
   const disposition = response.headers.get("Content-Disposition");
   const match = disposition?.match(/filename="?([^"]+)"?/i);
@@ -116,6 +125,25 @@ export async function requestJson(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: getHeaders(options.headers),
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(payload, "Nao foi possivel concluir a requisicao."),
+    );
+  }
+
+  return payload?.data ?? payload;
+}
+
+export async function requestFormData(path, formData, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    method: options.method || "POST",
+    body: formData,
+    headers: getAuthHeaders(options.headers),
   });
 
   const payload = await response.json().catch(() => null);

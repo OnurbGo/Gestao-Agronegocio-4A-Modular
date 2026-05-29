@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import DocumentosPanel from "../documentos/DocumentosPanel";
+import DocumentosPanel from "../../shared/components/DocumentosPanel";
 import StatusMessage from "../../shared/components/StatusMessage";
+import { normalizePaginated } from "../../shared/services/api";
 import {
   atualizarEntidade,
   buscarEntidade,
@@ -10,6 +11,7 @@ import {
 } from "./entidades.service";
 
 const tipoOptions = ["FUNCIONARIO", "PROPRIETARIO", "CLIENTE", "ARRENDATARIO"];
+const PAGE_SIZE = 10;
 
 function onlyDigits(value = "") {
   return String(value).replace(/\D/g, "");
@@ -95,7 +97,10 @@ function montarPayload(form) {
 
 function EntidadesPage({ onBack }) {
   const [termo, setTermo] = useState("");
+  const [tipoFiltro, setTipoFiltro] = useState("");
   const [entidades, setEntidades] = useState([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState(() => normalizePaginated([], PAGE_SIZE));
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [status, setStatus] = useState(null);
@@ -114,13 +119,18 @@ function EntidadesPage({ onBack }) {
       setStatus(null);
 
       try {
-        const data = await listarEntidades({});
+        const data = normalizePaginated(
+          await listarEntidades({ page: 1, limit: PAGE_SIZE }),
+          PAGE_SIZE,
+        );
 
         if (!active) return;
-        setEntidades(data);
-        if (data[0]) {
-          setSelectedId(data[0].id_entidade);
-          setForm(normalizeForm(data[0]));
+        setPage(data.page);
+        setMeta(data);
+        setEntidades(data.items);
+        if (data.items[0]) {
+          setSelectedId(data.items[0].id_entidade);
+          setForm(normalizeForm(data.items[0]));
         }
       } catch (error) {
         if (active) setStatus({ type: "error", message: error.message });
@@ -140,11 +150,22 @@ function EntidadesPage({ onBack }) {
     setStatus(null);
 
     try {
-      const data = await listarEntidades({ termo, ...params });
-      setEntidades(data);
-      if (!selectedId && data[0]) {
-        setSelectedId(data[0].id_entidade);
-        setForm(normalizeForm(data[0]));
+      const data = normalizePaginated(
+        await listarEntidades({
+          termo,
+          tipo: tipoFiltro || undefined,
+          page: params.page || page,
+          limit: PAGE_SIZE,
+          ...params,
+        }),
+        PAGE_SIZE,
+      );
+      setPage(data.page);
+      setMeta(data);
+      setEntidades(data.items);
+      if (!selectedId && data.items[0]) {
+        setSelectedId(data.items[0].id_entidade);
+        setForm(normalizeForm(data.items[0]));
       }
     } catch (error) {
       setStatus({ type: "error", message: error.message });
@@ -202,9 +223,8 @@ function EntidadesPage({ onBack }) {
 
       setSelectedId(saved.id_entidade);
       setForm(normalizeForm(saved));
-      setStatus({ type: "success", message: "Entidade salva." });
-      const data = await listarEntidades({ termo });
-      setEntidades(data);
+      setStatus({ type: "success", message: "Cadastro salvo." });
+      await carregarLista({ page });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
     } finally {
@@ -222,7 +242,7 @@ function EntidadesPage({ onBack }) {
 
     try {
       await removerEntidade(selectedId);
-      setStatus({ type: "success", message: "Entidade removida." });
+      setStatus({ type: "success", message: "Cadastro removido." });
       setSelectedId(null);
       setForm(emptyForm);
       await carregarLista();
@@ -241,7 +261,7 @@ function EntidadesPage({ onBack }) {
         </button>
         <div>
           <span>Cadastro</span>
-          <h1>Entidades</h1>
+          <h1>Pessoas/Empresas</h1>
         </div>
       </section>
 
@@ -251,7 +271,7 @@ function EntidadesPage({ onBack }) {
         <aside className="panel list-panel">
           <div className="panel-heading">
             <h2>Registros</h2>
-            <span>{entidades.length}</span>
+            <span>{meta.total}</span>
           </div>
           <div className="search-row">
             <input
@@ -263,18 +283,34 @@ function EntidadesPage({ onBack }) {
             <button
               className="secondary-button"
               disabled={loading}
-              onClick={() => carregarLista()}
+              onClick={() => carregarLista({ page: 1 })}
               type="button"
             >
               Buscar
             </button>
+          </div>
+          <div className="filter-row">
+            <select
+              onChange={(event) => {
+                setTipoFiltro(event.target.value);
+                carregarLista({ page: 1, tipo: event.target.value || undefined });
+              }}
+              value={tipoFiltro}
+            >
+              <option value="">Todos os tipos</option>
+              {tipoOptions.map((tipo) => (
+                <option key={tipo} value={tipo}>
+                  {tipo}
+                </option>
+              ))}
+            </select>
           </div>
           <button
             className="primary-button full"
             onClick={novaEntidade}
             type="button"
           >
-            Nova entidade
+            Novo cadastro
           </button>
           <div className="record-list">
             {entidades.map((entidade) => (
@@ -293,16 +329,37 @@ function EntidadesPage({ onBack }) {
             ))}
             {!entidades.length ? (
               <p className="empty-state">
-                {loading ? "Carregando..." : "Nenhuma entidade encontrada."}
+                {loading ? "Carregando..." : "Nenhum cadastro encontrado."}
               </p>
             ) : null}
+          </div>
+          <div className="pagination-row">
+            <button
+              className="secondary-button"
+              disabled={loading || page <= 1}
+              onClick={() => carregarLista({ page: page - 1 })}
+              type="button"
+            >
+              Anterior
+            </button>
+            <span>
+              Pagina {page} de {meta.totalPages}
+            </span>
+            <button
+              className="secondary-button"
+              disabled={loading || page >= meta.totalPages}
+              onClick={() => carregarLista({ page: page + 1 })}
+              type="button"
+            >
+              Proxima
+            </button>
           </div>
         </aside>
 
         <section className="detail-stack">
           <form className="panel form-grid" onSubmit={salvar}>
             <div className="panel-heading span-2">
-              <h2>{selected ? selected.nome : "Nova entidade"}</h2>
+              <h2>{selected ? selected.nome : "Novo cadastro"}</h2>
             </div>
 
             <label>

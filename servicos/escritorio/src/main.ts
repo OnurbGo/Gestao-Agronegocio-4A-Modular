@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { Transport } from "@nestjs/microservices";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
@@ -10,6 +11,13 @@ async function bootstrap() {
   const redisPort = Number(process.env.REDIS_PORT || 6379);
 
   app.enableCors();
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Escritório API")
@@ -22,7 +30,7 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("api-docs", app, document);
+  app.getHttpAdapter().get("/openapi.json", (_req, res) => res.json(document));
 
   app.connectMicroservice({
     transport: Transport.REDIS,
@@ -37,3 +45,4 @@ async function bootstrap() {
 }
 
 bootstrap();
+

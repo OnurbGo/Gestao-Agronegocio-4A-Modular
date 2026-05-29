@@ -281,7 +281,6 @@ function LoginPage({ onAuthenticated }) {
                   autoComplete="current-password"
                   icon={Lock}
                   label="Senha"
-                  minLength={6}
                   onChange={(event) => updateLogin('senha', event.target.value)}
                   type="password"
                   value={loginForm.senha}
@@ -311,7 +310,7 @@ function LoginPage({ onAuthenticated }) {
                   autoComplete="new-password"
                   icon={Lock}
                   label="Senha"
-                  minLength={6}
+                  minLength={8}
                   onChange={(event) => updateRequest('senha', event.target.value)}
                   type="password"
                   value={requestForm.senha}
@@ -376,7 +375,7 @@ function LoginPage({ onAuthenticated }) {
                   autoComplete="new-password"
                   icon={Lock}
                   label="Senha"
-                  minLength={6}
+                  minLength={8}
                   onChange={(event) =>
                     updateBootstrap('senha', event.target.value)
                   }
