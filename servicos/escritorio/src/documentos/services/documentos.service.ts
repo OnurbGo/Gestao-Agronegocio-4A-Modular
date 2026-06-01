@@ -20,6 +20,7 @@ type UploadedFile = {
   mimetype: string;
   size: number;
   buffer?: Buffer;
+  path?: string;
 };
 
 type ArquivoResolvido =
@@ -27,13 +28,21 @@ type ArquivoResolvido =
   | { origem: "IMOVEL"; arquivo: ImovelArquivo };
 
 const tiposPadrao = [
-  { nome: "Documento pessoal", categoria: "PESSOAL", tipo_pessoa_aplicavel: "FISICA" },
+  {
+    nome: "Documento pessoal",
+    categoria: "PESSOAL",
+    tipo_pessoa_aplicavel: "FISICA",
+  },
   {
     nome: "Documento empresarial",
     categoria: "EMPRESARIAL",
     tipo_pessoa_aplicavel: "JURIDICA",
   },
-  { nome: "Matricula do imovel", categoria: "RURAL", tipo_pessoa_aplicavel: "AMBAS" },
+  {
+    nome: "Matricula do imovel",
+    categoria: "RURAL",
+    tipo_pessoa_aplicavel: "AMBAS",
+  },
   { nome: "Contrato", categoria: "CONTRATUAL", tipo_pessoa_aplicavel: "AMBAS" },
   { nome: "Outros", categoria: "OUTROS", tipo_pessoa_aplicavel: "AMBAS" },
 ];
@@ -72,7 +81,14 @@ export class DocumentosService {
   ) {
     await this.validarEntidade(id_entidade);
     await this.validarUpload(data, file);
-    const salvo = await this.gravarArquivo("entidades", id_entidade, file!);
+    let salvo;
+    if (file && (file as any).path) {
+      const caminho = (file as any).path as string;
+      const nome_arquivo = path.basename(caminho);
+      salvo = { nome_arquivo, caminho };
+    } else {
+      salvo = await this.gravarArquivo("entidades", id_entidade, file!);
+    }
 
     const arquivo = await this.documentosRepository.criarArquivoEntidade({
       entidade_id: id_entidade,
@@ -108,7 +124,14 @@ export class DocumentosService {
   ) {
     await this.validarImovel(id_imovel);
     await this.validarUpload(data, file);
-    const salvo = await this.gravarArquivo("imoveis", id_imovel, file!);
+    let salvo;
+    if (file && (file as any).path) {
+      const caminho = (file as any).path as string;
+      const nome_arquivo = path.basename(caminho);
+      salvo = { nome_arquivo, caminho };
+    } else {
+      salvo = await this.gravarArquivo("imoveis", id_imovel, file!);
+    }
 
     const arquivo = await this.documentosRepository.criarArquivoImovel({
       imovel_id: id_imovel,
@@ -188,7 +211,8 @@ export class DocumentosService {
       return { origem, arquivo };
     }
 
-    const arquivo = await this.documentosRepository.buscarArquivoImovelAtivo(id);
+    const arquivo =
+      await this.documentosRepository.buscarArquivoImovelAtivo(id);
 
     if (!arquivo) {
       throw new NotFoundException("Arquivo de imovel nao encontrado.");
@@ -198,7 +222,7 @@ export class DocumentosService {
   }
 
   private async validarUpload(data: UploadArquivoInput, file?: UploadedFile) {
-    if (!file?.buffer) {
+    if (!file || (!file.buffer && !(file as any).path)) {
       throw new BadRequestException("Arquivo e obrigatorio.");
     }
 
@@ -243,7 +267,12 @@ export class DocumentosService {
     const caminho = path.join(destino, nome_arquivo);
 
     await mkdir(destino, { recursive: true });
-    await writeFile(caminho, file.buffer!);
+    // Fallback when multer didn't save to disk (e.g., no storage configured)
+    if (file.buffer) {
+      await writeFile(caminho, file.buffer!);
+    } else {
+      throw new BadRequestException("Arquivo nao possui dados para gravacao.");
+    }
 
     return { nome_arquivo, caminho };
   }
@@ -277,4 +306,3 @@ export class DocumentosService {
     });
   }
 }
-

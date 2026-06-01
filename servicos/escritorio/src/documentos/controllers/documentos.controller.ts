@@ -25,6 +25,7 @@ import {
   DonoArquivoParamDto,
   UploadArquivoDto,
 } from "../dto/documentos.dto";
+import { documentUploadOptions } from "../utils/document-upload.options";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { DocumentosService } from "../services/documentos.service";
 
@@ -60,7 +61,7 @@ export class DocumentosController {
 
   @Post("entidades/:id/arquivos")
   @RequirePermission("ESCRITORIO", "criar")
-  @UseInterceptors(FileInterceptor("arquivo", { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor("arquivo", documentUploadOptions))
   salvarArquivoEntidade(
     @Param() params: DonoArquivoParamDto,
     @Body() body: UploadArquivoDto,
@@ -85,7 +86,7 @@ export class DocumentosController {
 
   @Post("imoveis/:id/arquivos")
   @RequirePermission("ESCRITORIO", "criar")
-  @UseInterceptors(FileInterceptor("arquivo", { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor("arquivo", documentUploadOptions))
   salvarArquivoImovel(
     @Param() params: DonoArquivoParamDto,
     @Body() body: UploadArquivoDto,
@@ -158,4 +159,3 @@ export class DocumentosController {
     );
   }
 }
-

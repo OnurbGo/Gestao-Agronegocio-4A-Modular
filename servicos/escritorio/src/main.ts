@@ -3,6 +3,8 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { Transport } from "@nestjs/microservices";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import express from "express";
+import path from "path";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
@@ -18,6 +20,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  const escritorioUploadDir =
+    process.env.UPLOAD_DIR ||
+    path.resolve(process.cwd(), "uploads", "escritorio");
+  app.use("/uploads/escritorio", express.static(escritorioUploadDir));
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Escritório API")
@@ -45,4 +52,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-
