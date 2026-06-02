@@ -5,11 +5,11 @@ import { AccountsModule } from "./accounts/accounts.module";
 import { UsersModule } from "./users/users.module";
 import { PermissionsModule } from "./permissions/permissions.module";
 import { AuditModule } from "./audit/audit.module";
-import { Conta } from "./accounts/conta.model";
-import { ContaModulo } from "./permissions/conta-modulo.model";
-import { Usuario } from "./users/usuario.model";
-import { SolicitacaoConta } from "./accounts/solicitacao-conta.model";
-import { AuditoriaCore } from "./audit/auditoria-core.model";
+import { Conta } from "./accounts/entities/conta.entity";
+import { ContaModulo } from "./permissions/entities/conta-modulo.entity";
+import { Usuario } from "./users/entities/usuario.entity";
+import { SolicitacaoConta } from "./accounts/entities/solicitacao-conta.entity";
+import { AuditoriaCore } from "./audit/entities/auditoria-core.entity";
 
 @Module({
   imports: [
@@ -34,3 +34,4 @@ import { AuditoriaCore } from "./audit/auditoria-core.model";
   ],
 })
 export class AppModule {}
+

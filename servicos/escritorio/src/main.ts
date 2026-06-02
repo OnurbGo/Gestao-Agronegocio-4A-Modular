@@ -1,7 +1,10 @@
 import "reflect-metadata";
+import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { Transport } from "@nestjs/microservices";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import express from "express";
+import path from "path";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
@@ -10,12 +13,22 @@ async function bootstrap() {
   const redisPort = Number(process.env.REDIS_PORT || 6379);
 
   app.enableCors();
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  const escritorioUploadDir =
+    process.env.UPLOAD_DIR ||
+    path.resolve(process.cwd(), "uploads", "escritorio");
+  app.use("/uploads/escritorio", express.static(escritorioUploadDir));
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Escritório API")
-    .setDescription(
-      "Entidades, imóveis, contratos, documentos e folha de pagamento",
-    )
+    .setDescription("Entidades, imóveis, documentos e folha de pagamento")
     .setVersion("1.0")
     .addServer("/api/escritorio", "Via Nginx")
     .addBearerAuth(
@@ -24,7 +37,7 @@ async function bootstrap() {
     )
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("api-docs", app, document);
+  app.getHttpAdapter().get("/openapi.json", (_req, res) => res.json(document));
 
   app.connectMicroservice({
     transport: Transport.REDIS,

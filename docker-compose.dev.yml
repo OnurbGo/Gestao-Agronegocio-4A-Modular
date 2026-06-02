@@ -15,12 +15,17 @@ services:
     environment:
       DB_SYNC_ALTER: "true"
 
+  swagger-service:
+    environment:
+      CORE_OPENAPI_URL: http://core-service:3000/openapi.json
+      ESCRITORIO_OPENAPI_URL: http://escritorio-service:3000/openapi.json
+
   nginx:
     depends_on:
       - core-service
       - escritorio-service
+      - swagger-service
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/api-docs:/usr/share/nginx/html/api-docs:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
