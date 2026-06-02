@@ -2,13 +2,14 @@ import { Module } from "@nestjs/common";
 import { SequelizeModule } from "@nestjs/sequelize";
 import { AuditModule } from "../audit/audit.module";
 import { AuthClientModule } from "../auth-client/auth-client.module";
-import { EntidadeTipo } from "../entidades/entidade-tipo.model";
-import { Entidade } from "../entidades/entidade.model";
-import { Ferias } from "./ferias.model";
-import { FolhaMensal } from "./folha-mensal.model";
-import { FolhaController } from "./folha.controller";
-import { FolhaService } from "./folha.service";
-import { RegistroSalarial } from "./registro-salarial.model";
+import { EntidadeTipo } from "../entidades/entities/entidade-tipo.entity";
+import { Entidade } from "../entidades/entities/entidade.entity";
+import { Ferias } from "./entities/ferias.entity";
+import { FolhaMensal } from "./entities/folha-mensal.entity";
+import { FolhaController } from "./controllers/folha.controller";
+import { FolhaService } from "./services/folha.service";
+import { RegistroSalarial } from "./entities/registro-salarial.entity";
+import { FolhaRepository } from "./repositories/folha.repository";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RegistroSalarial } from "./registro-salarial.model";
     AuditModule,
   ],
   controllers: [FolhaController],
-  providers: [FolhaService],
+  providers: [FolhaService, FolhaRepository],
 })
 export class FolhaModule {}
+

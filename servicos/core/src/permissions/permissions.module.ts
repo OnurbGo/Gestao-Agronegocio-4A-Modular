@@ -1,14 +1,21 @@
 import { Module } from "@nestjs/common";
 import { SequelizeModule } from "@nestjs/sequelize";
 import { AccountsModule } from "../accounts/accounts.module";
+import { Conta } from "../accounts/entities/conta.entity";
 import { AuthModule } from "../auth/auth.module";
-import { ContaModulo } from "./conta-modulo.model";
-import { PermissionsController } from "./permissions.controller";
-import { PermissionsService } from "./permissions.service";
+import { ContaModulo } from "./entities/conta-modulo.entity";
+import { PermissionsController } from "./controllers/permissions.controller";
+import { PermissionsRepository } from "./repositories/permissions.repository";
+import { PermissionsService } from "./services/permissions.service";
 
 @Module({
-  imports: [SequelizeModule.forFeature([ContaModulo]), AuthModule, AccountsModule],
+  imports: [
+    SequelizeModule.forFeature([ContaModulo, Conta]),
+    AuthModule,
+    AccountsModule,
+  ],
   controllers: [PermissionsController],
-  providers: [PermissionsService],
+  providers: [PermissionsService, PermissionsRepository],
 })
 export class PermissionsModule {}
+

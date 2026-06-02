@@ -1,8 +1,8 @@
 import { Module } from "@nestjs/common";
-import { CoreAuthClientService } from "./core-auth-client.service";
-import { EscritorioAuthGuard } from "./escritorio-auth.guard";
-import { PermissionGuard } from "./permission.guard";
-import { AuthEventsController } from "./auth-events.controller";
+import { CoreAuthClientService } from "./services/core-auth-client.service";
+import { EscritorioAuthGuard } from "./guards/escritorio-auth.guard";
+import { PermissionGuard } from "./guards/permission.guard";
+import { AuthEventsController } from "./controllers/auth-events.controller";
 
 @Module({
   controllers: [AuthEventsController],
@@ -10,3 +10,4 @@ import { AuthEventsController } from "./auth-events.controller";
   exports: [CoreAuthClientService, EscritorioAuthGuard, PermissionGuard],
 })
 export class AuthClientModule {}
+

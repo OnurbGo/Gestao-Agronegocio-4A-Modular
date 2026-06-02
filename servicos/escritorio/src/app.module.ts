@@ -4,20 +4,20 @@ import { AuthClientModule } from "./auth-client/auth-client.module";
 import { EntidadesModule } from "./entidades/entidades.module";
 import { FolhaModule } from "./folha/folha.module";
 import { ImoveisModule } from "./imoveis/imoveis.module";
-import { ContratosModule } from "./contratos/contratos.module";
 import { DocumentosModule } from "./documentos/documentos.module";
 import { AuditModule } from "./audit/audit.module";
-import { Entidade } from "./entidades/entidade.model";
-import { EntidadeTipo } from "./entidades/entidade-tipo.model";
-import { EntidadeArquivo } from "./entidades/entidade-arquivo.model";
-import { TipoDocumento } from "./entidades/tipo-documento.model";
-import { Imovel } from "./imoveis/imovel.model";
-import { ImovelArquivo } from "./imoveis/imovel-arquivo.model";
-import { Contrato } from "./contratos/contrato.model";
-import { RegistroSalarial } from "./folha/registro-salarial.model";
-import { Ferias } from "./folha/ferias.model";
-import { FolhaMensal } from "./folha/folha-mensal.model";
-import { AuditoriaEscritorio } from "./audit/auditoria-escritorio.model";
+import { Entidade } from "./entidades/entities/entidade.entity";
+import { EntidadeTipo } from "./entidades/entities/entidade-tipo.entity";
+import { EntidadeArquivo } from "./entidades/entities/entidade-arquivo.entity";
+import { TipoDocumento } from "./entidades/entities/tipo-documento.entity";
+import { Imovel } from "./imoveis/entities/imovel.entity";
+import { ImovelArquivo } from "./imoveis/entities/imovel-arquivo.entity";
+import { ImovelProprietario } from "./imoveis/entities/imovel-proprietario.entity";
+// Contrato model removed (moved to separate microsserviço)
+import { RegistroSalarial } from "./folha/entities/registro-salarial.entity";
+import { Ferias } from "./folha/entities/ferias.entity";
+import { FolhaMensal } from "./folha/entities/folha-mensal.entity";
+import { AuditoriaEscritorio } from "./audit/entities/auditoria-escritorio.entity";
 
 @Module({
   imports: [
@@ -35,7 +35,7 @@ import { AuditoriaEscritorio } from "./audit/auditoria-escritorio.model";
         TipoDocumento,
         Imovel,
         ImovelArquivo,
-        Contrato,
+        ImovelProprietario,
         RegistroSalarial,
         Ferias,
         FolhaMensal,
@@ -50,9 +50,9 @@ import { AuditoriaEscritorio } from "./audit/auditoria-escritorio.model";
     AuditModule,
     EntidadesModule,
     ImoveisModule,
-    ContratosModule,
     DocumentosModule,
     FolhaModule,
   ],
 })
 export class AppModule {}
+
