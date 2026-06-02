@@ -17,7 +17,7 @@ const chartConfig = {
     color: '#16a34a',
   },
   final: {
-    label: 'Final',
+    label: 'Final + férias',
     color: '#0f766e',
   },
 }
@@ -44,7 +44,7 @@ function PayrollMonthlyChart({ relatorio }) {
     nome: item.entidade?.nome || 'Sem nome',
     bruto: numero(item.salario_bruto),
     liquido: numero(item.salario_liquido),
-    final: numero(item.salario_liquido_com_desconto),
+    final: numero(item.salario_final_com_ferias || item.salario_liquido_com_desconto),
   }))
 
   return (

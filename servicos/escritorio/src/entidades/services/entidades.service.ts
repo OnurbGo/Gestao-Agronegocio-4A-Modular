@@ -38,6 +38,10 @@ export class EntidadesService {
       where.ativo = query.ativo;
     }
 
+    if (query.tipo_pessoa) {
+      where.tipo_pessoa = query.tipo_pessoa;
+    }
+
     const { rows, count } = await this.entidadesRepository.listarPaginado({
       where,
       include: [

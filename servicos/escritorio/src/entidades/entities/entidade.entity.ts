@@ -90,6 +90,9 @@ export class Entidade extends Model {
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
   declare participa_folha: boolean;
 
+  @Column({ type: DataType.DATEONLY, allowNull: true })
+  declare data_admissao: Date | null;
+
   @Column({ type: DataType.TEXT, allowNull: true })
   declare observacao: string | null;
 

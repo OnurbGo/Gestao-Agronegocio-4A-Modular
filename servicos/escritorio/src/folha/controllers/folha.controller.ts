@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -20,6 +21,7 @@ import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { FolhaService } from "../services/folha.service";
 import {
   AnoQueryDto,
+  FeriasIdParamDto,
   FeriasDto,
   FolhaMensalDto,
   ListarFeriasQueryDto,
@@ -27,6 +29,7 @@ import {
   ListarRegistrosSalariaisQueryDto,
   ParticipanteIdParamDto,
   PercentualSugeridoQueryDto,
+  RegistroSalarialIdParamDto,
   RegistroSalarialDto,
   RelatorioMensalQueryDto,
 } from "../dto/folha.dto";
@@ -80,6 +83,30 @@ export class FolhaController {
     return this.folhaService.percentualSugerido(params.id, query);
   }
 
+  @Post("participantes/:id/registros-salariais/:registroId/impacto-edicao")
+  @RequirePermission("FOLHA", "editar")
+  impactoEdicaoRegistroSalarial(
+    @Param() params: RegistroSalarialIdParamDto,
+    @Body() body: RegistroSalarialDto,
+  ) {
+    return this.folhaService.impactoEdicaoRegistroSalarial(
+      params.id,
+      params.registroId,
+      body,
+    );
+  }
+
+  @Get("participantes/:id/registros-salariais/:registroId/impacto-exclusao")
+  @RequirePermission("FOLHA", "excluir")
+  impactoExclusaoRegistroSalarial(
+    @Param() params: RegistroSalarialIdParamDto,
+  ) {
+    return this.folhaService.impactoExclusaoRegistroSalarial(
+      params.id,
+      params.registroId,
+    );
+  }
+
   @Post("participantes/:id/registros-salariais")
   @RequirePermission("FOLHA", "criar")
   criarRegistroSalarial(
@@ -91,6 +118,38 @@ export class FolhaController {
     return this.folhaService.criarRegistroSalarial(
       params.id,
       body,
+      usuario,
+      request.ip,
+    );
+  }
+
+  @Put("participantes/:id/registros-salariais/:registroId")
+  @RequirePermission("FOLHA", "editar")
+  atualizarRegistroSalarial(
+    @Param() params: RegistroSalarialIdParamDto,
+    @Body() body: RegistroSalarialDto,
+    @CurrentUser() usuario: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.folhaService.atualizarRegistroSalarial(
+      params.id,
+      params.registroId,
+      body,
+      usuario,
+      request.ip,
+    );
+  }
+
+  @Delete("participantes/:id/registros-salariais/:registroId")
+  @RequirePermission("FOLHA", "excluir")
+  removerRegistroSalarial(
+    @Param() params: RegistroSalarialIdParamDto,
+    @CurrentUser() usuario: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.folhaService.removerRegistroSalarial(
+      params.id,
+      params.registroId,
       usuario,
       request.ip,
     );
@@ -114,6 +173,38 @@ export class FolhaController {
     @Req() request: Request,
   ) {
     return this.folhaService.criarFerias(params.id, body, usuario, request.ip);
+  }
+
+  @Put("participantes/:id/ferias/:feriasId")
+  @RequirePermission("FOLHA", "editar")
+  atualizarFerias(
+    @Param() params: FeriasIdParamDto,
+    @Body() body: FeriasDto,
+    @CurrentUser() usuario: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.folhaService.atualizarFerias(
+      params.id,
+      params.feriasId,
+      body,
+      usuario,
+      request.ip,
+    );
+  }
+
+  @Delete("participantes/:id/ferias/:feriasId")
+  @RequirePermission("FOLHA", "excluir")
+  removerFerias(
+    @Param() params: FeriasIdParamDto,
+    @CurrentUser() usuario: AuthContext,
+    @Req() request: Request,
+  ) {
+    return this.folhaService.removerFerias(
+      params.id,
+      params.feriasId,
+      usuario,
+      request.ip,
+    );
   }
 
   @Get("participantes/:id/lancamentos-mensais")

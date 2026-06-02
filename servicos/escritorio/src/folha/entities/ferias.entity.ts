@@ -27,28 +27,19 @@ export class Ferias extends Model {
   declare entidade_id: number;
 
   @Column({ type: DataType.DATEONLY, allowNull: false })
-  declare periodo_aquisitivo_inicio: Date;
+  declare inicio_gozado: Date;
 
   @Column({ type: DataType.DATEONLY, allowNull: false })
-  declare periodo_aquisitivo_fim: Date;
-
-  @Column({ type: DataType.INTEGER, allowNull: false })
-  declare dias_totais: number;
+  declare fim_gozado: Date;
 
   @Column({ type: DataType.INTEGER, allowNull: false, defaultValue: 0 })
   declare dias_gozados: number;
 
-  @Column({ type: DataType.DECIMAL(12, 2), allowNull: true })
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
+  declare valor_ferias: string;
+
+  @Column({ type: DataType.DECIMAL(12, 2), allowNull: true, defaultValue: 0 })
   declare valor_abono: string | null;
-
-  @Column({ type: DataType.DATEONLY, allowNull: true })
-  declare periodo_inicio: Date | null;
-
-  @Column({ type: DataType.DATEONLY, allowNull: true })
-  declare periodo_fim: Date | null;
-
-  @Column({ type: DataType.DATEONLY, allowNull: true })
-  declare data_retorno: Date | null;
 
   @CreatedAt
   declare createdAt: Date;

@@ -281,6 +281,14 @@ export class ListarImoveisQueryDto implements PaginationQuery {
   @IsString()
   municipio?: string;
 
+  @IsOptional()
+  @IsString()
+  lote?: string;
+
+  @IsOptional()
+  @IsString()
+  colonia?: string;
+
   @Transform(({ value }) => {
     if (value === "true") return true;
     if (value === "false") return false;
@@ -294,4 +302,3 @@ export class ListarImoveisQueryDto implements PaginationQuery {
 export type ImovelInput = ImovelDto;
 export type AtualizarImovelInput = Partial<ImovelDto>;
 export type ListarImoveisQuery = ListarImoveisQueryDto;
-

@@ -29,6 +29,9 @@ export class RegistroSalarial extends Model {
   @Column({ type: DataType.DATEONLY, allowNull: false })
   declare inicio_vigencia: Date;
 
+  @Column({ type: DataType.DATEONLY, allowNull: true })
+  declare fim_vigencia: Date | null;
+
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false })
   declare salario: string;
 

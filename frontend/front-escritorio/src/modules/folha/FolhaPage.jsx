@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { atualizarEntidade, listarEntidades } from '../entidades/entidades.service'
-import Modal from '../../shared/components/Modal'
-import StatusMessage from '../../shared/components/StatusMessage'
-import { normalizePaginated } from '../../shared/services/api'
-import PayrollMonthlyChart from './PayrollMonthlyChart'
+import { useEffect, useMemo, useState } from "react";
 import {
+  atualizarEntidade,
+  listarEntidades,
+} from "../entidades/entidades.service";
+import Modal from "../../shared/components/Modal";
+import StatusMessage from "../../shared/components/StatusMessage";
+import { normalizePaginated } from "../../shared/services/api";
+import PayrollMonthlyChart from "./PayrollMonthlyChart";
+import {
+  atualizarFerias,
+  atualizarRegistroSalarial,
+  buscarImpactoEdicaoRegistroSalarial,
+  buscarImpactoExclusaoRegistroSalarial,
   buscarParticipante,
   buscarPercentualSugerido,
   buscarRelatorioMensal,
@@ -16,158 +23,173 @@ import {
   listarFerias,
   listarParticipantes,
   listarRegistrosSalariais,
+  removerFerias,
+  removerRegistroSalarial,
   salvarLancamentosMensais,
-} from './folha.service'
+} from "./folha.service";
 
 const meses = [
-  { valor: 1, label: 'Janeiro' },
-  { valor: 2, label: 'Fevereiro' },
-  { valor: 3, label: 'Março' },
-  { valor: 4, label: 'Abril' },
-  { valor: 5, label: 'Maio' },
-  { valor: 6, label: 'Junho' },
-  { valor: 7, label: 'Julho' },
-  { valor: 8, label: 'Agosto' },
-  { valor: 9, label: 'Setembro' },
-  { valor: 10, label: 'Outubro' },
-  { valor: 11, label: 'Novembro' },
-  { valor: 12, label: 'Dezembro' },
-]
+  { valor: 1, label: "Janeiro" },
+  { valor: 2, label: "Fevereiro" },
+  { valor: 3, label: "Março" },
+  { valor: 4, label: "Abril" },
+  { valor: 5, label: "Maio" },
+  { valor: 6, label: "Junho" },
+  { valor: 7, label: "Julho" },
+  { valor: 8, label: "Agosto" },
+  { valor: 9, label: "Setembro" },
+  { valor: 10, label: "Outubro" },
+  { valor: 11, label: "Novembro" },
+  { valor: 12, label: "Dezembro" },
+];
 
-const PARTICIPANTS_PAGE_SIZE = 10
-const ENTITIES_MODAL_PAGE_SIZE = 10
-const SALARY_PAGE_SIZE = 5
-const VACATION_PAGE_SIZE = 5
+const PARTICIPANTS_PAGE_SIZE = 10;
+const ENTITIES_MODAL_PAGE_SIZE = 10;
+const SALARY_PAGE_SIZE = 5;
+const VACATION_PAGE_SIZE = 5;
 
 const camposEditaveis = [
-  'dias_trabalhados',
-  'salario_bruto',
-  'inss',
-  'irrf',
-  'inss_adicional',
-  'ferias',
-  'comissao',
-  'desconto_bar',
-  'desconto_diverso_1',
-  'desconto_diverso_2',
-  'desconto_diverso_3',
-]
+  "dias_trabalhados",
+  "inss",
+  "irrf",
+  "inss_adicional",
+  "comissao",
+  "desconto_bar",
+  "desconto_diverso_1",
+  "desconto_diverso_2",
+  "desconto_diverso_3",
+];
 
 const descontoCampos = [
-  { campo: 'desconto_bar', label: 'Bar' },
-  { campo: 'desconto_diverso_1', label: 'Desconto diverso 1' },
-  { campo: 'desconto_diverso_2', label: 'Desconto diverso 2' },
-  { campo: 'desconto_diverso_3', label: 'Desconto diverso 3' },
-]
+  { campo: "desconto_bar", label: "Bar" },
+  { campo: "desconto_diverso_1", label: "Desconto diverso 1" },
+  { campo: "desconto_diverso_2", label: "Desconto diverso 2" },
+  { campo: "desconto_diverso_3", label: "Desconto diverso 3" },
+];
 
 const salarioInicial = {
-  inicio_vigencia: '',
-  salario: '',
-  percentual: '',
-  observacao: '',
-}
+  inicio_vigencia: "",
+  fim_vigencia: "",
+  salario: "",
+  percentual: "",
+  observacao: "",
+};
 
 const feriasInicial = {
-  periodo_aquisitivo_inicio: '',
-  periodo_aquisitivo_fim: '',
-  dias_totais: '',
-  dias_gozados: '',
-  valor_abono: '',
-  periodo_inicio: '',
-  periodo_fim: '',
-  data_retorno: '',
-}
+  inicio_gozado: "",
+  fim_gozado: "",
+  valor_abono: "",
+};
+
+const feriasSummaryInicial = {
+  referencia_inicio: null,
+  periodo_aquisitivo_inicio: null,
+  periodo_aquisitivo_fim: null,
+  anos_aquisitivos: 0,
+  dias_adquiridos: 0,
+  total_dias_gozados: 0,
+  saldo_ferias_dias: 0,
+};
 
 function numero(value) {
-  if (value === '' || value === null || value === undefined) return 0
-  const parsed = Number(String(value).replace(',', '.'))
-  return Number.isFinite(parsed) ? parsed : 0
+  if (value === "" || value === null || value === undefined) return 0;
+  const parsed = Number(String(value).replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function dinheiro(value) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(numero(value))
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(numero(value));
 }
 
-function parseDateOnly(value) {
-  if (!value) return null
-  const date = new Date(`${value}T00:00:00Z`)
-  return Number.isNaN(date.getTime()) ? null : date
+function mesAno(ano, mes) {
+  return `${String(mes).padStart(2, "0")}/${ano}`;
 }
 
-function calcularFeriasPreview(form) {
-  const inicio = parseDateOnly(form.periodo_aquisitivo_inicio)
-  const fim = parseDateOnly(form.periodo_aquisitivo_fim)
-
-  if (!inicio || !fim || fim.getTime() < inicio.getTime()) {
-    return { anos: 0, dias: 0 }
-  }
-
-  const diasCorridos = Math.floor((fim.getTime() - inicio.getTime()) / 86400000) + 1
-  const anos = diasCorridos / 365
-
-  return {
-    anos: Number(anos.toFixed(2)),
-    dias: Math.round(anos * 30),
-  }
+function possuiImpactoSalarial(impacto) {
+  return Boolean(
+    impacto?.tem_impacto ||
+    impacto?.ferias?.length ||
+    impacto?.lancamentos?.length ||
+    impacto?.sem_salario?.length,
+  );
 }
 
 function totalDescontos(linha) {
-  return descontoCampos.reduce((total, item) => total + numero(linha[item.campo]), 0)
+  return descontoCampos.reduce(
+    (total, item) => total + numero(linha[item.campo]),
+    0,
+  );
 }
 
-function calcularLinha(linha) {
+function calcularLinha(linha, recalcularProporcional = false) {
+  const salarioProporcional =
+    recalcularProporcional || linha.salario_proporcional === ""
+      ? (numero(linha.salario_bruto) / 30) * numero(linha.dias_trabalhados)
+      : numero(linha.salario_proporcional);
   const salarioLiquido =
-    numero(linha.salario_bruto) +
-    numero(linha.ferias) +
+    salarioProporcional +
     numero(linha.comissao) -
     numero(linha.inss) -
     numero(linha.irrf) -
-    numero(linha.inss_adicional)
+    numero(linha.inss_adicional);
 
-  const descontos = totalDescontos(linha)
+  const descontos = totalDescontos(linha);
 
   return {
     ...linha,
+    salario_proporcional: salarioProporcional.toFixed(2),
     salario_liquido: salarioLiquido.toFixed(2),
     salario_liquido_com_desconto: (salarioLiquido - descontos).toFixed(2),
-  }
+    salario_final_com_ferias: (
+      salarioLiquido -
+      descontos +
+      numero(linha.ferias)
+    ).toFixed(2),
+  };
 }
 
 function criarLinhaBase(mes) {
   return calcularLinha({
     mes,
-    dias_trabalhados: '',
-    salario_bruto: '',
-    inss: '',
-    irrf: '',
-    inss_adicional: '',
-    ferias: '',
-    comissao: '',
-    desconto_bar: '',
-    desconto_diverso_1: '',
-    desconto_diverso_2: '',
-    desconto_diverso_3: '',
-    salario_liquido: '0.00',
-    salario_liquido_com_desconto: '0.00',
-  })
+    dias_trabalhados: "",
+    salario_bruto: "",
+    salario_proporcional: "",
+    inss: "",
+    irrf: "",
+    inss_adicional: "",
+    ferias: "",
+    ferias_automatica: false,
+    comissao: "",
+    desconto_bar: "",
+    desconto_diverso_1: "",
+    desconto_diverso_2: "",
+    desconto_diverso_3: "",
+    salario_liquido: "0.00",
+    salario_liquido_com_desconto: "0.00",
+    salario_final_com_ferias: "0.00",
+  });
 }
 
 function normalizarLinha(registro, mes) {
-  if (!registro) return criarLinhaBase(mes)
+  if (!registro) return criarLinhaBase(mes);
 
   return calcularLinha({
     ...criarLinhaBase(mes),
     ...Object.fromEntries(
       Object.entries(registro).map(([key, value]) => [
         key,
-        value === null || value === undefined ? '' : String(value),
+        key === "ferias_automatica"
+          ? Boolean(value)
+          : value === null || value === undefined
+            ? ""
+            : String(value),
       ]),
     ),
     mes,
-  })
+  });
 }
 
 function montarPayload(linhas) {
@@ -175,84 +197,90 @@ function montarPayload(linhas) {
     const payload = {
       mes: Number(linha.mes),
       dias_trabalhados: Number(linha.dias_trabalhados || 0),
-    }
+    };
 
     camposEditaveis
-      .filter((campo) => campo !== 'dias_trabalhados')
+      .filter((campo) => campo !== "dias_trabalhados")
       .forEach((campo) => {
-        payload[campo] = numero(linha[campo])
-      })
+        payload[campo] = numero(linha[campo]);
+      });
 
-    return payload
-  })
+    return payload;
+  });
 }
 
-function MoneyInput({ value, onChange }) {
+function MoneyInput({ disabled = false, value, onChange }) {
   return (
     <input
       className="cell-input"
+      disabled={disabled}
       min="0"
       onChange={(event) => onChange(event.target.value)}
       step="0.01"
       type="number"
       value={value}
     />
-  )
+  );
 }
 
 function FolhaPage({ onBack }) {
-  const anoAtual = new Date().getFullYear()
-  const mesAtual = new Date().getMonth() + 1
+  const anoAtual = new Date().getFullYear();
+  const mesAtual = new Date().getMonth() + 1;
 
-  const [aba, setAba] = useState('relatorio')
-  const [termo, setTermo] = useState('')
-  const [ano, setAno] = useState(anoAtual)
-  const [mesRelatorio, setMesRelatorio] = useState(mesAtual)
-  const [participantes, setParticipantes] = useState([])
-  const [participantePage, setParticipantePage] = useState(1)
+  const [aba, setAba] = useState("relatorio");
+  const [termo, setTermo] = useState("");
+  const [ano, setAno] = useState(anoAtual);
+  const [mesRelatorio, setMesRelatorio] = useState(mesAtual);
+  const [participantes, setParticipantes] = useState([]);
+  const [participantePage, setParticipantePage] = useState(1);
   const [participantesMeta, setParticipantesMeta] = useState(() =>
     normalizePaginated([], PARTICIPANTS_PAGE_SIZE),
-  )
-  const [participanteId, setParticipanteId] = useState(null)
-  const [detalhe, setDetalhe] = useState(null)
+  );
+  const [participanteId, setParticipanteId] = useState(null);
+  const [detalhe, setDetalhe] = useState(null);
   const [linhas, setLinhas] = useState(() =>
     meses.map((mes) => criarLinhaBase(mes.valor)),
-  )
-  const [relatorio, setRelatorio] = useState(null)
-  const [salvando, setSalvando] = useState(false)
-  const [exportando, setExportando] = useState(false)
-  const [carregando, setCarregando] = useState(false)
-  const [status, setStatus] = useState(null)
-  const [alterado, setAlterado] = useState(false)
-  const [modalAberto, setModalAberto] = useState(null)
-  const [mesDescontos, setMesDescontos] = useState(null)
-  const [entidadesFolha, setEntidadesFolha] = useState([])
-  const [termoEntidadesFolha, setTermoEntidadesFolha] = useState('')
-  const [entidadesFolhaPage, setEntidadesFolhaPage] = useState(1)
+  );
+  const [relatorio, setRelatorio] = useState(null);
+  const [salvando, setSalvando] = useState(false);
+  const [exportando, setExportando] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [status, setStatus] = useState(null);
+  const [alterado, setAlterado] = useState(false);
+  const [modalAberto, setModalAberto] = useState(null);
+  const [mesDescontos, setMesDescontos] = useState(null);
+  const [entidadesFolha, setEntidadesFolha] = useState([]);
+  const [termoEntidadesFolha, setTermoEntidadesFolha] = useState("");
+  const [entidadesFolhaPage, setEntidadesFolhaPage] = useState(1);
   const [entidadesFolhaMeta, setEntidadesFolhaMeta] = useState(() =>
     normalizePaginated([], ENTITIES_MODAL_PAGE_SIZE),
-  )
-  const [carregandoEntidadesFolha, setCarregandoEntidadesFolha] = useState(false)
-  const [salvandoParticipante, setSalvandoParticipante] = useState(null)
-  const [registrosSalariais, setRegistrosSalariais] = useState([])
-  const [salarioPage, setSalarioPage] = useState(1)
+  );
+  const [carregandoEntidadesFolha, setCarregandoEntidadesFolha] =
+    useState(false);
+  const [salvandoParticipante, setSalvandoParticipante] = useState(null);
+  const [registrosSalariais, setRegistrosSalariais] = useState([]);
+  const [salarioPage, setSalarioPage] = useState(1);
   const [salarioMeta, setSalarioMeta] = useState(() =>
     normalizePaginated([], SALARY_PAGE_SIZE),
-  )
-  const [ferias, setFerias] = useState([])
-  const [feriasPage, setFeriasPage] = useState(1)
+  );
+  const [ferias, setFerias] = useState([]);
+  const [feriasPage, setFeriasPage] = useState(1);
   const [feriasMeta, setFeriasMeta] = useState(() =>
     normalizePaginated([], VACATION_PAGE_SIZE),
-  )
-  const [feriasSummary, setFeriasSummary] = useState({ total_dias_gozados: 0 })
-  const [salarioForm, setSalarioForm] = useState(salarioInicial)
-  const [feriasForm, setFeriasForm] = useState(feriasInicial)
+  );
+  const [feriasSummary, setFeriasSummary] = useState(feriasSummaryInicial);
+  const [salarioForm, setSalarioForm] = useState(salarioInicial);
+  const [feriasForm, setFeriasForm] = useState(feriasInicial);
+  const [salarioEditandoId, setSalarioEditandoId] = useState(null);
+  const [feriasEditandoId, setFeriasEditandoId] = useState(null);
+  const [impactoSalarial, setImpactoSalarial] = useState(null);
+  const [processandoImpacto, setProcessandoImpacto] = useState(false);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function carregar() {
-      setStatus(null)
+      setStatus(null);
 
       try {
         const data = normalizePaginated(
@@ -262,73 +290,73 @@ function FolhaPage({ onBack }) {
             limit: PARTICIPANTS_PAGE_SIZE,
           }),
           PARTICIPANTS_PAGE_SIZE,
-        )
+        );
 
-        if (!active) return
-        setParticipantes(data.items)
-        setParticipantesMeta(data)
+        if (!active) return;
+        setParticipantes(data.items);
+        setParticipantesMeta(data);
         setParticipanteId(
           (current) => current || data.items[0]?.id_entidade || null,
-        )
+        );
       } catch (error) {
-        if (active) setStatus({ type: 'error', message: error.message })
+        if (active) setStatus({ type: "error", message: error.message });
       }
     }
 
-    carregar()
+    carregar();
     return () => {
-      active = false
-    }
-  }, [termo, participantePage])
+      active = false;
+    };
+  }, [termo, participantePage]);
 
   useEffect(() => {
     if (!participanteId) {
-      return
+      return;
     }
 
-    let active = true
+    let active = true;
 
     async function carregar() {
-      setCarregando(true)
-      setStatus(null)
+      setCarregando(true);
+      setStatus(null);
 
       try {
         const [participante, lancamentos] = await Promise.all([
           buscarParticipante(participanteId),
           listarLancamentosMensais(participanteId, ano),
-        ])
+        ]);
         const porMes = new Map(
           lancamentos.map((linha) => [Number(linha.mes), linha]),
-        )
+        );
 
-        if (!active) return
-        setDetalhe(participante)
+        if (!active) return;
+        setDetalhe(participante);
         setLinhas(
           meses.map((mes) => normalizarLinha(porMes.get(mes.valor), mes.valor)),
-        )
-        setAlterado(false)
+        );
+        setAlterado(false);
       } catch (error) {
-        if (active) setStatus({ type: 'error', message: error.message })
+        if (active) setStatus({ type: "error", message: error.message });
       } finally {
-        if (active) setCarregando(false)
+        if (active) setCarregando(false);
       }
     }
 
-    carregar()
+    carregar();
     return () => {
-      active = false
-    }
-  }, [participanteId, ano])
+      active = false;
+    };
+  }, [participanteId, ano]);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function carregar() {
       if (!participanteId) {
-        if (!active) return
-        setRegistrosSalariais([])
-        setSalarioMeta(normalizePaginated([], SALARY_PAGE_SIZE))
-        return
+        if (!active) return;
+        setRegistrosSalariais([]);
+        setSalarioMeta(normalizePaginated([], SALARY_PAGE_SIZE));
+        return;
       }
 
       try {
@@ -338,73 +366,73 @@ function FolhaPage({ onBack }) {
             limit: SALARY_PAGE_SIZE,
           }),
           SALARY_PAGE_SIZE,
-        )
+        );
 
-        if (!active) return
-        setRegistrosSalariais(data.items)
-        setSalarioMeta(data)
+        if (!active) return;
+        setRegistrosSalariais(data.items);
+        setSalarioMeta(data);
       } catch (error) {
-        if (active) setStatus({ type: 'error', message: error.message })
+        if (active) setStatus({ type: "error", message: error.message });
       }
     }
 
-    carregar()
+    carregar();
     return () => {
-      active = false
-    }
-  }, [participanteId, salarioPage])
+      active = false;
+    };
+  }, [participanteId, salarioPage]);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function carregar() {
       if (!participanteId) {
-        if (!active) return
-        setFerias([])
-        setFeriasMeta(normalizePaginated([], VACATION_PAGE_SIZE))
-        setFeriasSummary({ total_dias_gozados: 0 })
-        return
+        if (!active) return;
+        setFerias([]);
+        setFeriasMeta(normalizePaginated([], VACATION_PAGE_SIZE));
+        setFeriasSummary(feriasSummaryInicial);
+        return;
       }
 
       try {
         const payload = await listarFerias(participanteId, {
           page: feriasPage,
           limit: VACATION_PAGE_SIZE,
-        })
-        const data = normalizePaginated(payload, VACATION_PAGE_SIZE)
+        });
+        const data = normalizePaginated(payload, VACATION_PAGE_SIZE);
 
-        if (!active) return
-        setFerias(data.items)
-        setFeriasMeta(data)
-        setFeriasSummary(payload?.summary || { total_dias_gozados: 0 })
+        if (!active) return;
+        setFerias(data.items);
+        setFeriasMeta(data);
+        setFeriasSummary(payload?.summary || feriasSummaryInicial);
       } catch (error) {
-        if (active) setStatus({ type: 'error', message: error.message })
+        if (active) setStatus({ type: "error", message: error.message });
       }
     }
 
-    carregar()
+    carregar();
     return () => {
-      active = false
-    }
-  }, [participanteId, feriasPage])
+      active = false;
+    };
+  }, [participanteId, feriasPage]);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function carregar() {
       try {
-        const data = await buscarRelatorioMensal({ ano, mes: mesRelatorio })
-        if (active) setRelatorio(data)
+        const data = await buscarRelatorioMensal({ ano, mes: mesRelatorio });
+        if (active) setRelatorio(data);
       } catch {
-        if (active) setRelatorio(null)
+        if (active) setRelatorio(null);
       }
     }
 
-    carregar()
+    carregar();
     return () => {
-      active = false
-    }
-  }, [ano, mesRelatorio])
+      active = false;
+    };
+  }, [ano, mesRelatorio]);
 
   const totais = useMemo(
     () =>
@@ -413,32 +441,29 @@ function FolhaPage({ onBack }) {
           bruto: acc.bruto + numero(linha.salario_bruto),
           liquido: acc.liquido + numero(linha.salario_liquido),
           final: acc.final + numero(linha.salario_liquido_com_desconto),
+          finalComFerias:
+            acc.finalComFerias + numero(linha.salario_final_com_ferias),
         }),
-        { bruto: 0, liquido: 0, final: 0 },
+        { bruto: 0, liquido: 0, final: 0, finalComFerias: 0 },
       ),
     [linhas],
-  )
+  );
 
   const entidadesFiltradasFolha = useMemo(() => {
-    return entidadesFolha
-  }, [entidadesFolha])
+    return entidadesFolha;
+  }, [entidadesFolha]);
 
   const linhaDescontos = useMemo(
     () => linhas.find((linha) => linha.mes === mesDescontos),
     [linhas, mesDescontos],
-  )
-
-  const feriasPreview = useMemo(
-    () => calcularFeriasPreview(feriasForm),
-    [feriasForm],
-  )
+  );
 
   async function carregarRelatorio() {
     try {
-      const data = await buscarRelatorioMensal({ ano, mes: mesRelatorio })
-      setRelatorio(data)
+      const data = await buscarRelatorioMensal({ ano, mes: mesRelatorio });
+      setRelatorio(data);
     } catch {
-      setRelatorio(null)
+      setRelatorio(null);
     }
   }
 
@@ -450,42 +475,264 @@ function FolhaPage({ onBack }) {
         limit: PARTICIPANTS_PAGE_SIZE,
       }),
       PARTICIPANTS_PAGE_SIZE,
-    )
+    );
     const proximoId = data.items.some(
       (participante) => participante.id_entidade === participanteId,
     )
       ? participanteId
-      : data.items[0]?.id_entidade || null
+      : data.items[0]?.id_entidade || null;
 
-    setParticipantes(data.items)
-    setParticipantesMeta(data)
-    setParticipanteId(proximoId)
+    setParticipantes(data.items);
+    setParticipantesMeta(data);
+    if (proximoId !== participanteId) {
+      limparEdicaoSalario();
+      limparEdicaoFerias();
+    }
+    setParticipanteId(proximoId);
 
     if (!proximoId) {
-      setDetalhe(null)
-      setLinhas(meses.map((mes) => criarLinhaBase(mes.valor)))
-      setAlterado(false)
+      setDetalhe(null);
+      setLinhas(meses.map((mes) => criarLinhaBase(mes.valor)));
+      setAlterado(false);
+      limparEdicaoSalario();
+      limparEdicaoFerias();
+    }
+  }
+
+  async function recarregarDetalheELancamentos() {
+    if (!participanteId) return;
+
+    const [participante, lancamentos] = await Promise.all([
+      buscarParticipante(participanteId),
+      listarLancamentosMensais(participanteId, ano),
+    ]);
+    const porMes = new Map(
+      lancamentos.map((linha) => [Number(linha.mes), linha]),
+    );
+
+    setDetalhe(participante);
+    setLinhas(
+      meses.map((mes) => normalizarLinha(porMes.get(mes.valor), mes.valor)),
+    );
+    setAlterado(false);
+  }
+
+  async function recarregarSalarios() {
+    if (!participanteId) return;
+
+    const registros = normalizePaginated(
+      await listarRegistrosSalariais(participanteId, {
+        page: 1,
+        limit: SALARY_PAGE_SIZE,
+      }),
+      SALARY_PAGE_SIZE,
+    );
+
+    setSalarioPage(1);
+    setRegistrosSalariais(registros.items);
+    setSalarioMeta(registros);
+  }
+
+  async function recarregarFerias() {
+    if (!participanteId) return;
+
+    const payload = await listarFerias(participanteId, {
+      page: 1,
+      limit: VACATION_PAGE_SIZE,
+    });
+    const data = normalizePaginated(payload, VACATION_PAGE_SIZE);
+
+    setFeriasPage(1);
+    setFerias(data.items);
+    setFeriasMeta(data);
+    setFeriasSummary(payload?.summary || feriasSummaryInicial);
+  }
+
+  async function recarregarAposAlteracaoSalarial() {
+    await recarregarDetalheELancamentos();
+    await recarregarSalarios();
+    await recarregarFerias();
+    await recarregarParticipantes();
+    await carregarRelatorio();
+  }
+
+  function limparEdicaoSalario() {
+    setSalarioForm(salarioInicial);
+    setSalarioEditandoId(null);
+    setImpactoSalarial(null);
+  }
+
+  function montarPayloadSalario() {
+    return {
+      inicio_vigencia: salarioForm.inicio_vigencia,
+      fim_vigencia: salarioForm.fim_vigencia || null,
+      salario: salarioForm.salario,
+      percentual: salarioForm.percentual || null,
+      observacao: salarioForm.observacao || null,
+    };
+  }
+
+  async function executarSalvarSalario(
+    payload,
+    registroId = salarioEditandoId,
+  ) {
+    if (registroId) {
+      await atualizarRegistroSalarial(participanteId, registroId, payload);
+    } else {
+      await criarRegistroSalarial(participanteId, payload);
+    }
+
+    const estavaEditando = Boolean(registroId);
+    limparEdicaoSalario();
+    await recarregarAposAlteracaoSalarial();
+    setStatus({
+      type: "success",
+      message: estavaEditando
+        ? "Registro salarial atualizado."
+        : "Registro salarial criado.",
+    });
+  }
+
+  async function executarExcluirSalario(registro) {
+    await removerRegistroSalarial(
+      participanteId,
+      registro.id_registro_salarial,
+    );
+
+    if (salarioEditandoId === registro.id_registro_salarial) {
+      limparEdicaoSalario();
+    } else {
+      setImpactoSalarial(null);
+    }
+
+    await recarregarAposAlteracaoSalarial();
+    setStatus({ type: "success", message: "Registro salarial excluido." });
+  }
+
+  function editarSalario(registro) {
+    setSalarioEditandoId(registro.id_registro_salarial);
+    setSalarioForm({
+      inicio_vigencia: registro.inicio_vigencia || "",
+      fim_vigencia: registro.fim_vigencia || "",
+      salario: registro.salario || "",
+      percentual: registro.percentual || "",
+      observacao: registro.observacao || "",
+    });
+    setStatus(null);
+  }
+
+  async function excluirSalario(registro) {
+    if (!participanteId) return;
+
+    setStatus(null);
+    try {
+      const impacto = await buscarImpactoExclusaoRegistroSalarial(
+        participanteId,
+        registro.id_registro_salarial,
+      );
+
+      if (possuiImpactoSalarial(impacto)) {
+        setImpactoSalarial({
+          acao: "excluir",
+          titulo: "Excluir registro salarial",
+          mensagem: "Excluir isso vai modificar:",
+          registro,
+          impacto,
+        });
+        return;
+      }
+
+      await executarExcluirSalario(registro);
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    }
+  }
+
+  async function confirmarImpactoSalarial() {
+    if (!impactoSalarial || !participanteId) return;
+
+    setProcessandoImpacto(true);
+    setStatus(null);
+
+    try {
+      if (impactoSalarial.acao === "editar") {
+        await executarSalvarSalario(
+          impactoSalarial.payload,
+          impactoSalarial.registroId,
+        );
+      } else {
+        await executarExcluirSalario(impactoSalarial.registro);
+      }
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    } finally {
+      setProcessandoImpacto(false);
+    }
+  }
+
+  function limparEdicaoFerias() {
+    setFeriasForm(feriasInicial);
+    setFeriasEditandoId(null);
+  }
+
+  function editarFerias(item) {
+    setFeriasEditandoId(item.id_ferias);
+    setFeriasForm({
+      inicio_gozado: item.inicio_gozado || "",
+      fim_gozado: item.fim_gozado || "",
+      valor_abono: numero(item.valor_abono) > 0 ? String(item.valor_abono) : "",
+    });
+    setStatus(null);
+  }
+
+  async function excluirFerias(item) {
+    if (!participanteId) return;
+    if (
+      !window.confirm(
+        "Excluir este registro de ferias? Esta acao entra na auditoria.",
+      )
+    ) {
+      return;
+    }
+
+    setStatus(null);
+    try {
+      await removerFerias(participanteId, item.id_ferias);
+      if (feriasEditandoId === item.id_ferias) {
+        limparEdicaoFerias();
+      }
+      await recarregarDetalheELancamentos();
+      await recarregarFerias();
+      await carregarRelatorio();
+      setStatus({ type: "success", message: "Ferias excluidas." });
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
     }
   }
 
   function alterarLinha(mes, campo, valor) {
     setLinhas((atuais) =>
       atuais.map((linha) =>
-        linha.mes === mes ? calcularLinha({ ...linha, [campo]: valor }) : linha,
+        linha.mes === mes
+          ? calcularLinha(
+              { ...linha, [campo]: valor },
+              campo === "dias_trabalhados",
+            )
+          : linha,
       ),
-    )
-    setAlterado(true)
-    setStatus(null)
+    );
+    setAlterado(true);
+    setStatus(null);
   }
 
   function abrirDescontos(mes) {
-    setMesDescontos(mes)
-    setModalAberto('descontos')
+    setMesDescontos(mes);
+    setModalAberto("descontos");
   }
 
   async function carregarEntidadesFolha(pageToLoad = entidadesFolhaPage) {
-    setCarregandoEntidadesFolha(true)
-    setStatus(null)
+    setCarregandoEntidadesFolha(true);
+    setStatus(null);
 
     try {
       const data = normalizePaginated(
@@ -496,197 +743,222 @@ function FolhaPage({ onBack }) {
           search: termoEntidadesFolha,
         }),
         ENTITIES_MODAL_PAGE_SIZE,
-      )
-      setEntidadesFolha(data.items)
-      setEntidadesFolhaMeta(data)
-      setEntidadesFolhaPage(data.page)
+      );
+      setEntidadesFolha(data.items);
+      setEntidadesFolhaMeta(data);
+      setEntidadesFolhaPage(data.page);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setCarregandoEntidadesFolha(false)
+      setCarregandoEntidadesFolha(false);
     }
   }
 
   async function abrirParticipantes() {
-    setModalAberto('participantes')
-    setEntidadesFolhaPage(1)
-    await carregarEntidadesFolha(1)
+    setModalAberto("participantes");
+    setEntidadesFolhaPage(1);
+    await carregarEntidadesFolha(1);
   }
 
   async function alternarParticipacao(entidade) {
-    const id = entidade.id_entidade
-    const participa = !entidade.participa_folha
+    const id = entidade.id_entidade;
+    const participa = !entidade.participa_folha;
 
-    setSalvandoParticipante(id)
-    setStatus(null)
+    setSalvandoParticipante(id);
+    setStatus(null);
 
     try {
-      const atualizada = await atualizarEntidade(id, { participa_folha: participa })
+      const atualizada = await atualizarEntidade(id, {
+        participa_folha: participa,
+      });
       setEntidadesFolha((atuais) =>
         atuais.map((item) =>
           item.id_entidade === id
             ? { ...item, participa_folha: atualizada.participa_folha }
             : item,
         ),
-      )
-      await recarregarParticipantes()
-      await carregarRelatorio()
+      );
+      await recarregarParticipantes();
+      await carregarRelatorio();
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSalvandoParticipante(null)
+      setSalvandoParticipante(null);
     }
   }
 
   async function salvar() {
-    if (!participanteId) return
-    setSalvando(true)
-    setStatus(null)
+    if (!participanteId) return;
+    setSalvando(true);
+    setStatus(null);
 
     try {
       const registros = await salvarLancamentosMensais(
         participanteId,
         Number(ano),
         montarPayload(linhas),
-      )
-      const porMes = new Map(registros.map((linha) => [Number(linha.mes), linha]))
-      setLinhas(meses.map((mes) => normalizarLinha(porMes.get(mes.valor), mes.valor)))
-      setAlterado(false)
-      setStatus({ type: 'success', message: 'Lançamentos salvos.' })
-      await carregarRelatorio()
+      );
+      const porMes = new Map(
+        registros.map((linha) => [Number(linha.mes), linha]),
+      );
+      setLinhas(
+        meses.map((mes) => normalizarLinha(porMes.get(mes.valor), mes.valor)),
+      );
+      setAlterado(false);
+      setStatus({ type: "success", message: "Lançamentos salvos." });
+      await carregarRelatorio();
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setSalvando(false)
+      setSalvando(false);
     }
   }
 
   async function exportar() {
-    if (!participanteId || alterado) return
-    setExportando(true)
-    setStatus(null)
+    if (!participanteId || alterado) return;
+    setExportando(true);
+    setStatus(null);
 
     try {
-      await exportarLancamentosMensais(participanteId, ano, detalhe?.nome)
+      await exportarLancamentosMensais(participanteId, ano, detalhe?.nome);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     } finally {
-      setExportando(false)
+      setExportando(false);
     }
   }
 
   async function adicionarSalario(event) {
-    event.preventDefault()
-    if (!participanteId) return
+    event.preventDefault();
+    if (!participanteId) return;
 
-    setStatus(null)
+    setStatus(null);
     try {
-      await criarRegistroSalarial(participanteId, {
-        ...salarioForm,
-        percentual: salarioForm.percentual || null,
-      })
-      const participante = await buscarParticipante(participanteId)
-      setDetalhe(participante)
-      setSalarioForm(salarioInicial)
-      const registros = normalizePaginated(
-        await listarRegistrosSalariais(participanteId, {
-          page: 1,
-          limit: SALARY_PAGE_SIZE,
-        }),
-        SALARY_PAGE_SIZE,
-      )
-      setSalarioPage(1)
-      setRegistrosSalariais(registros.items)
-      setSalarioMeta(registros)
-      await recarregarParticipantes()
-      setStatus({ type: 'success', message: 'Registro salarial criado.' })
+      const payload = montarPayloadSalario();
+
+      if (salarioEditandoId) {
+        const impacto = await buscarImpactoEdicaoRegistroSalarial(
+          participanteId,
+          salarioEditandoId,
+          payload,
+        );
+
+        if (possuiImpactoSalarial(impacto)) {
+          setImpactoSalarial({
+            acao: "editar",
+            titulo: "Editar registro salarial",
+            mensagem: "Editar isso vai modificar:",
+            registroId: salarioEditandoId,
+            payload,
+            impacto,
+          });
+          return;
+        }
+      }
+
+      await executarSalvarSalario(payload);
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     }
   }
 
   async function calcularPercentualSalario() {
-    if (!participanteId || !salarioForm.inicio_vigencia || !salarioForm.salario) {
+    if (
+      !participanteId ||
+      !salarioForm.inicio_vigencia ||
+      !salarioForm.salario
+    ) {
       setStatus({
-        type: 'warning',
-        message: 'Informe data e salário para calcular o percentual.',
-      })
-      return
+        type: "warning",
+        message: "Informe data e salário para calcular o percentual.",
+      });
+      return;
     }
 
-    setStatus(null)
+    setStatus(null);
 
     try {
       const sugestao = await buscarPercentualSugerido(participanteId, {
         inicio_vigencia: salarioForm.inicio_vigencia,
         salario: salarioForm.salario,
-      })
+      });
 
       if (sugestao.percentual_sugerido === null) {
         setStatus({
-          type: 'warning',
-          message: 'Não existe salário anterior para sugerir o percentual.',
-        })
-        return
+          type: "warning",
+          message: "Não existe salário anterior para sugerir o percentual.",
+        });
+        return;
       }
 
       setSalarioForm((form) => ({
         ...form,
         percentual: String(sugestao.percentual_sugerido),
-      }))
+      }));
       setStatus({
-        type: 'success',
+        type: "success",
         message: `Percentual sugerido com base em ${dinheiro(sugestao.salario_base)}.`,
-      })
+      });
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     }
   }
 
   async function adicionarFerias(event) {
-    event.preventDefault()
-    if (!participanteId) return
+    event.preventDefault();
+    if (!participanteId) return;
 
-    setStatus(null)
+    setStatus(null);
     try {
-      await criarFerias(participanteId, {
-        periodo_aquisitivo_inicio: feriasForm.periodo_aquisitivo_inicio,
-        periodo_aquisitivo_fim: feriasForm.periodo_aquisitivo_fim,
-        dias_gozados: feriasForm.dias_gozados,
+      const payload = {
+        inicio_gozado: feriasForm.inicio_gozado,
+        fim_gozado: feriasForm.fim_gozado,
         valor_abono: feriasForm.valor_abono || null,
-        periodo_inicio: feriasForm.periodo_inicio,
-        periodo_fim: feriasForm.periodo_fim,
-        data_retorno: feriasForm.data_retorno,
-      })
-      const participante = await buscarParticipante(participanteId)
-      setDetalhe(participante)
-      setFeriasForm(feriasInicial)
-      const payload = await listarFerias(participanteId, {
-        page: 1,
-        limit: VACATION_PAGE_SIZE,
-      })
-      const data = normalizePaginated(payload, VACATION_PAGE_SIZE)
-      setFeriasPage(1)
-      setFerias(data.items)
-      setFeriasMeta(data)
-      setFeriasSummary(payload?.summary || { total_dias_gozados: 0 })
-      setStatus({ type: 'success', message: 'Férias cadastradas.' })
+      };
+
+      if (feriasEditandoId) {
+        await atualizarFerias(participanteId, feriasEditandoId, payload);
+      } else {
+        await criarFerias(participanteId, payload);
+      }
+
+      const estavaEditando = Boolean(feriasEditandoId);
+      limparEdicaoFerias();
+      await recarregarDetalheELancamentos();
+      await recarregarFerias();
+      await carregarRelatorio();
+      setStatus({
+        type: "success",
+        message: estavaEditando ? "Ferias atualizadas." : "Ferias cadastradas.",
+      });
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     }
   }
 
   async function exportarRelatorio() {
-    setStatus(null)
+    setStatus(null);
     try {
-      await exportarRelatorioMensal({ ano, mes: mesRelatorio })
+      await exportarRelatorioMensal({ ano, mes: mesRelatorio });
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setStatus({ type: "error", message: error.message });
     }
   }
 
   function imprimirRelatorio() {
-    window.print()
+    if (!relatorio?.itens?.length) {
+      return;
+    }
+
+    setStatus(null);
+    try {
+      window.print();
+    } catch (error) {
+      setStatus({
+        type: "error",
+        message: error?.message || "Falha ao abrir impressão.",
+      });
+    }
   }
 
   return (
@@ -706,30 +978,30 @@ function FolhaPage({ onBack }) {
       {alterado ? (
         <StatusMessage
           status={{
-            type: 'warning',
-            message: 'Existem alterações pendentes. Salve antes de exportar.',
+            type: "warning",
+            message: "Existem alterações pendentes. Salve antes de exportar.",
           }}
         />
       ) : null}
 
       <div className="tabs no-print">
         <button
-          className={aba === 'relatorio' ? 'active' : ''}
-          onClick={() => setAba('relatorio')}
+          className={aba === "relatorio" ? "active" : ""}
+          onClick={() => setAba("relatorio")}
           type="button"
         >
           Relatório mensal
         </button>
         <button
-          className={aba === 'lancamentos' ? 'active' : ''}
-          onClick={() => setAba('lancamentos')}
+          className={aba === "lancamentos" ? "active" : ""}
+          onClick={() => setAba("lancamentos")}
           type="button"
         >
           Lançamentos
         </button>
       </div>
 
-      {aba === 'relatorio' ? (
+      {aba === "relatorio" ? (
         <section className="report-page print-area">
           <section className="panel report-toolbar no-print">
             <label>
@@ -745,7 +1017,9 @@ function FolhaPage({ onBack }) {
             <label>
               Mês
               <select
-                onChange={(event) => setMesRelatorio(Number(event.target.value))}
+                onChange={(event) =>
+                  setMesRelatorio(Number(event.target.value))
+                }
                 value={mesRelatorio}
               >
                 {meses.map((mes) => (
@@ -761,7 +1035,7 @@ function FolhaPage({ onBack }) {
               onClick={imprimirRelatorio}
               type="button"
             >
-              Imprimir
+              Imprimir relatório
             </button>
             <button
               className="primary-button"
@@ -786,19 +1060,20 @@ function FolhaPage({ onBack }) {
                 <strong>{relatorio?.itens?.length || 0}</strong>
               </div>
               <div>
-                <span>Total líquido</span>
+                <span>Total final + férias</span>
                 <strong>{dinheiro(relatorio?.total)}</strong>
               </div>
             </div>
-            <PayrollMonthlyChart relatorio={relatorio} />
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th>Participante</th>
                     <th>Bruto</th>
+                    <th>Proporcional</th>
                     <th>Líquido</th>
                     <th>Final</th>
+                    <th>Final + Férias</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -806,16 +1081,29 @@ function FolhaPage({ onBack }) {
                     <tr key={item.id_folha_mensal}>
                       <td>{item.entidade?.nome}</td>
                       <td>{dinheiro(item.salario_bruto)}</td>
+                      <td>{dinheiro(item.salario_proporcional)}</td>
                       <td>{dinheiro(item.salario_liquido)}</td>
                       <td>{dinheiro(item.salario_liquido_com_desconto)}</td>
+                      <td>{dinheiro(item.salario_final_com_ferias)}</td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan="5">
+                      <strong>Total final + férias</strong>
+                    </td>
+                    <td>
+                      <strong>{dinheiro(relatorio?.total)}</strong>
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
               {!relatorio?.itens?.length ? (
                 <p className="empty-state">Nenhum lançamento no período.</p>
               ) : null}
             </div>
+            <PayrollMonthlyChart relatorio={relatorio} />
           </section>
         </section>
       ) : (
@@ -834,8 +1122,8 @@ function FolhaPage({ onBack }) {
             </button>
             <input
               onChange={(event) => {
-                setParticipantePage(1)
-                setTermo(event.target.value)
+                setParticipantePage(1);
+                setTermo(event.target.value);
               }}
               placeholder="Buscar participante"
               type="search"
@@ -845,13 +1133,15 @@ function FolhaPage({ onBack }) {
               {participantes.map((participante) => (
                 <button
                   className={`record-row ${
-                    participante.id_entidade === participanteId ? 'active' : ''
+                    participante.id_entidade === participanteId ? "active" : ""
                   }`}
                   key={participante.id_entidade}
                   onClick={() => {
-                    setParticipanteId(participante.id_entidade)
-                    setSalarioPage(1)
-                    setFeriasPage(1)
+                    limparEdicaoSalario();
+                    limparEdicaoFerias();
+                    setParticipanteId(participante.id_entidade);
+                    setSalarioPage(1);
+                    setFeriasPage(1);
                   }}
                   type="button"
                 >
@@ -874,7 +1164,8 @@ function FolhaPage({ onBack }) {
                 Anterior
               </button>
               <span>
-                Pagina {participantesMeta.page} de {participantesMeta.totalPages}
+                Pagina {participantesMeta.page} de{" "}
+                {participantesMeta.totalPages}
               </span>
               <button
                 className="secondary-button"
@@ -891,11 +1182,15 @@ function FolhaPage({ onBack }) {
             <section className="summary-grid">
               <div>
                 <span>Participante</span>
-                <strong>{detalhe?.nome || '-'}</strong>
+                <strong>{detalhe?.nome || "-"}</strong>
               </div>
               <div>
                 <span>Salário atual</span>
                 <strong>{dinheiro(detalhe?.salario_atual)}</strong>
+              </div>
+              <div>
+                <span>Admissão</span>
+                <strong>{detalhe?.data_admissao || "-"}</strong>
               </div>
               <div>
                 <span>Total bruto</span>
@@ -904,6 +1199,10 @@ function FolhaPage({ onBack }) {
               <div>
                 <span>Total final</span>
                 <strong>{dinheiro(totais.final)}</strong>
+              </div>
+              <div>
+                <span>Final + férias</span>
+                <strong>{dinheiro(totais.finalComFerias)}</strong>
               </div>
             </section>
 
@@ -925,10 +1224,12 @@ function FolhaPage({ onBack }) {
                     className="secondary-button"
                     disabled={!participanteId || alterado || exportando}
                     onClick={exportar}
-                    title={alterado ? 'Salve antes de exportar' : 'Exportar planilha'}
+                    title={
+                      alterado ? "Salve antes de exportar" : "Exportar planilha"
+                    }
                     type="button"
                   >
-                    {exportando ? 'Exportando...' : 'Exportar como planilha'}
+                    {exportando ? "Exportando..." : "Exportar como planilha"}
                   </button>
                   <button
                     className="primary-button"
@@ -936,7 +1237,7 @@ function FolhaPage({ onBack }) {
                     onClick={salvar}
                     type="button"
                   >
-                    {salvando ? 'Salvando...' : 'Salvar'}
+                    {salvando ? "Salvando..." : "Salvar"}
                   </button>
                 </div>
               </div>
@@ -947,14 +1248,15 @@ function FolhaPage({ onBack }) {
                       <th>Mês</th>
                       <th>Dias</th>
                       <th>Bruto</th>
+                      <th>Proporcional</th>
                       <th>INSS</th>
                       <th>IRRF</th>
                       <th>INSS adic.</th>
-                      <th>Férias</th>
                       <th>Comissão</th>
                       <th>Líquido</th>
                       <th>Descontos</th>
                       <th>Final</th>
+                      <th>Final + Férias</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -969,7 +1271,7 @@ function FolhaPage({ onBack }) {
                             onChange={(event) =>
                               alterarLinha(
                                 linha.mes,
-                                'dias_trabalhados',
+                                "dias_trabalhados",
                                 event.target.value,
                               )
                             }
@@ -977,18 +1279,12 @@ function FolhaPage({ onBack }) {
                             value={linha.dias_trabalhados}
                           />
                         </td>
+                        <td>{dinheiro(linha.salario_bruto)}</td>
+                        <td>{dinheiro(linha.salario_proporcional)}</td>
                         <td>
                           <MoneyInput
                             onChange={(value) =>
-                              alterarLinha(linha.mes, 'salario_bruto', value)
-                            }
-                            value={linha.salario_bruto}
-                          />
-                        </td>
-                        <td>
-                          <MoneyInput
-                            onChange={(value) =>
-                              alterarLinha(linha.mes, 'inss', value)
+                              alterarLinha(linha.mes, "inss", value)
                             }
                             value={linha.inss}
                           />
@@ -996,7 +1292,7 @@ function FolhaPage({ onBack }) {
                         <td>
                           <MoneyInput
                             onChange={(value) =>
-                              alterarLinha(linha.mes, 'irrf', value)
+                              alterarLinha(linha.mes, "irrf", value)
                             }
                             value={linha.irrf}
                           />
@@ -1004,7 +1300,7 @@ function FolhaPage({ onBack }) {
                         <td>
                           <MoneyInput
                             onChange={(value) =>
-                              alterarLinha(linha.mes, 'inss_adicional', value)
+                              alterarLinha(linha.mes, "inss_adicional", value)
                             }
                             value={linha.inss_adicional}
                           />
@@ -1012,15 +1308,7 @@ function FolhaPage({ onBack }) {
                         <td>
                           <MoneyInput
                             onChange={(value) =>
-                              alterarLinha(linha.mes, 'ferias', value)
-                            }
-                            value={linha.ferias}
-                          />
-                        </td>
-                        <td>
-                          <MoneyInput
-                            onChange={(value) =>
-                              alterarLinha(linha.mes, 'comissao', value)
+                              alterarLinha(linha.mes, "comissao", value)
                             }
                             value={linha.comissao}
                           />
@@ -1039,6 +1327,7 @@ function FolhaPage({ onBack }) {
                           </div>
                         </td>
                         <td>{dinheiro(linha.salario_liquido_com_desconto)}</td>
+                        <td>{dinheiro(linha.salario_final_com_ferias)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1055,7 +1344,7 @@ function FolhaPage({ onBack }) {
                 <button
                   className="secondary-button full"
                   disabled={!participanteId}
-                  onClick={() => setModalAberto('salarios')}
+                  onClick={() => setModalAberto("salarios")}
                   type="button"
                 >
                   Gerenciar salários
@@ -1064,7 +1353,10 @@ function FolhaPage({ onBack }) {
                   {registrosSalariais.slice(0, 5).map((registro) => (
                     <div key={registro.id_registro_salarial}>
                       <strong>{dinheiro(registro.salario)}</strong>
-                      <span>{registro.inicio_vigencia}</span>
+                      <span>
+                        {registro.inicio_vigencia} a{" "}
+                        {registro.fim_vigencia || "Atual"}
+                      </span>
                     </div>
                   ))}
                   {!registrosSalariais.length ? (
@@ -1081,7 +1373,7 @@ function FolhaPage({ onBack }) {
                 <button
                   className="secondary-button full"
                   disabled={!participanteId}
-                  onClick={() => setModalAberto('ferias')}
+                  onClick={() => setModalAberto("ferias")}
                   type="button"
                 >
                   Gerenciar férias
@@ -1089,11 +1381,10 @@ function FolhaPage({ onBack }) {
                 <div className="mini-list">
                   {ferias.slice(0, 5).map((item) => (
                     <div key={item.id_ferias}>
-                      <strong>
-                        {item.dias_gozados}/{item.ferias_adquiridas_dias} dias
-                      </strong>
+                      <strong>{item.dias_gozados} dias</strong>
                       <span>
-                        {item.periodo_aquisitivo_inicio} a {item.periodo_aquisitivo_fim}
+                        {item.inicio_gozado} a {item.fim_gozado} -{" "}
+                        {dinheiro(item.valor_total_ferias)}
                       </span>
                     </div>
                   ))}
@@ -1107,7 +1398,7 @@ function FolhaPage({ onBack }) {
         </section>
       )}
 
-      {modalAberto === 'participantes' ? (
+      {modalAberto === "participantes" ? (
         <Modal
           onClose={() => setModalAberto(null)}
           title="Gerenciar participantes da folha"
@@ -1141,22 +1432,22 @@ function FolhaPage({ onBack }) {
                 >
                   <span>
                     <strong>{entidade.nome}</strong>
-                    <small>{entidade.cpf_cnpj || 'Sem documento'}</small>
+                    <small>{entidade.cpf_cnpj || "Sem documento"}</small>
                   </span>
                   <span
                     className={`toggle-pill ${
-                      entidade.participa_folha ? 'active' : ''
+                      entidade.participa_folha ? "active" : ""
                     }`}
                   >
-                    {entidade.participa_folha ? 'Na folha' : 'Fora da folha'}
+                    {entidade.participa_folha ? "Na folha" : "Fora da folha"}
                   </span>
                 </button>
               ))}
               {!entidadesFiltradasFolha.length ? (
                 <p className="empty-state">
                   {carregandoEntidadesFolha
-                    ? 'Carregando cadastros...'
-                    : 'Nenhum cadastro encontrado.'}
+                    ? "Carregando cadastros..."
+                    : "Nenhum cadastro encontrado."}
                 </p>
               ) : null}
             </div>
@@ -1170,7 +1461,8 @@ function FolhaPage({ onBack }) {
                 Anterior
               </button>
               <span>
-                Pagina {entidadesFolhaMeta.page} de {entidadesFolhaMeta.totalPages}
+                Pagina {entidadesFolhaMeta.page} de{" "}
+                {entidadesFolhaMeta.totalPages}
               </span>
               <button
                 className="secondary-button"
@@ -1188,7 +1480,7 @@ function FolhaPage({ onBack }) {
         </Modal>
       ) : null}
 
-      {modalAberto === 'descontos' && linhaDescontos ? (
+      {modalAberto === "descontos" && linhaDescontos ? (
         <Modal
           onClose={() => setModalAberto(null)}
           title={`Descontos de ${meses[Number(linhaDescontos.mes) - 1]?.label}`}
@@ -1199,7 +1491,9 @@ function FolhaPage({ onBack }) {
                 <label key={item.campo}>
                   {item.label}
                   <MoneyInput
-                    onChange={(value) => alterarLinha(linhaDescontos.mes, item.campo, value)}
+                    onChange={(value) =>
+                      alterarLinha(linhaDescontos.mes, item.campo, value)
+                    }
                     value={linhaDescontos[item.campo]}
                   />
                 </label>
@@ -1222,7 +1516,7 @@ function FolhaPage({ onBack }) {
         </Modal>
       ) : null}
 
-      {modalAberto === 'salarios' ? (
+      {modalAberto === "salarios" ? (
         <Modal onClose={() => setModalAberto(null)} title="Registros salariais">
           <div className="modal-body">
             <form className="compact-form" onSubmit={adicionarSalario}>
@@ -1238,6 +1532,19 @@ function FolhaPage({ onBack }) {
                   required
                   type="date"
                   value={salarioForm.inicio_vigencia}
+                />
+              </label>
+              <label>
+                Fim opcional
+                <input
+                  onChange={(event) =>
+                    setSalarioForm((form) => ({
+                      ...form,
+                      fim_vigencia: event.target.value,
+                    }))
+                  }
+                  type="date"
+                  value={salarioForm.fim_vigencia}
                 />
               </label>
               <label>
@@ -1293,16 +1600,44 @@ function FolhaPage({ onBack }) {
                 />
               </label>
               <button className="primary-button" type="submit">
-                Adicionar
+                {salarioEditandoId ? "Salvar alteracoes" : "Adicionar"}
               </button>
+              {salarioEditandoId ? (
+                <button
+                  className="secondary-button"
+                  onClick={limparEdicaoSalario}
+                  type="button"
+                >
+                  Cancelar
+                </button>
+              ) : null}
             </form>
             <div className="mini-list">
               {registrosSalariais.map((registro) => (
                 <div key={registro.id_registro_salarial}>
-                  <strong>{dinheiro(registro.salario)}</strong>
-                  <span>
-                    {registro.inicio_vigencia}
-                    {registro.percentual ? ` - ${registro.percentual}%` : ''}
+                  <span className="mini-list-content">
+                    <strong>{dinheiro(registro.salario)}</strong>
+                    <span>
+                      {registro.inicio_vigencia} a{" "}
+                      {registro.fim_vigencia || "Atual"}
+                      {registro.percentual ? ` - ${registro.percentual}%` : ""}
+                    </span>
+                  </span>
+                  <span className="inline-actions">
+                    <button
+                      className="secondary-button tiny-button"
+                      onClick={() => editarSalario(registro)}
+                      type="button"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="secondary-button tiny-button danger-button"
+                      onClick={() => excluirSalario(registro)}
+                      type="button"
+                    >
+                      Excluir
+                    </button>
                   </span>
                 </div>
               ))}
@@ -1335,54 +1670,128 @@ function FolhaPage({ onBack }) {
         </Modal>
       ) : null}
 
-      {modalAberto === 'ferias' ? (
-        <Modal onClose={() => setModalAberto(null)} title="Registro de férias" width="lg">
+      {impactoSalarial ? (
+        <Modal
+          onClose={() => {
+            if (!processandoImpacto) setImpactoSalarial(null);
+          }}
+          title={impactoSalarial.titulo}
+          width="lg"
+        >
+          <div className="modal-body">
+            <p className="impact-intro">{impactoSalarial.mensagem}</p>
+
+            <div className="impact-grid">
+              <section>
+                <h3>Ferias afetadas</h3>
+                {(impactoSalarial.impacto?.ferias || []).length ? (
+                  <ul className="impact-list">
+                    {impactoSalarial.impacto.ferias.map((item) => (
+                      <li key={`ferias-${item.id_ferias}`}>
+                        {item.descricao ||
+                          `Ferias de ${item.inicio_gozado} a ${item.fim_gozado}`}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">Nenhuma feria afetada.</p>
+                )}
+              </section>
+
+              <section>
+                <h3>Folhas afetadas</h3>
+                {(impactoSalarial.impacto?.lancamentos || []).length ? (
+                  <ul className="impact-list">
+                    {impactoSalarial.impacto.lancamentos.map((item) => (
+                      <li key={`folha-${item.ano}-${item.mes}`}>
+                        {item.descricao ||
+                          `Folha de pagamento ${mesAno(item.ano, item.mes)}`}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-state">Nenhuma folha afetada.</p>
+                )}
+              </section>
+            </div>
+
+            {(impactoSalarial.impacto?.sem_salario || []).length ? (
+              <section className="impact-warning">
+                <h3>Sem salario vigente</h3>
+                <p>
+                  Os trechos abaixo serao recalculados com valor 0 onde nao
+                  houver salario vigente.
+                </p>
+                <ul className="impact-list">
+                  {impactoSalarial.impacto.sem_salario.map((item, index) => (
+                    <li key={`${item.tipo}-${item.referencia || index}`}>
+                      {item.descricao}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            <div className="form-actions">
+              <button
+                className="secondary-button"
+                disabled={processandoImpacto}
+                onClick={() => setImpactoSalarial(null)}
+                type="button"
+              >
+                Cancelar
+              </button>
+              <button
+                className="primary-button"
+                disabled={processandoImpacto}
+                onClick={confirmarImpactoSalarial}
+                type="button"
+              >
+                {processandoImpacto ? "Confirmando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
+
+      {modalAberto === "ferias" ? (
+        <Modal
+          onClose={() => setModalAberto(null)}
+          title="Registro de férias"
+          width="lg"
+        >
           <div className="modal-body">
             <form className="compact-form" onSubmit={adicionarFerias}>
               <label>
-                Aquisitivo início
+                Inicio gozado
                 <input
                   onChange={(event) =>
                     setFeriasForm((form) => ({
                       ...form,
-                      periodo_aquisitivo_inicio: event.target.value,
+                      inicio_gozado: event.target.value,
                     }))
                   }
                   required
                   type="date"
-                  value={feriasForm.periodo_aquisitivo_inicio}
+                  value={feriasForm.inicio_gozado}
                 />
               </label>
               <label>
-                Aquisitivo fim
+                Fim gozado
                 <input
                   onChange={(event) =>
                     setFeriasForm((form) => ({
                       ...form,
-                      periodo_aquisitivo_fim: event.target.value,
+                      fim_gozado: event.target.value,
                     }))
                   }
                   required
                   type="date"
-                  value={feriasForm.periodo_aquisitivo_fim}
+                  value={feriasForm.fim_gozado}
                 />
               </label>
               <label>
-                Dias gozados
-                <input
-                  min="0"
-                  onChange={(event) =>
-                    setFeriasForm((form) => ({
-                      ...form,
-                      dias_gozados: event.target.value,
-                    }))
-                  }
-                  type="number"
-                  value={feriasForm.dias_gozados}
-                />
-              </label>
-              <label>
-                Valor abono
+                Abono opcional
                 <input
                   min="0"
                   onChange={(event) =>
@@ -1396,107 +1805,130 @@ function FolhaPage({ onBack }) {
                   value={feriasForm.valor_abono}
                 />
               </label>
-              <label>
-                Início gozado
-                <input
-                  onChange={(event) =>
-                    setFeriasForm((form) => ({
-                      ...form,
-                      periodo_inicio: event.target.value,
-                    }))
-                  }
-                  type="date"
-                  value={feriasForm.periodo_inicio}
-                />
-              </label>
-              <label>
-                Fim gozado
-                <input
-                  onChange={(event) =>
-                    setFeriasForm((form) => ({
-                      ...form,
-                      periodo_fim: event.target.value,
-                    }))
-                  }
-                  type="date"
-                  value={feriasForm.periodo_fim}
-                />
-              </label>
-              <label>
-                Retorno
-                <input
-                  onChange={(event) =>
-                    setFeriasForm((form) => ({
-                      ...form,
-                      data_retorno: event.target.value,
-                    }))
-                  }
-                  type="date"
-                  value={feriasForm.data_retorno}
-                />
-              </label>
               <button className="primary-button" type="submit">
-                Adicionar
+                {feriasEditandoId ? "Salvar alteracoes" : "Adicionar"}
               </button>
+              {feriasEditandoId ? (
+                <button
+                  className="secondary-button"
+                  onClick={limparEdicaoFerias}
+                  type="button"
+                >
+                  Cancelar
+                </button>
+              ) : null}
             </form>
             <div className="summary-grid compact-summary">
               <div>
+                <span>Periodo aquisitivo</span>
+                <strong>
+                  {feriasSummary.periodo_aquisitivo_inicio
+                    ? `${feriasSummary.periodo_aquisitivo_inicio} a ${feriasSummary.periodo_aquisitivo_fim}`
+                    : "-"}
+                </strong>
+              </div>
+              <div>
                 <span>Anos aquisitivos</span>
-                <strong>{feriasPreview.anos}</strong>
+                <strong>{feriasSummary.anos_aquisitivos || 0}</strong>
               </div>
               <div>
-                <span>Férias adquiridas</span>
-                <strong>{feriasPreview.dias} dias</strong>
+                <span>Dias adquiridos</span>
+                <strong>{feriasSummary.dias_adquiridos || 0} dias</strong>
               </div>
               <div>
-                <span>Total gozadas</span>
+                <span>Dias gozados</span>
                 <strong>{feriasSummary.total_dias_gozados || 0} dias</strong>
+              </div>
+              <div>
+                <span>Saldo</span>
+                <strong>{feriasSummary.saldo_ferias_dias || 0} dias</strong>
               </div>
             </div>
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Aquisitivo</th>
-                    <th>Anos</th>
-                    <th>Adquiridas</th>
-                    <th>Gozadas</th>
-                    <th>Saldo</th>
+                    <th>Inicio gozado</th>
+                    <th>Fim gozado</th>
+                    <th>Dias</th>
+                    <th>Valor calculado</th>
                     <th>Abono</th>
-                    <th>Férias</th>
-                    <th>Retorno</th>
+                    <th>Total</th>
+                    <th>Acoes</th>
                   </tr>
                 </thead>
                 <tbody>
                   {ferias.map((item) => (
                     <tr key={item.id_ferias}>
-                      <td>
-                        {item.periodo_aquisitivo_inicio} a{' '}
-                        {item.periodo_aquisitivo_fim}
-                      </td>
-                      <td>{item.anos_aquisitivos}</td>
-                      <td>{item.ferias_adquiridas_dias} dias</td>
+                      <td>{item.inicio_gozado}</td>
+                      <td>{item.fim_gozado}</td>
                       <td>{item.dias_gozados} dias</td>
-                      <td>{item.saldo_ferias_dias} dias</td>
+                      <td>{dinheiro(item.valor_ferias)}</td>
                       <td>{dinheiro(item.valor_abono)}</td>
+                      <td>{dinheiro(item.valor_total_ferias)}</td>
                       <td>
-                        {item.periodo_inicio && item.periodo_fim
-                          ? `${item.periodo_inicio} a ${item.periodo_fim}`
-                          : '-'}
+                        <span className="inline-actions">
+                          <button
+                            className="secondary-button tiny-button"
+                            onClick={() => editarFerias(item)}
+                            type="button"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            className="secondary-button tiny-button danger-button"
+                            onClick={() => excluirFerias(item)}
+                            type="button"
+                          >
+                            Excluir
+                          </button>
+                        </span>
                       </td>
-                      <td>{item.data_retorno || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan="3">
+                    <td colSpan="2">
                       <strong>Total de férias gozadas</strong>
                     </td>
                     <td>
-                      <strong>{feriasSummary.total_dias_gozados || 0} dias</strong>
+                      <strong>
+                        {feriasSummary.total_dias_gozados || 0} dias
+                      </strong>
                     </td>
-                    <td colSpan="4" />
+                    <td>
+                      <strong>
+                        {dinheiro(
+                          ferias.reduce(
+                            (total, item) => total + numero(item.valor_ferias),
+                            0,
+                          ),
+                        )}
+                      </strong>
+                    </td>
+                    <td>
+                      <strong>
+                        {dinheiro(
+                          ferias.reduce(
+                            (total, item) => total + numero(item.valor_abono),
+                            0,
+                          ),
+                        )}
+                      </strong>
+                    </td>
+                    <td>
+                      <strong>
+                        {dinheiro(
+                          ferias.reduce(
+                            (total, item) =>
+                              total + numero(item.valor_total_ferias),
+                            0,
+                          ),
+                        )}
+                      </strong>
+                    </td>
+                    <td></td>
                   </tr>
                 </tfoot>
               </table>
@@ -1529,7 +1961,7 @@ function FolhaPage({ onBack }) {
         </Modal>
       ) : null}
     </main>
-  )
+  );
 }
 
-export default FolhaPage
+export default FolhaPage;

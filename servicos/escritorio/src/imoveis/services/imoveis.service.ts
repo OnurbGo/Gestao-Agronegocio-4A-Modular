@@ -40,6 +40,14 @@ export class ImoveisService {
       where.municipio = { [Op.like]: `%${query.municipio}%` };
     }
 
+    if (query.lote) {
+      where.lote = { [Op.like]: `%${query.lote}%` };
+    }
+
+    if (query.colonia) {
+      where.colonia = { [Op.like]: `%${query.colonia}%` };
+    }
+
     if (typeof query.ativo === "boolean") {
       where.ativo = query.ativo;
     }

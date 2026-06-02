@@ -11,6 +11,10 @@ import {
 } from "./entidades.service";
 
 const tipoOptions = ["FUNCIONARIO", "PROPRIETARIO", "CLIENTE", "ARRENDATARIO"];
+const tipoPessoaOptions = [
+  { value: "FISICA", label: "Física" },
+  { value: "JURIDICA", label: "Jurídica" },
+];
 const PAGE_SIZE = 10;
 
 function onlyDigits(value = "") {
@@ -48,6 +52,10 @@ function formatPhone(value = "") {
     .replace(/(\d{5})(\d)/, "$1-$2");
 }
 
+function tipoPessoaLabel(value) {
+  return tipoPessoaOptions.find((item) => item.value === value)?.label || value;
+}
+
 const emptyForm = {
   nome: "",
   cpf_cnpj: "",
@@ -57,6 +65,7 @@ const emptyForm = {
   celular: "",
   cidade: "",
   estado: "",
+  data_admissao: "",
   observacao: "",
   tipos: ["CLIENTE"],
 };
@@ -75,6 +84,7 @@ function normalizeForm(entidade) {
     celular: formatPhone(entidade.celular || ""),
     cidade: entidade.cidade || "",
     estado: entidade.estado || "",
+    data_admissao: entidade.data_admissao || "",
     observacao: entidade.observacao || "",
     tipos: entidade.tipos?.length ? entidade.tipos : ["CLIENTE"],
   };
@@ -90,6 +100,7 @@ function montarPayload(form) {
     celular: onlyDigits(form.celular),
     cidade: (form.cidade || "").trim(),
     estado: (form.estado || "").trim().toUpperCase(),
+    data_admissao: form.data_admissao || null,
     observacao: (form.observacao || "").trim(),
     tipos: form.tipos?.length ? form.tipos : ["CLIENTE"],
   };
@@ -98,6 +109,7 @@ function montarPayload(form) {
 function EntidadesPage({ onBack }) {
   const [termo, setTermo] = useState("");
   const [tipoFiltro, setTipoFiltro] = useState("");
+  const [tipoPessoaFiltro, setTipoPessoaFiltro] = useState("");
   const [entidades, setEntidades] = useState([]);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState(() => normalizePaginated([], PAGE_SIZE));
@@ -105,11 +117,28 @@ function EntidadesPage({ onBack }) {
   const [form, setForm] = useState(emptyForm);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState(null);
+  const [pendingPrint, setPendingPrint] = useState(false);
 
   const selected = useMemo(
     () => entidades.find((entidade) => entidade.id_entidade === selectedId),
     [entidades, selectedId],
   );
+
+  useEffect(() => {
+    if (!pendingPrint || !reportData) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      window.print();
+      setPendingPrint(false);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [pendingPrint, reportData]);
 
   useEffect(() => {
     let active = true;
@@ -154,6 +183,7 @@ function EntidadesPage({ onBack }) {
         await listarEntidades({
           termo,
           tipo: tipoFiltro || undefined,
+          tipo_pessoa: tipoPessoaFiltro || undefined,
           page: params.page || page,
           limit: PAGE_SIZE,
           ...params,
@@ -253,9 +283,66 @@ function EntidadesPage({ onBack }) {
     }
   }
 
+  async function imprimirRelatorio() {
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const filtros = {
+        termo,
+        tipo: tipoFiltro || undefined,
+        tipo_pessoa: tipoPessoaFiltro || undefined,
+      };
+      const totalPreview = normalizePaginated(
+        await listarEntidades({ ...filtros, page: 1, limit: 1 }),
+        1,
+      );
+      const limit = Math.max(totalPreview.total, 1);
+      const data = normalizePaginated(
+        await listarEntidades({ ...filtros, page: 1, limit }),
+        limit,
+      );
+
+      if (!data.items.length) {
+        setStatus({
+          type: "warning",
+          message: "Nenhum cadastro encontrado para os filtros selecionados.",
+        });
+        return;
+      }
+
+      const tipoPessoa = tipoPessoaLabel(tipoPessoaFiltro);
+      const relatorio = {
+        title: "Relatório de Pessoas/Empresas",
+        subtitle: `${data.total} registro(s) encontrado(s)`,
+        emittedAt: new Intl.DateTimeFormat("pt-BR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }).format(new Date()),
+        filters: [
+          { label: "Pesquisa", value: termo },
+          {
+            label: "Tipo de pessoa",
+            value: tipoPessoaFiltro ? tipoPessoa : "",
+          },
+          { label: "Vínculo", value: tipoFiltro },
+        ],
+        rows: data.items,
+        totals: [{ label: "Registros", value: data.total }],
+      };
+
+      setReportData(relatorio);
+      setPendingPrint(true);
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="workspace-page">
-      <section className="page-heading">
+      <section className="page-heading no-print">
         <button className="ghost-button" onClick={onBack} type="button">
           Voltar
         </button>
@@ -267,7 +354,7 @@ function EntidadesPage({ onBack }) {
 
       <StatusMessage status={status} />
 
-      <section className="split-layout">
+      <section className="split-layout no-print">
         <aside className="panel list-panel">
           <div className="panel-heading">
             <h2>Registros</h2>
@@ -292,8 +379,28 @@ function EntidadesPage({ onBack }) {
           <div className="filter-row">
             <select
               onChange={(event) => {
+                setTipoPessoaFiltro(event.target.value);
+                carregarLista({
+                  page: 1,
+                  tipo_pessoa: event.target.value || undefined,
+                });
+              }}
+              value={tipoPessoaFiltro}
+            >
+              <option value="">Todas as pessoas</option>
+              {tipoPessoaOptions.map((tipo) => (
+                <option key={tipo.value} value={tipo.value}>
+                  {tipo.label}
+                </option>
+              ))}
+            </select>
+            <select
+              onChange={(event) => {
                 setTipoFiltro(event.target.value);
-                carregarLista({ page: 1, tipo: event.target.value || undefined });
+                carregarLista({
+                  page: 1,
+                  tipo: event.target.value || undefined,
+                });
               }}
               value={tipoFiltro}
             >
@@ -305,6 +412,14 @@ function EntidadesPage({ onBack }) {
               ))}
             </select>
           </div>
+          <button
+            className="secondary-button full"
+            disabled={loading}
+            onClick={imprimirRelatorio}
+            type="button"
+          >
+            Imprimir relatório
+          </button>
           <button
             className="primary-button full"
             onClick={novaEntidade}
@@ -439,6 +554,16 @@ function EntidadesPage({ onBack }) {
                 value={form.estado}
               />
             </label>
+            <label>
+              Admissão
+              <input
+                onChange={(event) =>
+                  updateField("data_admissao", event.target.value)
+                }
+                type="date"
+                value={form.data_admissao}
+              />
+            </label>
             <label className="span-2">
               Observação
               <textarea
@@ -486,6 +611,67 @@ function EntidadesPage({ onBack }) {
           <DocumentosPanel origem="ENTIDADE" ownerId={selectedId} />
         </section>
       </section>
+
+      {reportData ? (
+        <section className="panel printable-report print-only-report">
+          <header className="report-print-header">
+            <h2>{reportData.title}</h2>
+            {reportData.subtitle ? (
+              <p className="report-print-subtitle">{reportData.subtitle}</p>
+            ) : null}
+            {reportData.filters.filter((item) => item.value).length ? (
+              <p className="report-print-filters">
+                {reportData.filters
+                  .filter((item) => item.value)
+                  .map((item) => `${item.label}: ${item.value}`)
+                  .join(" | ")}
+              </p>
+            ) : null}
+            <p className="report-print-emitted">
+              Emitido em {reportData.emittedAt}
+            </p>
+          </header>
+
+          <table className="report-print-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>CPF/CNPJ</th>
+                <th>Tipo pessoa</th>
+                <th>Vínculos</th>
+                <th>Cidade/UF</th>
+                <th>Telefone</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reportData.rows.map((item) => (
+                <tr key={item.id_entidade}>
+                  <td>{item.nome || "-"}</td>
+                  <td>{formatCpfCnpj(item.cpf_cnpj || "") || "-"}</td>
+                  <td>{tipoPessoaLabel(item.tipo_pessoa) || "-"}</td>
+                  <td>{item.tipos?.join(", ") || "-"}</td>
+                  <td>
+                    {[item.cidade, item.estado].filter(Boolean).join("/") ||
+                      "-"}
+                  </td>
+                  <td>
+                    {formatPhone(item.telefone || item.celular || "") || "-"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <section className="report-print-totals">
+            {reportData.totals.map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </section>
+        </section>
+      ) : null}
     </main>
   );
 }

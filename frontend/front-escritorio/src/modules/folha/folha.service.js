@@ -26,6 +26,22 @@ export function buscarPercentualSugerido(id, params) {
   )
 }
 
+export function buscarImpactoEdicaoRegistroSalarial(id, registroId, payload) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/registros-salariais/${registroId}/impacto-edicao`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export function buscarImpactoExclusaoRegistroSalarial(id, registroId) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/registros-salariais/${registroId}/impacto-exclusao`,
+  )
+}
+
 export function salvarLancamentosMensais(id, ano, linhas) {
   return requestJson(`/api/escritorio/folha/participantes/${id}/lancamentos-mensais`, {
     method: 'PUT',
@@ -50,10 +66,42 @@ export function criarRegistroSalarial(id, payload) {
   })
 }
 
+export function atualizarRegistroSalarial(id, registroId, payload) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/registros-salariais/${registroId}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
+export function removerRegistroSalarial(id, registroId) {
+  return requestJson(
+    `/api/escritorio/folha/participantes/${id}/registros-salariais/${registroId}`,
+    {
+      method: 'DELETE',
+    },
+  )
+}
+
 export function criarFerias(id, payload) {
   return requestJson(`/api/escritorio/folha/participantes/${id}/ferias`, {
     method: 'POST',
     body: JSON.stringify(payload),
+  })
+}
+
+export function atualizarFerias(id, feriasId, payload) {
+  return requestJson(`/api/escritorio/folha/participantes/${id}/ferias/${feriasId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function removerFerias(id, feriasId) {
+  return requestJson(`/api/escritorio/folha/participantes/${id}/ferias/${feriasId}`, {
+    method: 'DELETE',
   })
 }
 

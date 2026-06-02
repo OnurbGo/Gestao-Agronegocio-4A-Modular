@@ -109,6 +109,10 @@ export class EntidadeDto {
 
   @IsOptional()
   @IsString()
+  data_admissao?: string | null;
+
+  @IsOptional()
+  @IsString()
   observacao?: string | null;
 
   @IsOptional()
@@ -210,6 +214,10 @@ export class AtualizarEntidadeDto {
 
   @IsOptional()
   @IsString()
+  data_admissao?: string | null;
+
+  @IsOptional()
+  @IsString()
   observacao?: string | null;
 
   @IsOptional()
@@ -253,6 +261,10 @@ export class ListarEntidadesQueryDto implements PaginationQuery {
   @IsOptional()
   @IsEnum(ENTIDADE_TIPOS)
   tipo?: EntidadeTipo;
+
+  @IsOptional()
+  @IsEnum(["FISICA", "JURIDICA"])
+  tipo_pessoa?: "FISICA" | "JURIDICA";
 
   @Transform(({ value }) => {
     if (value === "true") return true;

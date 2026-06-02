@@ -35,12 +35,19 @@ export class FolhaRepository {
     return this.registroSalarialModel.findAndCountAll(options);
   }
 
-  criarRegistroSalarial(data: Record<string, unknown>) {
-    return this.registroSalarialModel.create(data);
+  criarRegistroSalarial(
+    data: Record<string, unknown>,
+    transaction?: Transaction,
+  ) {
+    return this.registroSalarialModel.create(data, { transaction });
   }
 
   buscarRegistroSalarial(options: FindOptions) {
     return this.registroSalarialModel.findOne(options);
+  }
+
+  buscarRegistrosSalariais(options: FindOptions) {
+    return this.registroSalarialModel.findAll(options);
   }
 
   listarFerias(options: FindAndCountOptions) {
@@ -51,14 +58,29 @@ export class FolhaRepository {
     return this.feriasModel.sum("dias_gozados", { where });
   }
 
-  criarFerias(data: Record<string, unknown>) {
-    return this.feriasModel.create(data);
+  criarFerias(data: Record<string, unknown>, transaction?: Transaction) {
+    return this.feriasModel.create(data, { transaction });
   }
 
-  listarLancamentosMensais(where: Record<string, unknown>) {
+  buscarFerias(options: FindOptions) {
+    return this.feriasModel.findAll(options);
+  }
+
+  buscarFeriasRegistro(options: FindOptions) {
+    return this.feriasModel.findOne(options);
+  }
+
+  listarLancamentosMensais(
+    where: Record<string, unknown>,
+    transaction?: Transaction,
+  ) {
     return this.folhaMensalModel.findAll({
       where,
-      order: [["mes", "ASC"]],
+      order: [
+        ["ano", "ASC"],
+        ["mes", "ASC"],
+      ],
+      transaction,
     });
   }
 

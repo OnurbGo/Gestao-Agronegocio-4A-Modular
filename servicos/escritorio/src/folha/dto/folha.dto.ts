@@ -22,6 +22,20 @@ export class ParticipanteIdParamDto {
   id!: number;
 }
 
+export class RegistroSalarialIdParamDto extends ParticipanteIdParamDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  registroId!: number;
+}
+
+export class FeriasIdParamDto extends ParticipanteIdParamDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  feriasId!: number;
+}
+
 export class ListarParticipantesQueryDto implements PaginationQuery {
   @Type(() => Number)
   @IsInt()
@@ -70,6 +84,11 @@ export class RegistroSalarialDto {
   @IsString()
   inicio_vigencia!: string;
 
+  @Transform(({ value }) => emptyToNull(value))
+  @IsOptional()
+  @IsString()
+  fim_vigencia?: string | null;
+
   @Type(() => Number)
   @IsNumber()
   @Min(0)
@@ -100,22 +119,10 @@ export class PercentualSugeridoQueryDto {
 
 export class FeriasDto {
   @IsString()
-  periodo_aquisitivo_inicio!: string;
+  inicio_gozado!: string;
 
   @IsString()
-  periodo_aquisitivo_fim!: string;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  dias_totais?: number;
-
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  @IsOptional()
-  dias_gozados = 0;
+  fim_gozado!: string;
 
   @Transform(({ value }) => emptyToNull(value))
   @Type(() => Number)
@@ -123,21 +130,6 @@ export class FeriasDto {
   @IsNumber()
   @Min(0)
   valor_abono?: number | null;
-
-  @Transform(({ value }) => emptyToNull(value))
-  @IsOptional()
-  @IsString()
-  periodo_inicio?: string | null;
-
-  @Transform(({ value }) => emptyToNull(value))
-  @IsOptional()
-  @IsString()
-  periodo_fim?: string | null;
-
-  @Transform(({ value }) => emptyToNull(value))
-  @IsOptional()
-  @IsString()
-  data_retorno?: string | null;
 }
 
 export class LancamentoMensalLinhaDto {
@@ -157,11 +149,6 @@ export class LancamentoMensalLinhaDto {
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  salario_bruto = 0;
-
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
   inss = 0;
 
   @Type(() => Number)
@@ -173,11 +160,6 @@ export class LancamentoMensalLinhaDto {
   @IsNumber()
   @Min(0)
   inss_adicional = 0;
-
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  ferias = 0;
 
   @Type(() => Number)
   @IsNumber()

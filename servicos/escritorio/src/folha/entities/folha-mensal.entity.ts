@@ -51,6 +51,9 @@ export class FolhaMensal extends Model {
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
   declare ferias: string;
 
+  @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: false })
+  declare ferias_automatica: boolean;
+
   @Column({ type: DataType.DECIMAL(12, 2), allowNull: false, defaultValue: 0 })
   declare comissao: string;
 
