@@ -1,5 +1,4 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import ExcelJS from "exceljs";
 import { Op, Transaction } from "sequelize";
 import { AuditService } from "../../audit/services/audit.service";
 import { AuthContext } from "../../auth-client/types/auth.types";
@@ -22,62 +21,45 @@ import { Ferias } from "../entities/ferias.entity";
 import { FolhaMensal } from "../entities/folha-mensal.entity";
 import { RegistroSalarial } from "../entities/registro-salarial.entity";
 import { FolhaRepository } from "../repositories/folha.repository";
-
-const DIA_MS = 86400000;
-
-const meses = [
-  "Janeiro",
-  "Fevereiro",
-  "Marco",
-  "Abril",
-  "Maio",
-  "Junho",
-  "Julho",
-  "Agosto",
-  "Setembro",
-  "Outubro",
-  "Novembro",
-  "Dezembro",
-];
-
-const camposMoeda = [
-  "salario_bruto",
-  "salario_proporcional",
-  "inss",
-  "irrf",
-  "inss_adicional",
-  "comissao",
-  "salario_liquido",
-  "desconto_bar",
-  "desconto_diverso_1",
-  "desconto_diverso_2",
-  "desconto_diverso_3",
-  "salario_liquido_com_desconto",
-  "salario_final_com_ferias",
-];
-
-type LinhaFolha = Partial<FolhaMensalInput["linhas"][number]> & {
-  mes: number;
-  salario_bruto?: unknown;
-  salario_proporcional?: unknown;
-  ferias?: unknown;
-  ferias_automatica?: boolean;
-};
-
-type SegmentoMensal = {
-  ano: number;
-  mes: number;
-  inicio: string;
-  fim: string;
-  dias: number;
-};
-
-type RegistroSalarialLike = {
-  id_registro_salarial?: unknown;
-  inicio_vigencia: unknown;
-  fim_vigencia?: unknown;
-  salario?: unknown;
-};
+import {
+  calcularLinha,
+  calcularSalarioProporcionalDiasMes,
+  calcularValorPeriodoComSalarios,
+  buscarSalarioMensalVigenteMes,
+  diasComSalarioParaTrabalhoMensal,
+  formatarMesAno,
+  impactaPeriodos,
+  linhaBaseLancamento,
+  periodoRegistroSalarial,
+  temSalarioCompletoPeriodo,
+  type LinhaCalculada,
+  type LinhaFolha,
+  type RegistroSalarialLike,
+} from "../utils/folha-calculo.utils";
+import {
+  addDays,
+  dateOnlyValue,
+  diasInclusivos,
+  dividirPeriodoPorMes,
+  formatDateOnly,
+  hojeDateOnly,
+  monthEndDateOnly,
+  monthStartDateOnly,
+  parseDateOnly,
+  type SegmentoMensal,
+  validarData,
+  validarOrdemDatas,
+} from "../utils/folha-date.utils";
+import {
+  adicionarTotal,
+  configurarColunas,
+  criarWorkbook,
+  getWorkbookBuffer,
+  linhaPlanilha,
+  meses,
+  slug,
+} from "../utils/folha-excel.utils";
+import { decimal, numero } from "../utils/folha-number.utils";
 
 type ImpactoSalarial = {
   ferias: Record<string, unknown>[];
@@ -160,12 +142,12 @@ export class FolhaService {
     query: PercentualSugeridoQuery,
   ) {
     await this.validarParticipante(id_entidade);
-    const salarioNovo = this.numero(query.salario);
+    const salarioNovo = numero(query.salario);
     const base = await this.buscarSalarioBaseAnterior(
       id_entidade,
       query.inicio_vigencia,
     );
-    const salarioBase = this.numero(base?.salario);
+    const salarioBase = numero(base?.salario);
     const percentual =
       base && salarioBase > 0
         ? ((salarioNovo - salarioBase) / salarioBase) * 100
@@ -173,7 +155,7 @@ export class FolhaService {
 
     return {
       inicio_vigencia: query.inicio_vigencia,
-      salario: this.decimal(salarioNovo),
+      salario: decimal(salarioNovo),
       salario_base: base?.salario || null,
       inicio_vigencia_base: base?.inicio_vigencia || null,
       percentual_sugerido:
@@ -191,11 +173,11 @@ export class FolhaService {
       id_entidade,
       id_registro_salarial,
     );
-    const inicio = this.validarData(data.inicio_vigencia, "Inicio da vigencia");
+    const inicio = validarData(data.inicio_vigencia, "Inicio da vigencia");
     const fim = data.fim_vigencia
-      ? this.validarData(data.fim_vigencia, "Fim da vigencia")
+      ? validarData(data.fim_vigencia, "Fim da vigencia")
       : null;
-    this.validarOrdemDatas(inicio, fim, "Fim da vigencia");
+    validarOrdemDatas(inicio, fim, "Fim da vigencia");
 
     await this.validarConflitoRegistroSalarial(
       id_entidade,
@@ -213,14 +195,14 @@ export class FolhaService {
         ...anterior,
         inicio_vigencia: inicio,
         fim_vigencia: fim,
-        salario: this.decimal(data.salario),
+        salario: decimal(data.salario),
       },
     );
 
     return this.montarImpactoSalarial(
       id_entidade,
       [
-        this.periodoRegistroSalarial(anterior),
+        periodoRegistroSalarial(anterior),
         { inicio, fim },
       ],
       registrosDepois,
@@ -245,7 +227,7 @@ export class FolhaService {
 
     return this.montarImpactoSalarial(
       id_entidade,
-      [this.periodoRegistroSalarial(anterior)],
+      [periodoRegistroSalarial(anterior)],
       registrosDepois,
     );
   }
@@ -257,11 +239,11 @@ export class FolhaService {
     ip?: string,
   ) {
     await this.validarParticipante(id_entidade);
-    const inicio = this.validarData(data.inicio_vigencia, "Inicio da vigencia");
+    const inicio = validarData(data.inicio_vigencia, "Inicio da vigencia");
     const fim = data.fim_vigencia
-      ? this.validarData(data.fim_vigencia, "Fim da vigencia")
+      ? validarData(data.fim_vigencia, "Fim da vigencia")
       : null;
-    this.validarOrdemDatas(inicio, fim, "Fim da vigencia");
+    validarOrdemDatas(inicio, fim, "Fim da vigencia");
 
     const transaction = await this.folhaRepository.criarTransacao();
     let registro: RegistroSalarial;
@@ -279,11 +261,11 @@ export class FolhaService {
           entidade_id: id_entidade,
           inicio_vigencia: inicio,
           fim_vigencia: fim,
-          salario: this.decimal(data.salario),
+          salario: decimal(data.salario),
           percentual:
             data.percentual === null || data.percentual === undefined
               ? null
-              : this.decimal(data.percentual),
+              : decimal(data.percentual),
           observacao: data.observacao || null,
         },
         transaction,
@@ -318,11 +300,11 @@ export class FolhaService {
     ip?: string,
   ) {
     await this.validarParticipante(id_entidade);
-    const inicio = this.validarData(data.inicio_vigencia, "Inicio da vigencia");
+    const inicio = validarData(data.inicio_vigencia, "Inicio da vigencia");
     const fim = data.fim_vigencia
-      ? this.validarData(data.fim_vigencia, "Fim da vigencia")
+      ? validarData(data.fim_vigencia, "Fim da vigencia")
       : null;
-    this.validarOrdemDatas(inicio, fim, "Fim da vigencia");
+    validarOrdemDatas(inicio, fim, "Fim da vigencia");
 
     const transaction = await this.folhaRepository.criarTransacao();
     let valorAnterior: Record<string, unknown> | null = null;
@@ -348,11 +330,11 @@ export class FolhaService {
         {
           inicio_vigencia: inicio,
           fim_vigencia: fim,
-          salario: this.decimal(data.salario),
+          salario: decimal(data.salario),
           percentual:
             data.percentual === null || data.percentual === undefined
               ? null
-              : this.decimal(data.percentual),
+              : decimal(data.percentual),
           observacao: data.observacao || null,
         },
         { transaction },
@@ -486,10 +468,10 @@ export class FolhaService {
     ip?: string,
   ) {
     await this.validarParticipante(id_entidade);
-    const inicio = this.validarData(data.inicio_gozado, "Inicio gozado");
-    const fim = this.validarData(data.fim_gozado, "Fim gozado");
-    this.validarOrdemDatas(inicio, fim, "Fim gozado");
-    const valorAbono = this.decimal(data.valor_abono);
+    const inicio = validarData(data.inicio_gozado, "Inicio gozado");
+    const fim = validarData(data.fim_gozado, "Fim gozado");
+    validarOrdemDatas(inicio, fim, "Fim gozado");
+    const valorAbono = decimal(data.valor_abono);
 
     const calculo = await this.calcularFerias(id_entidade, inicio, fim);
     const transaction = await this.folhaRepository.criarTransacao();
@@ -503,7 +485,7 @@ export class FolhaService {
           inicio_gozado: inicio,
           fim_gozado: fim,
           dias_gozados: calculo.dias_gozados,
-          valor_ferias: this.decimal(calculo.valor_ferias),
+          valor_ferias: decimal(calculo.valor_ferias),
           valor_abono: valorAbono,
         },
         transaction,
@@ -548,10 +530,10 @@ export class FolhaService {
     ip?: string,
   ) {
     await this.validarParticipante(id_entidade);
-    const inicio = this.validarData(data.inicio_gozado, "Inicio gozado");
-    const fim = this.validarData(data.fim_gozado, "Fim gozado");
-    this.validarOrdemDatas(inicio, fim, "Fim gozado");
-    const valorAbono = this.decimal(data.valor_abono);
+    const inicio = validarData(data.inicio_gozado, "Inicio gozado");
+    const fim = validarData(data.fim_gozado, "Fim gozado");
+    validarOrdemDatas(inicio, fim, "Fim gozado");
+    const valorAbono = decimal(data.valor_abono);
 
     const calculo = await this.calcularFerias(id_entidade, inicio, fim);
     const transaction = await this.folhaRepository.criarTransacao();
@@ -571,7 +553,7 @@ export class FolhaService {
           inicio_gozado: inicio,
           fim_gozado: fim,
           dias_gozados: calculo.dias_gozados,
-          valor_ferias: this.decimal(calculo.valor_ferias),
+          valor_ferias: decimal(calculo.valor_ferias),
           valor_abono: valorAbono,
         },
         { transaction },
@@ -582,8 +564,8 @@ export class FolhaService {
           id_entidade,
           [
             {
-              inicio: this.dateOnlyValue(valorAnterior.inicio_gozado),
-              fim: this.dateOnlyValue(valorAnterior.fim_gozado),
+              inicio: dateOnlyValue(valorAnterior.inicio_gozado),
+              fim: dateOnlyValue(valorAnterior.fim_gozado),
             },
             { inicio, fim },
           ],
@@ -638,8 +620,8 @@ export class FolhaService {
 
       const lancamentosImpactados = await this.recalcularFeriasAutomaticasPeriodo(
         id_entidade,
-        this.dateOnlyValue(valorAnterior.inicio_gozado),
-        this.dateOnlyValue(valorAnterior.fim_gozado),
+        dateOnlyValue(valorAnterior.inicio_gozado),
+        dateOnlyValue(valorAnterior.fim_gozado),
         transaction,
       );
 
@@ -741,15 +723,15 @@ export class FolhaService {
       ano,
       mes,
       nome_mes: meses[mes - 1],
-      total: this.decimal(
+      total: decimal(
         itens.reduce(
-          (soma, item) => soma + this.numero(item.salario_final_com_ferias),
+          (soma, item) => soma + numero(item.salario_final_com_ferias),
           0,
         ),
       ),
-      total_sem_ferias: this.decimal(
+      total_sem_ferias: decimal(
         itens.reduce(
-          (soma, item) => soma + this.numero(item.salario_liquido_com_desconto),
+          (soma, item) => soma + numero(item.salario_liquido_com_desconto),
           0,
         ),
       ),
@@ -761,40 +743,40 @@ export class FolhaService {
     const participante = await this.buscarParticipante(id_entidade);
     const lancamentos = await this.listarLancamentosMensais(id_entidade, ano);
     const nome = String(participante["nome"] || "participante");
-    const workbook = this.criarWorkbook();
+    const workbook = criarWorkbook();
     const sheet = workbook.addWorksheet("Folha anual");
 
     sheet.addRow(["Folha de Pagamento"]);
     sheet.addRow(["Participante", nome]);
     sheet.addRow(["Ano", ano]);
     sheet.addRow([]);
-    this.configurarColunas(sheet);
+    configurarColunas(sheet);
     lancamentos.forEach((item) => {
-      sheet.addRow(this.linhaPlanilha(item));
+      sheet.addRow(linhaPlanilha(item));
     });
-    this.adicionarTotal(sheet, lancamentos);
+    adicionarTotal(sheet, lancamentos);
 
     return {
-      buffer: await this.getWorkbookBuffer(workbook),
-      filename: `folha-${this.slug(nome)}-${ano}.xlsx`,
+      buffer: await getWorkbookBuffer(workbook),
+      filename: `folha-${slug(nome)}-${ano}.xlsx`,
     };
   }
 
   async gerarPlanilhaRelatorioMensal(ano: number, mes: number) {
     const relatorio = await this.relatorioMensal(ano, mes);
-    const workbook = this.criarWorkbook();
+    const workbook = criarWorkbook();
     const sheet = workbook.addWorksheet("Relatorio mensal");
 
     sheet.addRow(["Relatorio mensal da folha"]);
     sheet.addRow(["Mes", relatorio.nome_mes]);
     sheet.addRow(["Ano", ano]);
     sheet.addRow([]);
-    this.configurarColunas(sheet, true);
-    relatorio.itens.forEach((item) => sheet.addRow(this.linhaPlanilha(item, true)));
-    this.adicionarTotal(sheet, relatorio.itens);
+    configurarColunas(sheet, true);
+    relatorio.itens.forEach((item) => sheet.addRow(linhaPlanilha(item, true)));
+    adicionarTotal(sheet, relatorio.itens);
 
     return {
-      buffer: await this.getWorkbookBuffer(workbook),
+      buffer: await getWorkbookBuffer(workbook),
       filename: `relatorio-folha-${ano}-${String(mes).padStart(2, "0")}.xlsx`,
     };
   }
@@ -846,7 +828,7 @@ export class FolhaService {
   private async buscarSalarioAtual(id_entidade: number) {
     const registro = await this.buscarSalarioVigenteData(
       id_entidade,
-      this.hojeDateOnly(),
+      hojeDateOnly(),
     );
     return registro?.salario || null;
   }
@@ -944,13 +926,6 @@ export class FolhaService {
       }));
   }
 
-  private periodoRegistroSalarial(registro: Record<string, unknown>) {
-    return {
-      inicio: this.dateOnlyValue(registro.inicio_vigencia),
-      fim: this.dateOnlyValue(registro.fim_vigencia) || null,
-    };
-  }
-
   private async montarImpactoSalarial(
     id_entidade: number,
     periodos: Array<{ inicio: string; fim: string | null }>,
@@ -968,9 +943,9 @@ export class FolhaService {
     const feriasImpactadas = ferias
       .map((item) => this.toFeriasResponse(item))
       .filter((item) =>
-        this.impactaPeriodos(
-          this.dateOnlyValue(item.inicio_gozado),
-          this.dateOnlyValue(item.fim_gozado),
+        impactaPeriodos(
+          dateOnlyValue(item.inicio_gozado),
+          dateOnlyValue(item.fim_gozado),
           periodosValidos,
         ),
       )
@@ -986,9 +961,9 @@ export class FolhaService {
     const lancamentosImpactados = lancamentos
       .map((item) => item.get({ plain: true }) as Record<string, unknown>)
       .filter((item) =>
-        this.impactaPeriodos(
-          this.monthStartDateOnly(Number(item.ano), Number(item.mes)),
-          this.monthEndDateOnly(Number(item.ano), Number(item.mes)),
+        impactaPeriodos(
+          monthStartDateOnly(Number(item.ano), Number(item.mes)),
+          monthEndDateOnly(Number(item.ano), Number(item.mes)),
           periodosValidos,
         ),
       )
@@ -996,7 +971,7 @@ export class FolhaService {
         ano: Number(item.ano),
         mes: Number(item.mes),
         dias_trabalhados: Number(item.dias_trabalhados || 0),
-        descricao: `Folha de pagamento ${this.formatarMesAno(
+        descricao: `Folha de pagamento ${formatarMesAno(
           Number(item.ano),
           Number(item.mes),
         )}`,
@@ -1006,7 +981,7 @@ export class FolhaService {
 
     feriasImpactadas.forEach((item) => {
       if (
-        !this.temSalarioCompletoPeriodo(
+        !temSalarioCompletoPeriodo(
           String(item.inicio_gozado),
           String(item.fim_gozado),
           registrosDepois,
@@ -1024,7 +999,7 @@ export class FolhaService {
 
     lancamentosImpactados.forEach((item) => {
       const diasTrabalhados = Number(item.dias_trabalhados || 0);
-      const diasCalculados = this.diasComSalarioParaTrabalhoMensal(
+      const diasCalculados = diasComSalarioParaTrabalhoMensal(
         diasTrabalhados,
         registrosDepois,
         Number(item.ano),
@@ -1053,79 +1028,6 @@ export class FolhaService {
     };
   }
 
-  private impactaPeriodos(
-    inicio: string,
-    fim: string,
-    periodos: Array<{ inicio: string; fim: string | null }>,
-  ) {
-    return periodos.some((periodo) =>
-      this.periodoSobrepoe(inicio, fim, periodo.inicio, periodo.fim),
-    );
-  }
-
-  private periodoSobrepoe(
-    inicioA: string,
-    fimA: string | null,
-    inicioB: string,
-    fimB: string | null,
-  ) {
-    const fimAComparacao = fimA || "9999-12-31";
-    const fimBComparacao = fimB || "9999-12-31";
-    return inicioA <= fimBComparacao && inicioB <= fimAComparacao;
-  }
-
-  private temSalarioCompletoPeriodo(
-    inicio: string,
-    fim: string,
-    registrosSalariais: RegistroSalarialLike[],
-  ) {
-    const inicioDate = this.parseDateOnly(inicio);
-    const fimDate = this.parseDateOnly(fim);
-
-    for (
-      let cursor = inicioDate;
-      cursor.getTime() <= fimDate.getTime();
-      cursor = this.addDays(cursor, 1)
-    ) {
-      if (!this.encontrarSalarioVigenteEm(this.formatDateOnly(cursor), registrosSalariais)) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private diasComSalarioParaTrabalhoMensal(
-    diasTrabalhados: number,
-    registrosSalariais: RegistroSalarialLike[],
-    ano: number,
-    mes: number,
-  ) {
-    if (diasTrabalhados <= 0) return 0;
-
-    let diasCalculados = 0;
-    const inicioDate = this.parseDateOnly(this.monthStartDateOnly(ano, mes));
-    const fimDate = this.parseDateOnly(this.monthEndDateOnly(ano, mes));
-
-    for (
-      let cursor = inicioDate;
-      cursor.getTime() <= fimDate.getTime() && diasCalculados < diasTrabalhados;
-      cursor = this.addDays(cursor, 1)
-    ) {
-      const data = this.formatDateOnly(cursor);
-
-      if (this.encontrarSalarioVigenteEm(data, registrosSalariais)) {
-        diasCalculados += 1;
-      }
-    }
-
-    return diasCalculados;
-  }
-
-  private formatarMesAno(ano: number, mes: number) {
-    return `${String(mes).padStart(2, "0")}/${ano}`;
-  }
-
   private async recalcularFeriasAutomaticasPeriodo(
     id_entidade: number,
     inicio: string,
@@ -1134,12 +1036,12 @@ export class FolhaService {
   ) {
     const lancamentos: Record<string, unknown>[] = [];
 
-    for (const segmento of this.dividirPeriodoPorMes(inicio, fim)) {
+    for (const segmento of dividirPeriodoPorMes(inicio, fim)) {
       const existente = await this.folhaRepository.buscarLancamentoMensal(
         { entidade_id: id_entidade, ano: segmento.ano, mes: segmento.mes },
         transaction,
       );
-      const base = this.linhaBaseLancamento(existente, segmento.mes);
+      const base = linhaBaseLancamento(existente, segmento.mes);
       const valores = await this.prepararLancamentoMensal(
         id_entidade,
         segmento.ano,
@@ -1165,7 +1067,7 @@ export class FolhaService {
     periodos.forEach((periodo) => {
       if (!periodo.inicio || !periodo.fim) return;
 
-      this.dividirPeriodoPorMes(periodo.inicio, periodo.fim).forEach(
+      dividirPeriodoPorMes(periodo.inicio, periodo.fim).forEach(
         (segmento) => {
           mesesImpactados.set(`${segmento.ano}-${segmento.mes}`, segmento);
         },
@@ -1179,7 +1081,7 @@ export class FolhaService {
         { entidade_id: id_entidade, ano: segmento.ano, mes: segmento.mes },
         transaction,
       );
-      const base = this.linhaBaseLancamento(existente, segmento.mes);
+      const base = linhaBaseLancamento(existente, segmento.mes);
       const valores = await this.prepararLancamentoMensal(
         id_entidade,
         segmento.ano,
@@ -1208,8 +1110,8 @@ export class FolhaService {
 
     for (const item of ferias) {
       const plain = item.get({ plain: true }) as Record<string, unknown>;
-      const inicio = this.dateOnlyValue(plain.inicio_gozado);
-      const fim = this.dateOnlyValue(plain.fim_gozado);
+      const inicio = dateOnlyValue(plain.inicio_gozado);
+      const fim = dateOnlyValue(plain.fim_gozado);
       const calculo = await this.calcularFerias(
         id_entidade,
         inicio,
@@ -1221,7 +1123,7 @@ export class FolhaService {
       await item.update(
         {
           dias_gozados: calculo.dias_gozados,
-          valor_ferias: this.decimal(calculo.valor_ferias),
+          valor_ferias: decimal(calculo.valor_ferias),
         },
         { transaction },
       );
@@ -1250,7 +1152,7 @@ export class FolhaService {
         id_entidade,
         ano,
         mes,
-        this.linhaBaseLancamento(existente, mes),
+        linhaBaseLancamento(existente, mes),
         transaction,
         undefined,
         exigirSalario,
@@ -1299,7 +1201,7 @@ export class FolhaService {
       id_entidade,
       ano,
       mes,
-      this.linhaBaseLancamento(lancamento, mes),
+      linhaBaseLancamento(lancamento, mes),
       transaction,
       undefined,
       false,
@@ -1315,27 +1217,27 @@ export class FolhaService {
     periodoTrabalhado?: { inicio: string; fim: string },
     exigirSalario = true,
   ) {
-    const inicioMes = this.monthStartDateOnly(ano, mes);
-    const fimMes = this.monthEndDateOnly(ano, mes);
+    const inicioMes = monthStartDateOnly(ano, mes);
+    const fimMes = monthEndDateOnly(ano, mes);
     const registrosSalariais = await this.buscarRegistrosSalariaisPeriodo(
       id_entidade,
       inicioMes,
       fimMes,
       transaction,
     );
-    const salarioMensal = this.buscarSalarioMensalVigenteMes(
+    const salarioMensal = buscarSalarioMensalVigenteMes(
       registrosSalariais,
       ano,
       mes,
     );
-    const diasTrabalhados = this.numero(linha.dias_trabalhados);
+    const diasTrabalhados = numero(linha.dias_trabalhados);
     const salarioProporcional = periodoTrabalhado
-      ? this.calcularValorPeriodoComSalarios(
+      ? calcularValorPeriodoComSalarios(
           periodoTrabalhado.inicio,
           periodoTrabalhado.fim,
           registrosSalariais,
         )
-      : this.calcularSalarioProporcionalDiasMes(
+      : calcularSalarioProporcionalDiasMes(
           diasTrabalhados,
           registrosSalariais,
           ano,
@@ -1355,7 +1257,7 @@ export class FolhaService {
       );
     }
 
-    return this.calcularLinha({
+    return calcularLinha({
       ...linha,
       mes,
       dias_trabalhados: diasTrabalhados,
@@ -1381,8 +1283,8 @@ export class FolhaService {
     );
 
     return {
-      dias_gozados: this.diasInclusivos(inicio, fim),
-      valor_ferias: this.calcularValorPeriodoComSalarios(
+      dias_gozados: diasInclusivos(inicio, fim),
+      valor_ferias: calcularValorPeriodoComSalarios(
         inicio,
         fim,
         registrosSalariais,
@@ -1397,8 +1299,8 @@ export class FolhaService {
     mes: number,
     transaction?: Transaction,
   ) {
-    const inicioMes = this.monthStartDateOnly(ano, mes);
-    const fimMes = this.monthEndDateOnly(ano, mes);
+    const inicioMes = monthStartDateOnly(ano, mes);
+    const fimMes = monthEndDateOnly(ano, mes);
     const ferias = await this.folhaRepository.buscarFerias({
       where: {
         entidade_id: id_entidade,
@@ -1415,8 +1317,8 @@ export class FolhaService {
       const plain = item.get({ plain: true }) as Record<string, unknown>;
       return (
         total +
-        this.numero(plain.valor_ferias) +
-        this.numero(plain.valor_abono)
+        numero(plain.valor_ferias) +
+        numero(plain.valor_abono)
       );
     }, 0);
 
@@ -1443,132 +1345,10 @@ export class FolhaService {
     });
   }
 
-  private calcularValorPeriodoComSalarios(
-    inicio: string,
-    fim: string,
-    registrosSalariais: RegistroSalarialLike[],
-    exigirSalario = true,
-  ) {
-    let total = 0;
-    const inicioDate = this.parseDateOnly(inicio);
-    const fimDate = this.parseDateOnly(fim);
-
-    for (
-      let cursor = inicioDate;
-      cursor.getTime() <= fimDate.getTime();
-      cursor = this.addDays(cursor, 1)
-    ) {
-      const data = this.formatDateOnly(cursor);
-      const salario = this.encontrarSalarioVigenteEm(data, registrosSalariais);
-
-      if (!salario) {
-        if (exigirSalario) {
-          throw new BadRequestException(
-            `Nao existe salario vigente para ${data}.`,
-          );
-        }
-        continue;
-      }
-
-      total += this.numero(salario.salario) / 30;
-    }
-
-    return total;
-  }
-
-  private encontrarSalarioVigenteEm(
-    data: string,
-    registrosSalariais: RegistroSalarialLike[],
-  ) {
-    return registrosSalariais
-      .filter((registro) => {
-        const inicio = this.dateOnlyValue(registro.inicio_vigencia);
-        const fim = this.dateOnlyValue(registro.fim_vigencia);
-        return inicio <= data && (!fim || fim >= data);
-      })
-      .sort((a, b) =>
-        this.dateOnlyValue(b.inicio_vigencia).localeCompare(
-          this.dateOnlyValue(a.inicio_vigencia),
-        ),
-      )[0];
-  }
-
-  private buscarSalarioMensalVigenteMes(
-    registrosSalariais: RegistroSalarialLike[],
-    ano: number,
-    mes: number,
-  ) {
-    const inicioMes = this.monthStartDateOnly(ano, mes);
-    const salarioInicioMes = this.encontrarSalarioVigenteEm(
-      inicioMes,
-      registrosSalariais,
-    );
-    const primeiroSalarioMes = registrosSalariais[0];
-    return this.numero((salarioInicioMes || primeiroSalarioMes)?.salario);
-  }
-
-  private calcularSalarioProporcionalDiasMes(
-    diasTrabalhados: number,
-    registrosSalariais: RegistroSalarialLike[],
-    ano: number,
-    mes: number,
-    exigirSalario: boolean,
-  ) {
-    if (diasTrabalhados <= 0) {
-      return 0;
-    }
-
-    const inicioMes = this.monthStartDateOnly(ano, mes);
-    const fimMes = this.monthEndDateOnly(ano, mes);
-    const salarioMesInteiro = this.encontrarSalarioVigenteEm(
-      inicioMes,
-      registrosSalariais,
-    );
-    const cobreMesInteiro =
-      salarioMesInteiro &&
-      (!this.dateOnlyValue(salarioMesInteiro.fim_vigencia) ||
-        this.dateOnlyValue(salarioMesInteiro.fim_vigencia) >= fimMes);
-
-    if (cobreMesInteiro) {
-      return (this.numero(salarioMesInteiro.salario) / 30) * diasTrabalhados;
-    }
-
-    let total = 0;
-    let diasCalculados = 0;
-    const inicioDate = this.parseDateOnly(inicioMes);
-    const fimDate = this.parseDateOnly(fimMes);
-
-    for (
-      let cursor = inicioDate;
-      cursor.getTime() <= fimDate.getTime() && diasCalculados < diasTrabalhados;
-      cursor = this.addDays(cursor, 1)
-    ) {
-      const data = this.formatDateOnly(cursor);
-      const salario = this.encontrarSalarioVigenteEm(data, registrosSalariais);
-
-      if (!salario) {
-        continue;
-      }
-
-      total += this.numero(salario.salario) / 30;
-      diasCalculados += 1;
-    }
-
-    if (exigirSalario && diasCalculados < diasTrabalhados) {
-      throw new BadRequestException(
-        `Nao existe salario vigente para todos os dias trabalhados em ${String(
-          mes,
-        ).padStart(2, "0")}/${ano}.`,
-      );
-    }
-
-    return total;
-  }
-
   private async salvarLancamento(
     id_entidade: number,
     ano: number,
-    valores: ReturnType<FolhaService["calcularLinha"]>,
+    valores: LinhaCalculada,
     transaction: Transaction,
   ) {
     const {
@@ -1593,82 +1373,17 @@ export class FolhaService {
     );
   }
 
-  private linhaBaseLancamento(
-    lancamento: FolhaMensal | null,
-    mes: number,
-  ): LinhaFolha {
-    const plain = lancamento?.get({ plain: true }) as
-      | Record<string, unknown>
-      | undefined;
-
-    return {
-      mes,
-      dias_trabalhados: this.numero(plain?.dias_trabalhados),
-      salario_bruto: this.numero(plain?.salario_bruto),
-      salario_proporcional: this.numero(plain?.salario_proporcional),
-      inss: this.numero(plain?.inss),
-      irrf: this.numero(plain?.irrf),
-      inss_adicional: this.numero(plain?.inss_adicional),
-      ferias: this.numero(plain?.ferias),
-      ferias_automatica: Boolean(plain?.ferias_automatica),
-      comissao: this.numero(plain?.comissao),
-      desconto_bar: this.numero(plain?.desconto_bar),
-      desconto_diverso_1: this.numero(plain?.desconto_diverso_1),
-      desconto_diverso_2: this.numero(plain?.desconto_diverso_2),
-      desconto_diverso_3: this.numero(plain?.desconto_diverso_3),
-    };
-  }
-
-  private calcularLinha(linha: LinhaFolha) {
-    const salarioProporcional = this.numero(linha.salario_proporcional);
-    const salario_liquido =
-      salarioProporcional +
-      this.numero(linha.comissao) -
-      this.numero(linha.inss) -
-      this.numero(linha.irrf) -
-      this.numero(linha.inss_adicional);
-
-    const descontos =
-      this.numero(linha.desconto_bar) +
-      this.numero(linha.desconto_diverso_1) +
-      this.numero(linha.desconto_diverso_2) +
-      this.numero(linha.desconto_diverso_3);
-
-    return {
-      mes: linha.mes,
-      dias_trabalhados: this.numero(linha.dias_trabalhados),
-      salario_bruto: this.decimal(linha.salario_bruto),
-      salario_mensal_vigente: this.decimal(linha.salario_bruto),
-      salario_proporcional: this.decimal(salarioProporcional),
-      inss: this.decimal(linha.inss),
-      irrf: this.decimal(linha.irrf),
-      inss_adicional: this.decimal(linha.inss_adicional),
-      ferias: this.decimal(linha.ferias),
-      ferias_automatica: Boolean(linha.ferias_automatica),
-      comissao: this.decimal(linha.comissao),
-      salario_liquido: this.decimal(salario_liquido),
-      desconto_bar: this.decimal(linha.desconto_bar),
-      desconto_diverso_1: this.decimal(linha.desconto_diverso_1),
-      desconto_diverso_2: this.decimal(linha.desconto_diverso_2),
-      desconto_diverso_3: this.decimal(linha.desconto_diverso_3),
-      salario_liquido_com_desconto: this.decimal(salario_liquido - descontos),
-      salario_final_com_ferias: this.decimal(
-        salario_liquido - descontos + this.numero(linha.ferias),
-      ),
-    };
-  }
-
   private async calcularResumoFerias(
     entidade: Entidade,
     id_entidade: number,
     totalDiasGozados: number,
   ) {
-    const dataAdmissao = this.dateOnlyValue(entidade.data_admissao);
+    const dataAdmissao = dateOnlyValue(entidade.data_admissao);
     const primeiroSalario = dataAdmissao
       ? null
       : await this.buscarPrimeiroRegistroSalarial(id_entidade);
     const referencia =
-      dataAdmissao || this.dateOnlyValue(primeiroSalario?.inicio_vigencia);
+      dataAdmissao || dateOnlyValue(primeiroSalario?.inicio_vigencia);
 
     if (!referencia) {
       return {
@@ -1682,14 +1397,14 @@ export class FolhaService {
       };
     }
 
-    const hoje = this.hojeDateOnly();
+    const hoje = hojeDateOnly();
 
     if (referencia > hoje) {
       return {
         referencia_inicio: referencia,
         periodo_aquisitivo_inicio: referencia,
-        periodo_aquisitivo_fim: this.formatDateOnly(
-          this.addDays(this.parseDateOnly(referencia), 364),
+        periodo_aquisitivo_fim: formatDateOnly(
+          addDays(parseDateOnly(referencia), 364),
         ),
         anos_aquisitivos: 0,
         dias_adquiridos: 0,
@@ -1698,14 +1413,14 @@ export class FolhaService {
       };
     }
 
-    const diasCorridos = this.diasInclusivos(referencia, hoje);
+    const diasCorridos = diasInclusivos(referencia, hoje);
     const anos = diasCorridos / 365;
     const ciclosCompletos = Math.floor((diasCorridos - 1) / 365);
-    const periodoInicio = this.formatDateOnly(
-      this.addDays(this.parseDateOnly(referencia), ciclosCompletos * 365),
+    const periodoInicio = formatDateOnly(
+      addDays(parseDateOnly(referencia), ciclosCompletos * 365),
     );
-    const periodoFim = this.formatDateOnly(
-      this.addDays(this.parseDateOnly(periodoInicio), 364),
+    const periodoFim = formatDateOnly(
+      addDays(parseDateOnly(periodoInicio), 364),
     );
     const diasAdquiridos = Math.round(anos * 30);
 
@@ -1720,207 +1435,11 @@ export class FolhaService {
     };
   }
 
-  private configurarColunas(sheet: ExcelJS.Worksheet, incluirParticipante = false) {
-    const columns = [
-      ...(incluirParticipante
-        ? [{ header: "Participante", key: "participante", width: 30 }]
-        : []),
-      { header: "Mes", key: "mes", width: 14 },
-      { header: "Dias trabalhados", key: "dias_trabalhados", width: 18 },
-      { header: "Salario mensal", key: "salario_bruto", width: 16 },
-      { header: "Salario proporcional", key: "salario_proporcional", width: 22 },
-      { header: "INSS", key: "inss", width: 14 },
-      { header: "IRRF", key: "irrf", width: 14 },
-      { header: "INSS adicional", key: "inss_adicional", width: 16 },
-      { header: "Comissao", key: "comissao", width: 14 },
-      { header: "Salario liquido", key: "salario_liquido", width: 17 },
-      { header: "Desconto bar", key: "desconto_bar", width: 15 },
-      { header: "Desconto diverso 1", key: "desconto_diverso_1", width: 18 },
-      { header: "Desconto diverso 2", key: "desconto_diverso_2", width: 18 },
-      { header: "Desconto diverso 3", key: "desconto_diverso_3", width: 18 },
-      {
-        header: "Liquido com desconto",
-        key: "salario_liquido_com_desconto",
-        width: 20,
-      },
-      {
-        header: "Final + ferias",
-        key: "salario_final_com_ferias",
-        width: 18,
-      },
-    ];
-
-    sheet.addRow(columns.map((column) => column.header));
-    columns.forEach((column, index) => {
-      const sheetColumn = sheet.getColumn(index + 1);
-      sheetColumn.key = column.key;
-      sheetColumn.width = column.width;
-    });
-    sheet.lastRow!.font = { bold: true };
-  }
-
-  private linhaPlanilha(lancamento: Record<string, unknown>, incluirParticipante = false) {
-    const row: Record<string, unknown> = {
-      ...(incluirParticipante
-        ? { participante: (lancamento.entidade as { nome?: string })?.nome }
-        : {}),
-      mes: meses[Number(lancamento.mes) - 1],
-      dias_trabalhados: lancamento.dias_trabalhados,
-    };
-
-    camposMoeda.forEach((campo) => {
-      row[campo] = this.numero(lancamento[campo]);
-    });
-
-    return row;
-  }
-
-  private adicionarTotal(sheet: ExcelJS.Worksheet, lancamentos: Record<string, unknown>[]) {
-    const total = lancamentos.reduce(
-      (soma, item) => soma + this.numero(item.salario_final_com_ferias),
-      0,
-    );
-    const row = sheet.addRow([]);
-    row.getCell(1).value = "Total final com ferias";
-    row.getCell(sheet.columnCount).value = total;
-    row.font = { bold: true };
-  }
-
-  private criarWorkbook() {
-    const workbook = new ExcelJS.Workbook();
-    workbook.creator = "Gestao Agronegocio 4A";
-    workbook.created = new Date();
-    return workbook;
-  }
-
-  private async getWorkbookBuffer(workbook: ExcelJS.Workbook) {
-    const buffer = await workbook.xlsx.writeBuffer();
-    return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
-  }
-
   private toEntidadeResponse(entidade: Entidade) {
     const plain = entidade.get({ plain: true }) as Record<string, unknown> & {
       tipos?: Array<{ tipo: string }>;
     };
     return { ...plain, tipos: plain.tipos?.map((item) => item.tipo) || [] };
-  }
-
-  private numero(value: unknown) {
-    if (value === null || value === undefined || value === "") return 0;
-    const parsed = Number(String(value).replace(",", "."));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  private decimal(value: unknown) {
-    return this.numero(value).toFixed(2);
-  }
-
-  private hojeDateOnly() {
-    const hoje = new Date();
-    const ano = hoje.getFullYear();
-    const mes = String(hoje.getMonth() + 1).padStart(2, "0");
-    const dia = String(hoje.getDate()).padStart(2, "0");
-    return `${ano}-${mes}-${dia}`;
-  }
-
-  private validarData(value: string, label: string) {
-    const data = this.parseDateOnly(value, label);
-    return this.formatDateOnly(data);
-  }
-
-  private validarOrdemDatas(
-    inicio: string,
-    fim: string | null,
-    labelFim: string,
-  ) {
-    if (fim && fim < inicio) {
-      throw new BadRequestException(`${labelFim} deve ser maior ou igual ao inicio.`);
-    }
-  }
-
-  private parseDateOnly(value: string, label = "Data") {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
-      throw new BadRequestException(`${label} invalida.`);
-    }
-
-    const date = new Date(`${value}T00:00:00Z`);
-
-    if (
-      Number.isNaN(date.getTime()) ||
-      date.toISOString().slice(0, 10) !== value
-    ) {
-      throw new BadRequestException(`${label} invalida.`);
-    }
-
-    return date;
-  }
-
-  private dateOnlyValue(value: unknown) {
-    if (!value) return "";
-
-    if (value instanceof Date) {
-      return value.toISOString().slice(0, 10);
-    }
-
-    return String(value).slice(0, 10);
-  }
-
-  private formatDateOnly(value: Date) {
-    return value.toISOString().slice(0, 10);
-  }
-
-  private addDays(value: Date, days: number) {
-    return new Date(value.getTime() + days * DIA_MS);
-  }
-
-  private diasInclusivos(inicio: string, fim: string) {
-    const inicioDate = this.parseDateOnly(inicio);
-    const fimDate = this.parseDateOnly(fim);
-    return Math.floor((fimDate.getTime() - inicioDate.getTime()) / DIA_MS) + 1;
-  }
-
-  private dividirPeriodoPorMes(inicio: string, fim: string): SegmentoMensal[] {
-    const segmentos: SegmentoMensal[] = [];
-    let cursor = this.parseDateOnly(inicio);
-    const fimDate = this.parseDateOnly(fim);
-
-    while (cursor.getTime() <= fimDate.getTime()) {
-      const ano = cursor.getUTCFullYear();
-      const mes = cursor.getUTCMonth() + 1;
-      const fimMes = this.parseDateOnly(this.monthEndDateOnly(ano, mes));
-      const segmentoFim =
-        fimMes.getTime() < fimDate.getTime() ? fimMes : fimDate;
-      const segmentoInicio = this.formatDateOnly(cursor);
-      const segmentoFimValor = this.formatDateOnly(segmentoFim);
-
-      segmentos.push({
-        ano,
-        mes,
-        inicio: segmentoInicio,
-        fim: segmentoFimValor,
-        dias: this.diasInclusivos(segmentoInicio, segmentoFimValor),
-      });
-
-      cursor = this.addDays(segmentoFim, 1);
-    }
-
-    return segmentos;
-  }
-
-  private monthStartDateOnly(ano: number, mes: number) {
-    return `${ano}-${String(mes).padStart(2, "0")}-01`;
-  }
-
-  private monthEndDateOnly(ano: number, mes: number) {
-    return new Date(Date.UTC(ano, mes, 0)).toISOString().slice(0, 10);
-  }
-
-  private maxDateOnly(a: string, b: string) {
-    return a > b ? a : b;
-  }
-
-  private minDateOnly(a: string, b: string) {
-    return a < b ? a : b;
   }
 
   private toFeriasResponse(ferias: Ferias): Record<string, unknown> & {
@@ -1936,23 +1455,16 @@ export class FolhaService {
 
     return {
       ...plain,
-      inicio_gozado: this.dateOnlyValue(plain.inicio_gozado),
-      fim_gozado: this.dateOnlyValue(plain.fim_gozado),
+      inicio_gozado: dateOnlyValue(plain.inicio_gozado),
+      fim_gozado: dateOnlyValue(plain.fim_gozado),
       dias_gozados: Number(plain.dias_gozados || 0),
-      valor_ferias: this.decimal(plain.valor_ferias),
-      valor_abono: this.decimal(plain.valor_abono),
-      valor_total_ferias: this.decimal(
-        this.numero(plain.valor_ferias) + this.numero(plain.valor_abono),
+      valor_ferias: decimal(plain.valor_ferias),
+      valor_abono: decimal(plain.valor_abono),
+      valor_total_ferias: decimal(
+        numero(plain.valor_ferias) + numero(plain.valor_abono),
       ),
     };
   }
 
-  private slug(value: string) {
-    return value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .toLowerCase();
-  }
+
 }

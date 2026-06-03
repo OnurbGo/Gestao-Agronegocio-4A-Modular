@@ -11,6 +11,12 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import StatusMessage from '@/shared/components/feedback/StatusMessage'
+import { Badge } from '@/shared/components/ui/badge'
+import { Button } from '@/shared/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
+import { Input } from '@/shared/components/ui/input'
+import { cn } from '@/shared/utils/cn'
+import { formatDateBR } from '@/shared/utils/date'
 import {
   baixarArquivo,
   enviarArquivoEntidade,
@@ -34,20 +40,11 @@ function tamanhoArquivo(bytes = 0) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function formatarData(iso) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-}
-
 function IconeArquivo({ mime = '' }) {
-  if (mime === 'application/pdf') return <FileText size={20} />
-  if (mime.startsWith('image/')) return <FileImage size={20} />
-  if (mime.startsWith('text/')) return <FileText size={20} />
-  return <File size={20} />
+  if (mime === 'application/pdf') return <FileText className="h-5 w-5" />
+  if (mime.startsWith('image/')) return <FileImage className="h-5 w-5" />
+  if (mime.startsWith('text/')) return <FileText className="h-5 w-5" />
+  return <File className="h-5 w-5" />
 }
 
 function DocumentosPanel({ origem, ownerId }) {
@@ -219,155 +216,185 @@ function DocumentosPanel({ origem, ownerId }) {
 
   if (!ownerId) {
     return (
-      <section className="panel docs-panel">
-        <div className="panel-heading">
-          <h2>Anexos</h2>
-        </div>
-        <div className="docs-empty-state docs-save-first">
-          <Info size={32} />
-          <p>Salve o cadastro antes de anexar documentos.</p>
-        </div>
-      </section>
+      <Card className="border-emerald-100">
+        <CardHeader>
+          <CardTitle>Anexos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid min-h-28 place-items-center gap-3 rounded-lg border border-dashed border-emerald-100 bg-emerald-50/40 p-5 text-center text-emerald-900">
+            <Info className="h-8 w-8" />
+            <p className="m-0 text-sm font-semibold">
+              Salve o cadastro antes de anexar documentos.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <section className="panel docs-panel">
-      <div className="panel-heading">
-        <h2>Anexos</h2>
-        {arquivos.length > 0 && (
-          <span className="docs-count">{arquivos.length}</span>
-        )}
-      </div>
+    <Card className="border-emerald-100">
+      <CardHeader className="flex-row items-center justify-between gap-3">
+        <CardTitle>Anexos</CardTitle>
+        {arquivos.length > 0 ? <Badge>{arquivos.length}</Badge> : null}
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <StatusMessage status={status} />
 
-      <StatusMessage status={status} />
-
-      <form className="docs-upload-form" onSubmit={enviar}>
-        <label
-          className={`docs-dropzone ${dragActive ? 'docs-dropzone--active' : ''} ${selectedFiles.length ? 'docs-dropzone--has-files' : ''}`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
+        <form
+          className="grid gap-3 rounded-lg border border-emerald-100 bg-emerald-50/30 p-4"
+          onSubmit={enviar}
         >
-          <UploadCloud size={32} className="docs-dropzone-icon" />
-          <span className="docs-dropzone-title">
-            {selectedFiles.length
-              ? selectedFiles.map((f) => f.name).join(', ')
-              : 'Arraste arquivos aqui'}
-          </span>
-          <span className="docs-dropzone-hint">
-            {selectedFiles.length ? '' : 'ou clique para selecionar'}
-          </span>
-          <input
-            ref={fileRef}
-            multiple
-            onChange={(event) => selecionarArquivos(event.target.files)}
-            type="file"
-          />
-        </label>
-
-        <div className="docs-form-row">
-          <label className="docs-form-field">
-            Tipo de documento
-            <select
-              onChange={(event) => setTipoDocumentoId(event.target.value)}
-              required
-              value={tipoDocumentoId}
-            >
-              {tipos.map((tipo) => (
-                <option key={tipo.id_tipo_documento} value={tipo.id_tipo_documento}>
-                  {tipo.nome}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="docs-form-field">
-            Observação
+          <label
+            className={cn(
+              'grid min-h-28 cursor-pointer place-items-center gap-2 rounded-lg border-2 border-dashed border-emerald-200 bg-white p-5 text-center transition',
+              dragActive && 'border-emerald-700 bg-emerald-50',
+              selectedFiles.length && 'border-emerald-700 border-solid',
+            )}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <UploadCloud className="h-8 w-8 text-emerald-700" />
+            <span className="max-w-full truncate text-sm font-bold text-emerald-900">
+              {selectedFiles.length
+                ? selectedFiles.map((f) => f.name).join(', ')
+                : 'Arraste arquivos aqui'}
+            </span>
+            {!selectedFiles.length ? (
+              <span className="text-xs font-semibold text-slate-500">
+                ou clique para selecionar
+              </span>
+            ) : null}
             <input
-              onChange={(event) => setObservacao(event.target.value)}
-              placeholder="Opcional"
-              type="text"
-              value={observacao}
+              ref={fileRef}
+              className="hidden"
+              multiple
+              onChange={(event) => selecionarArquivos(event.target.files)}
+              type="file"
             />
           </label>
-        </div>
 
-        <button className="primary-button docs-submit-btn" disabled={loading} type="submit">
-          <Paperclip size={15} />
-          Anexar
-        </button>
-      </form>
-
-      <div className="docs-list">
-        {arquivos.length ? (
-          arquivos.map((arquivo) => {
-            const id = getArquivoId(arquivo, origem)
-            const removendo = removendoId === id
-            return (
-              <div className="docs-card" key={id}>
-                <div className="docs-card-icon">
-                  <IconeArquivo mime={arquivo.tipo_mime} />
-                </div>
-                <div className="docs-card-body">
-                  <strong className="docs-card-name">{arquivo.nome_original}</strong>
-                  <div className="docs-card-meta">
-                    {arquivo.tipoDocumento?.nome && (
-                      <span className="docs-badge">{arquivo.tipoDocumento.nome}</span>
-                    )}
-                    <span className="docs-meta-info">{tamanhoArquivo(arquivo.tamanho)}</span>
-                    {arquivo.createdAt && (
-                      <span className="docs-meta-info">{formatarData(arquivo.createdAt)}</span>
-                    )}
-                  </div>
-                  {arquivo.observacao && (
-                    <p className="docs-card-obs">{arquivo.observacao}</p>
-                  )}
-                </div>
-                <div className="docs-card-actions">
-                  <button
-                    className="docs-action-btn"
-                    onClick={() => visualizar(arquivo)}
-                    title="Visualizar"
-                    type="button"
-                  >
-                    <Eye size={16} />
-                  </button>
-                  <button
-                    className="docs-action-btn"
-                    onClick={() => baixar(arquivo)}
-                    title="Baixar"
-                    type="button"
-                  >
-                    <Download size={16} />
-                  </button>
-                  <button
-                    className="docs-action-btn docs-action-btn--danger"
-                    disabled={removendo}
-                    onClick={() => remover(arquivo)}
-                    title="Remover"
-                    type="button"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        ) : (
-          <div className="docs-empty-state">
-            {loading ? (
-              <p>Carregando anexos...</p>
-            ) : (
-              <>
-                <File size={32} />
-                <p>Nenhum documento anexado.</p>
-              </>
-            )}
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+              Tipo de documento
+              <select
+                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 shadow-sm focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                onChange={(event) => setTipoDocumentoId(event.target.value)}
+                required
+                value={tipoDocumentoId}
+              >
+                {tipos.map((tipo) => (
+                  <option key={tipo.id_tipo_documento} value={tipo.id_tipo_documento}>
+                    {tipo.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+              Observação
+              <Input
+                onChange={(event) => setObservacao(event.target.value)}
+                placeholder="Opcional"
+                type="text"
+                value={observacao}
+              />
+            </label>
           </div>
-        )}
-      </div>
-    </section>
+
+          <Button className="justify-self-start" disabled={loading} type="submit">
+            <Paperclip className="h-4 w-4" />
+            Anexar
+          </Button>
+        </form>
+
+        <div className="grid gap-2">
+          {arquivos.length ? (
+            arquivos.map((arquivo) => {
+              const id = getArquivoId(arquivo, origem)
+              const removendo = removendoId === id
+              return (
+                <article
+                  className="flex items-center gap-3 rounded-lg border border-emerald-100 bg-white p-3"
+                  key={id}
+                >
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-800">
+                    <IconeArquivo mime={arquivo.tipo_mime} />
+                  </div>
+                  <div className="grid min-w-0 flex-1 gap-1">
+                    <strong className="truncate text-sm text-slate-950">
+                      {arquivo.nome_original}
+                    </strong>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {arquivo.tipoDocumento?.nome ? (
+                        <Badge variant="secondary">{arquivo.tipoDocumento.nome}</Badge>
+                      ) : null}
+                      <span className="text-xs font-semibold text-slate-500">
+                        {tamanhoArquivo(arquivo.tamanho)}
+                      </span>
+                      {arquivo.createdAt ? (
+                        <span className="text-xs font-semibold text-slate-500">
+                          {formatDateBR(arquivo.createdAt)}
+                        </span>
+                      ) : null}
+                    </div>
+                    {arquivo.observacao ? (
+                      <p className="m-0 truncate text-xs text-slate-500">
+                        {arquivo.observacao}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      onClick={() => visualizar(arquivo)}
+                      size="icon"
+                      title="Visualizar"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      onClick={() => baixar(arquivo)}
+                      size="icon"
+                      title="Baixar"
+                      type="button"
+                      variant="secondary"
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      disabled={removendo}
+                      onClick={() => remover(arquivo)}
+                      size="icon"
+                      title="Remover"
+                      type="button"
+                      variant="destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </article>
+              )
+            })
+          ) : (
+            <div className="grid min-h-28 place-items-center gap-3 rounded-lg border border-dashed border-emerald-100 p-5 text-center text-slate-500">
+              {loading ? (
+                <p className="m-0 text-sm font-semibold">Carregando anexos...</p>
+              ) : (
+                <>
+                  <File className="h-8 w-8" />
+                  <p className="m-0 text-sm font-semibold">
+                    Nenhum documento anexado.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

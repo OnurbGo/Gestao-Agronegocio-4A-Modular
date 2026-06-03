@@ -57,7 +57,7 @@ function PayrollMonthlyChart({ relatorio }) {
   }))
 
   return (
-    <Card className="monthly-chart-panel no-print">
+    <Card className="no-print mt-4 border-emerald-100 pt-1">
       <CardHeader className="flex-row items-start justify-between gap-4">
         <div>
           <CardTitle>Gráfico mensal</CardTitle>
@@ -126,7 +126,9 @@ function PayrollMonthlyChart({ relatorio }) {
             </BarChart>
           </ChartContainer>
         ) : (
-          <p className="empty-state">Nenhum lançamento no período.</p>
+          <p className="m-0 text-sm font-semibold text-slate-500">
+            Nenhum lançamento no período.
+          </p>
         )}
       </CardContent>
     </Card>

@@ -6,7 +6,22 @@ import {
 import ReportHeader from "@/shared/components/data-display/ReportHeader";
 import Modal from "@/shared/components/layout/Modal";
 import StatusMessage from "@/shared/components/feedback/StatusMessage";
+import { Badge } from "@/shared/components/ui/badge";
+import { Button } from "@/shared/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { Input } from "@/shared/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/shared/components/ui/table";
 import { normalizePaginated } from "@/shared/services/api";
+import { formatDateBR, formatDateTimeBR } from "@/shared/utils/date";
+import MoneyInput from "../components/MoneyInput";
 import PayrollMonthlyChart from "../components/PayrollMonthlyChart";
 import {
   atualizarFerias,
@@ -28,6 +43,18 @@ import {
   removerRegistroSalarial,
   salvarLancamentosMensais,
 } from "../services/folha.service";
+import {
+  calcularLinha,
+  criarLinhaBase,
+  descontoCampos,
+  dinheiro,
+  mesAno,
+  montarPayload,
+  normalizarLinha,
+  numero,
+  possuiImpactoSalarial,
+  totalDescontos,
+} from "../utils";
 
 const meses = [
   { valor: 1, label: "Janeiro" },
@@ -48,25 +75,6 @@ const PARTICIPANTS_PAGE_SIZE = 10;
 const ENTITIES_MODAL_PAGE_SIZE = 10;
 const SALARY_PAGE_SIZE = 5;
 const VACATION_PAGE_SIZE = 5;
-
-const camposEditaveis = [
-  "dias_trabalhados",
-  "inss",
-  "irrf",
-  "inss_adicional",
-  "comissao",
-  "desconto_bar",
-  "desconto_diverso_1",
-  "desconto_diverso_2",
-  "desconto_diverso_3",
-];
-
-const descontoCampos = [
-  { campo: "desconto_bar", label: "Bar" },
-  { campo: "desconto_diverso_1", label: "Desconto diverso 1" },
-  { campo: "desconto_diverso_2", label: "Desconto diverso 2" },
-  { campo: "desconto_diverso_3", label: "Desconto diverso 3" },
-];
 
 const salarioInicial = {
   inicio_vigencia: "",
@@ -91,138 +99,6 @@ const feriasSummaryInicial = {
   total_dias_gozados: 0,
   saldo_ferias_dias: 0,
 };
-
-function numero(value) {
-  if (value === "" || value === null || value === undefined) return 0;
-  const parsed = Number(String(value).replace(",", "."));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function dinheiro(value) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(numero(value));
-}
-
-function mesAno(ano, mes) {
-  return `${String(mes).padStart(2, "0")}/${ano}`;
-}
-
-function possuiImpactoSalarial(impacto) {
-  return Boolean(
-    impacto?.tem_impacto ||
-    impacto?.ferias?.length ||
-    impacto?.lancamentos?.length ||
-    impacto?.sem_salario?.length,
-  );
-}
-
-function totalDescontos(linha) {
-  return descontoCampos.reduce(
-    (total, item) => total + numero(linha[item.campo]),
-    0,
-  );
-}
-
-function calcularLinha(linha, recalcularProporcional = false) {
-  const salarioProporcional =
-    recalcularProporcional || linha.salario_proporcional === ""
-      ? (numero(linha.salario_bruto) / 30) * numero(linha.dias_trabalhados)
-      : numero(linha.salario_proporcional);
-  const salarioLiquido =
-    salarioProporcional +
-    numero(linha.comissao) -
-    numero(linha.inss) -
-    numero(linha.irrf) -
-    numero(linha.inss_adicional);
-
-  const descontos = totalDescontos(linha);
-
-  return {
-    ...linha,
-    salario_proporcional: salarioProporcional.toFixed(2),
-    salario_liquido: salarioLiquido.toFixed(2),
-    salario_liquido_com_desconto: (salarioLiquido - descontos).toFixed(2),
-    salario_final_com_ferias: (
-      salarioLiquido -
-      descontos +
-      numero(linha.ferias)
-    ).toFixed(2),
-  };
-}
-
-function criarLinhaBase(mes) {
-  return calcularLinha({
-    mes,
-    dias_trabalhados: "",
-    salario_bruto: "",
-    salario_proporcional: "",
-    inss: "",
-    irrf: "",
-    inss_adicional: "",
-    ferias: "",
-    ferias_automatica: false,
-    comissao: "",
-    desconto_bar: "",
-    desconto_diverso_1: "",
-    desconto_diverso_2: "",
-    desconto_diverso_3: "",
-    salario_liquido: "0.00",
-    salario_liquido_com_desconto: "0.00",
-    salario_final_com_ferias: "0.00",
-  });
-}
-
-function normalizarLinha(registro, mes) {
-  if (!registro) return criarLinhaBase(mes);
-
-  return calcularLinha({
-    ...criarLinhaBase(mes),
-    ...Object.fromEntries(
-      Object.entries(registro).map(([key, value]) => [
-        key,
-        key === "ferias_automatica"
-          ? Boolean(value)
-          : value === null || value === undefined
-            ? ""
-            : String(value),
-      ]),
-    ),
-    mes,
-  });
-}
-
-function montarPayload(linhas) {
-  return linhas.map((linha) => {
-    const payload = {
-      mes: Number(linha.mes),
-      dias_trabalhados: Number(linha.dias_trabalhados || 0),
-    };
-
-    camposEditaveis
-      .filter((campo) => campo !== "dias_trabalhados")
-      .forEach((campo) => {
-        payload[campo] = numero(linha[campo]);
-      });
-
-    return payload;
-  });
-}
-
-function MoneyInput({ disabled = false, value, onChange }) {
-  return (
-    <input
-      className="cell-input"
-      disabled={disabled}
-      min="0"
-      onChange={(event) => onChange(event.target.value)}
-      step="0.01"
-      type="number"
-      value={value}
-    />
-  );
-}
 
 function FolhaPage({ onBack }) {
   const anoAtual = new Date().getFullYear();
@@ -963,14 +839,18 @@ function FolhaPage({ onBack }) {
   }
 
   return (
-    <main className="workspace-page payroll-page">
-      <section className="page-heading no-print">
-        <button className="ghost-button" onClick={onBack} type="button">
+    <main className="flex flex-col gap-5 px-5 py-7 sm:px-7">
+      <section className="no-print flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Button onClick={onBack} type="button" variant="outline">
           Voltar
-        </button>
+        </Button>
         <div>
-          <span>Folha</span>
-          <h1>Folha de Pagamento</h1>
+          <span className="text-xs font-black uppercase tracking-wide text-emerald-800">
+            Folha
+          </span>
+          <h1 className="mt-1 text-4xl font-bold leading-tight text-slate-950">
+            Folha de Pagamento
+          </h1>
         </div>
       </section>
 
@@ -985,75 +865,74 @@ function FolhaPage({ onBack }) {
         />
       ) : null}
 
-      <div className="tabs no-print">
-        <button
-          className={aba === "relatorio" ? "active" : ""}
+      <div className="no-print flex gap-2 border-b border-emerald-100 pb-3">
+        <Button
           onClick={() => setAba("relatorio")}
           type="button"
+          variant={aba === "relatorio" ? "default" : "outline"}
         >
           Relatório mensal
-        </button>
-        <button
-          className={aba === "lancamentos" ? "active" : ""}
+        </Button>
+        <Button
           onClick={() => setAba("lancamentos")}
           type="button"
+          variant={aba === "lancamentos" ? "default" : "outline"}
         >
           Lançamentos
-        </button>
+        </Button>
       </div>
 
       {aba === "relatorio" ? (
-        <section className="report-page print-area">
-          <section className="panel report-toolbar no-print">
-            <label>
-              Ano
-              <input
-                max="2100"
-                min="2000"
-                onChange={(event) => setAno(Number(event.target.value))}
-                type="number"
-                value={ano}
-              />
-            </label>
-            <label>
-              Mês
-              <select
-                onChange={(event) =>
-                  setMesRelatorio(Number(event.target.value))
-                }
-                value={mesRelatorio}
+        <section className="grid gap-4 print:block">
+          <Card className="no-print border-emerald-100">
+            <CardContent className="grid gap-3 pt-5 sm:grid-cols-[120px_180px_auto_auto] sm:items-end">
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+                Ano
+                <Input
+                  max="2100"
+                  min="2000"
+                  onChange={(event) => setAno(Number(event.target.value))}
+                  type="number"
+                  value={ano}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700">
+                Mês
+                <select
+                  className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-950 shadow-sm focus:border-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-100"
+                  onChange={(event) =>
+                    setMesRelatorio(Number(event.target.value))
+                  }
+                  value={mesRelatorio}
+                >
+                  {meses.map((mes) => (
+                    <option key={mes.valor} value={mes.valor}>
+                      {mes.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                disabled={!relatorio?.itens?.length}
+                onClick={imprimirRelatorio}
+                type="button"
+                variant="secondary"
               >
-                {meses.map((mes) => (
-                  <option key={mes.valor} value={mes.valor}>
-                    {mes.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              className="secondary-button"
-              disabled={!relatorio?.itens?.length}
-              onClick={imprimirRelatorio}
-              type="button"
-            >
-              Imprimir relatório
-            </button>
-            <button
-              className="primary-button"
-              disabled={!relatorio?.itens?.length}
-              onClick={exportarRelatorio}
-              type="button"
-            >
-              Exportar planilha
-            </button>
-          </section>
+                Imprimir relatório
+              </Button>
+              <Button
+                disabled={!relatorio?.itens?.length}
+                onClick={exportarRelatorio}
+                type="button"
+              >
+                Exportar planilha
+              </Button>
+            </CardContent>
+          </Card>
 
-          <section className="panel printable-report">
+          <section className="printable-report rounded-lg border border-emerald-100 bg-white p-4 shadow-sm print:shadow-none">
             <ReportHeader
-              emittedAt={new Intl.DateTimeFormat("pt-BR", {
-                dateStyle: "short",
-                timeStyle: "short",
-              }).format(new Date())}
+              emittedAt={formatDateTimeBR(new Date())}
               subtitle="Relatório mensal"
               title={`${relatorio?.nome_mes || meses[mesRelatorio - 1]?.label} / ${ano}`}
             />
@@ -1063,73 +942,73 @@ function FolhaPage({ onBack }) {
                 {relatorio?.nome_mes || meses[mesRelatorio - 1]?.label} / {ano}
               </h2>
             </div>
-            <div className="summary-grid">
-              <div>
-                <span>Lançamentos</span>
-                <strong>{relatorio?.itens?.length || 0}</strong>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Lançamentos</span>
+                <strong className="self-end text-xl text-slate-950">{relatorio?.itens?.length || 0}</strong>
               </div>
-              <div>
-                <span>Total final + férias</span>
-                <strong>{dinheiro(relatorio?.total)}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Total final + férias</span>
+                <strong className="self-end text-xl text-slate-950">{dinheiro(relatorio?.total)}</strong>
               </div>
             </div>
-            <div className="table-scroll">
-              <table className="data-table">
+            <div className="overflow-auto rounded-md border border-emerald-100">
+              <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th>Participante</th>
-                    <th>Bruto</th>
-                    <th>Proporcional</th>
-                    <th>Líquido</th>
-                    <th>Final</th>
-                    <th>Final + Férias</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Participante</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Bruto</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Proporcional</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Líquido</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Final</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Final + Férias</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(relatorio?.itens || []).map((item) => (
                     <tr key={item.id_folha_mensal}>
-                      <td>{item.entidade?.nome}</td>
-                      <td>{dinheiro(item.salario_bruto)}</td>
-                      <td>{dinheiro(item.salario_proporcional)}</td>
-                      <td>{dinheiro(item.salario_liquido)}</td>
-                      <td>{dinheiro(item.salario_liquido_com_desconto)}</td>
-                      <td>{dinheiro(item.salario_final_com_ferias)}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">{item.entidade?.nome}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_bruto)}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_proporcional)}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_liquido)}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_liquido_com_desconto)}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_final_com_ferias)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan="5">
+                    <td className="border-t border-emerald-100 bg-emerald-50 px-3 py-2" colSpan="5">
                       <strong>Total final + férias</strong>
                     </td>
-                    <td>
+                    <td className="border-t border-emerald-100 bg-emerald-50 px-3 py-2">
                       <strong>{dinheiro(relatorio?.total)}</strong>
                     </td>
                   </tr>
                 </tfoot>
               </table>
               {!relatorio?.itens?.length ? (
-                <p className="empty-state">Nenhum lançamento no período.</p>
+                <p className="m-0 p-4 text-sm font-semibold text-slate-500">Nenhum lançamento no período.</p>
               ) : null}
             </div>
             <PayrollMonthlyChart relatorio={relatorio} />
           </section>
         </section>
       ) : (
-        <section className="payroll-layout">
-          <aside className="panel list-panel">
-            <div className="panel-heading">
-              <h2>Participantes</h2>
-              <span>{participantesMeta.total}</span>
-            </div>
-            <button
-              className="primary-button full"
+        <section className="grid w-full min-w-0 max-w-full items-start gap-5 xl:grid-cols-[330px_minmax(0,1fr)]">
+          <Card className="min-w-0 border-emerald-100">
+            <CardHeader className="flex-row items-center justify-between gap-3">
+              <CardTitle>Participantes</CardTitle>
+              <Badge>{participantesMeta.total}</Badge>
+            </CardHeader>
+            <CardContent className="flex min-h-0 flex-col gap-3">
+            <Button
               onClick={abrirParticipantes}
               type="button"
             >
               Gerenciar participantes
-            </button>
-            <input
+            </Button>
+            <Input
               onChange={(event) => {
                 setParticipantePage(1);
                 setTermo(event.target.value);
@@ -1138,11 +1017,13 @@ function FolhaPage({ onBack }) {
               type="search"
               value={termo}
             />
-            <div className="record-list">
+            <div className="grid gap-2">
               {participantes.map((participante) => (
                 <button
-                  className={`record-row ${
-                    participante.id_entidade === participanteId ? "active" : ""
+                  className={`grid min-h-20 w-full gap-1 rounded-lg border bg-white px-4 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40 ${
+                    participante.id_entidade === participanteId
+                      ? "border-emerald-700 bg-emerald-50"
+                      : "border-emerald-100"
                   }`}
                   key={participante.id_entidade}
                   onClick={() => {
@@ -1154,74 +1035,75 @@ function FolhaPage({ onBack }) {
                   }}
                   type="button"
                 >
-                  <strong>{participante.nome}</strong>
-                  <span>{participante.cpf_cnpj}</span>
-                  <small>{dinheiro(participante.salario_atual)}</small>
+                  <strong className="truncate text-sm font-bold text-slate-950">{participante.nome}</strong>
+                  <span className="truncate text-xs font-semibold text-slate-600">{participante.cpf_cnpj}</span>
+                  <small className="truncate text-xs font-bold text-emerald-900">{dinheiro(participante.salario_atual)}</small>
                 </button>
               ))}
               {!participantes.length ? (
-                <p className="empty-state">Nenhum participante encontrado.</p>
+                <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">Nenhum participante encontrado.</p>
               ) : null}
             </div>
-            <div className="pagination-row">
-              <button
-                className="secondary-button"
+            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+              <Button
                 disabled={participantePage <= 1}
                 onClick={() => setParticipantePage((current) => current - 1)}
                 type="button"
+                variant="secondary"
               >
                 Anterior
-              </button>
-              <span>
-                Pagina {participantesMeta.page} de{" "}
+              </Button>
+              <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
+                Página {participantesMeta.page} de{" "}
                 {participantesMeta.totalPages}
               </span>
-              <button
-                className="secondary-button"
+              <Button
                 disabled={participantePage >= participantesMeta.totalPages}
                 onClick={() => setParticipantePage((current) => current + 1)}
                 type="button"
+                variant="secondary"
               >
-                Proxima
-              </button>
+                Próxima
+              </Button>
             </div>
-          </aside>
+            </CardContent>
+          </Card>
 
-          <section className="detail-stack">
-            <section className="summary-grid">
-              <div>
-                <span>Participante</span>
-                <strong>{detalhe?.nome || "-"}</strong>
+          <section className="grid min-w-0 max-w-full gap-5">
+            <section className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Participante</span>
+                <strong className="self-end break-words text-lg text-slate-950">{detalhe?.nome || "-"}</strong>
               </div>
-              <div>
-                <span>Salário atual</span>
-                <strong>{dinheiro(detalhe?.salario_atual)}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Salário atual</span>
+                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(detalhe?.salario_atual)}</strong>
               </div>
-              <div>
-                <span>Admissão</span>
-                <strong>{detalhe?.data_admissao || "-"}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Admissão</span>
+                <strong className="self-end break-words text-lg text-slate-950">{formatDateBR(detalhe?.data_admissao)}</strong>
               </div>
-              <div>
-                <span>Total bruto</span>
-                <strong>{dinheiro(totais.bruto)}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Total bruto</span>
+                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(totais.bruto)}</strong>
               </div>
-              <div>
-                <span>Total final</span>
-                <strong>{dinheiro(totais.final)}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Total final</span>
+                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(totais.final)}</strong>
               </div>
-              <div>
-                <span>Final + férias</span>
-                <strong>{dinheiro(totais.finalComFerias)}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Final + férias</span>
+                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(totais.finalComFerias)}</strong>
               </div>
             </section>
 
-            <section className="panel">
-              <div className="panel-heading">
-                <h2>Lançamentos de {ano}</h2>
-                <div className="row-actions">
-                  <label className="compact-field">
+            <Card className="min-w-0 max-w-full overflow-hidden border-emerald-100">
+              <CardHeader className="min-w-0 flex-col items-start justify-between gap-3 lg:flex-row lg:items-end">
+                <CardTitle>Lançamentos de {ano}</CardTitle>
+                <div className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-auto sm:justify-end">
+                  <label className="grid w-28 gap-1.5 text-sm font-bold text-slate-700">
                     Ano
-                    <input
+                    <Input
                       max="2100"
                       min="2000"
                       onChange={(event) => setAno(Number(event.target.value))}
@@ -1229,52 +1111,63 @@ function FolhaPage({ onBack }) {
                       value={ano}
                     />
                   </label>
-                  <button
-                    className="secondary-button"
+                  <Button
                     disabled={!participanteId || alterado || exportando}
                     onClick={exportar}
                     title={
                       alterado ? "Salve antes de exportar" : "Exportar planilha"
                     }
                     type="button"
+                    variant="secondary"
                   >
                     {exportando ? "Exportando..." : "Exportar como planilha"}
-                  </button>
-                  <button
-                    className="primary-button"
+                  </Button>
+                  <Button
                     disabled={!participanteId || salvando || carregando}
                     onClick={salvar}
                     type="button"
                   >
                     {salvando ? "Salvando..." : "Salvar"}
-                  </button>
+                  </Button>
                 </div>
-              </div>
-              <div className="table-scroll">
-                <table className="payroll-table">
-                  <thead>
-                    <tr>
-                      <th>Mês</th>
-                      <th>Dias</th>
-                      <th>Bruto</th>
-                      <th>Proporcional</th>
-                      <th>INSS</th>
-                      <th>IRRF</th>
-                      <th>INSS adic.</th>
-                      <th>Comissão</th>
-                      <th>Líquido</th>
-                      <th>Descontos</th>
-                      <th>Final</th>
-                      <th>Final + Férias</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              </CardHeader>
+              <CardContent className="min-w-0 max-w-full">
+                <Table
+                  className="min-w-[1120px]"
+                  wrapperClassName="max-w-full overflow-x-auto rounded-md border border-emerald-100"
+                >
+                  <TableHeader className="sticky top-0 z-10 bg-emerald-50">
+                    <TableRow className="hover:bg-transparent">
+                      {[
+                        "Mês",
+                        "Dias",
+                        "Bruto",
+                        "Proporcional",
+                        "INSS",
+                        "IRRF",
+                        "INSS adic.",
+                        "Comissão",
+                        "Líquido",
+                        "Descontos",
+                        "Final",
+                        "Final + Férias",
+                      ].map((heading) => (
+                        <TableHead
+                          className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600"
+                          key={heading}
+                        >
+                          {heading}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {linhas.map((linha) => (
-                      <tr key={linha.mes}>
-                        <td>{meses[Number(linha.mes) - 1]?.label}</td>
-                        <td>
-                          <input
-                            className="cell-input small"
+                      <TableRow key={linha.mes}>
+                        <TableCell className="px-3 py-2 font-semibold">{meses[Number(linha.mes) - 1]?.label}</TableCell>
+                        <TableCell className="px-3 py-2">
+                          <Input
+                            className="h-9 w-20 px-2"
                             max="31"
                             min="0"
                             onChange={(event) =>
@@ -1287,121 +1180,145 @@ function FolhaPage({ onBack }) {
                             type="number"
                             value={linha.dias_trabalhados}
                           />
-                        </td>
-                        <td>{dinheiro(linha.salario_bruto)}</td>
-                        <td>{dinheiro(linha.salario_proporcional)}</td>
-                        <td>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_bruto)}</TableCell>
+                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_proporcional)}</TableCell>
+                        <TableCell className="px-3 py-2">
                           <MoneyInput
                             onChange={(value) =>
                               alterarLinha(linha.mes, "inss", value)
                             }
                             value={linha.inss}
                           />
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
                           <MoneyInput
                             onChange={(value) =>
                               alterarLinha(linha.mes, "irrf", value)
                             }
                             value={linha.irrf}
                           />
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
                           <MoneyInput
                             onChange={(value) =>
                               alterarLinha(linha.mes, "inss_adicional", value)
                             }
                             value={linha.inss_adicional}
                           />
-                        </td>
-                        <td>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
                           <MoneyInput
                             onChange={(value) =>
                               alterarLinha(linha.mes, "comissao", value)
                             }
                             value={linha.comissao}
                           />
-                        </td>
-                        <td>{dinheiro(linha.salario_liquido)}</td>
-                        <td>
-                          <div className="discount-cell">
-                            <span>{dinheiro(totalDescontos(linha))}</span>
-                            <button
-                              className="secondary-button tiny-button"
+                        </TableCell>
+                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_liquido)}</TableCell>
+                        <TableCell className="px-3 py-2">
+                          <div className="flex min-w-36 items-center gap-2">
+                            <span className="whitespace-nowrap font-semibold">{dinheiro(totalDescontos(linha))}</span>
+                            <Button
                               onClick={() => abrirDescontos(linha.mes)}
+                              size="sm"
                               type="button"
+                              variant="secondary"
                             >
                               Editar
-                            </button>
+                            </Button>
                           </div>
-                        </td>
-                        <td>{dinheiro(linha.salario_liquido_com_desconto)}</td>
-                        <td>{dinheiro(linha.salario_final_com_ferias)}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_liquido_com_desconto)}</TableCell>
+                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_final_com_ferias)}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
 
-            <section className="lower-grid">
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>Registros salariais</h2>
-                  <span>{salarioMeta.total}</span>
-                </div>
-                <button
-                  className="secondary-button full"
+            <section className="grid gap-5 lg:grid-cols-2">
+              <Card className="border-emerald-100">
+                <CardHeader className="flex-row items-center justify-between gap-3">
+                  <CardTitle>Registros salariais</CardTitle>
+                  <Badge>{salarioMeta.total}</Badge>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                <Button
+                  className="w-full"
                   disabled={!participanteId}
                   onClick={() => setModalAberto("salarios")}
                   type="button"
+                  variant="secondary"
                 >
                   Gerenciar salários
-                </button>
-                <div className="mini-list">
+                </Button>
+                <div className="grid gap-2">
                   {registrosSalariais.slice(0, 5).map((registro) => (
-                    <div key={registro.id_registro_salarial}>
-                      <strong>{dinheiro(registro.salario)}</strong>
-                      <span>
-                        {registro.inicio_vigencia} a{" "}
-                        {registro.fim_vigencia || "Atual"}
+                    <div
+                      className="grid gap-1 rounded-lg border border-emerald-100 bg-white p-3"
+                      key={registro.id_registro_salarial}
+                    >
+                      <strong className="text-sm text-slate-950">
+                        {dinheiro(registro.salario)}
+                      </strong>
+                      <span className="text-xs font-semibold text-slate-600">
+                        {formatDateBR(registro.inicio_vigencia)} a{" "}
+                        {registro.fim_vigencia
+                          ? formatDateBR(registro.fim_vigencia)
+                          : "Atual"}
                       </span>
                     </div>
                   ))}
                   {!registrosSalariais.length ? (
-                    <p className="empty-state">Nenhum registro salarial.</p>
+                    <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                      Nenhum registro salarial.
+                    </p>
                   ) : null}
                 </div>
-              </section>
+                </CardContent>
+              </Card>
 
-              <section className="panel">
-                <div className="panel-heading">
-                  <h2>Férias</h2>
-                  <span>{feriasMeta.total}</span>
-                </div>
-                <button
-                  className="secondary-button full"
+              <Card className="border-emerald-100">
+                <CardHeader className="flex-row items-center justify-between gap-3">
+                  <CardTitle>Férias</CardTitle>
+                  <Badge>{feriasMeta.total}</Badge>
+                </CardHeader>
+                <CardContent className="grid gap-3">
+                <Button
+                  className="w-full"
                   disabled={!participanteId}
                   onClick={() => setModalAberto("ferias")}
                   type="button"
+                  variant="secondary"
                 >
                   Gerenciar férias
-                </button>
-                <div className="mini-list">
+                </Button>
+                <div className="grid gap-2">
                   {ferias.slice(0, 5).map((item) => (
-                    <div key={item.id_ferias}>
-                      <strong>{item.dias_gozados} dias</strong>
-                      <span>
-                        {item.inicio_gozado} a {item.fim_gozado} -{" "}
+                    <div
+                      className="grid gap-1 rounded-lg border border-emerald-100 bg-white p-3"
+                      key={item.id_ferias}
+                    >
+                      <strong className="text-sm text-slate-950">
+                        {item.dias_gozados} dias
+                      </strong>
+                      <span className="text-xs font-semibold text-slate-600">
+                        {formatDateBR(item.inicio_gozado)} a{" "}
+                        {formatDateBR(item.fim_gozado)} -{" "}
                         {dinheiro(item.valor_total_ferias)}
                       </span>
                     </div>
                   ))}
                   {!ferias.length ? (
-                    <p className="empty-state">Nenhum registro de férias.</p>
+                    <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                      Nenhum registro de férias.
+                    </p>
                   ) : null}
                 </div>
-              </section>
+                </CardContent>
+              </Card>
             </section>
           </section>
         </section>
@@ -1413,77 +1330,80 @@ function FolhaPage({ onBack }) {
           title="Gerenciar participantes da folha"
           width="lg"
         >
-          <div className="modal-body">
-            <div className="search-row">
-              <input
+          <div className="grid gap-4">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <Input
                 onChange={(event) => setTermoEntidadesFolha(event.target.value)}
                 placeholder="Buscar pessoa/empresa"
                 type="search"
                 value={termoEntidadesFolha}
               />
-              <button
-                className="secondary-button"
+              <Button
                 disabled={carregandoEntidadesFolha}
                 onClick={() => carregarEntidadesFolha(1)}
                 type="button"
+                variant="secondary"
               >
                 Buscar
-              </button>
+              </Button>
             </div>
-            <div className="toggle-list">
+            <div className="grid gap-2">
               {entidadesFiltradasFolha.map((entidade) => (
                 <button
-                  className="toggle-row"
+                  className="flex min-h-16 w-full items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-white px-4 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/50 disabled:cursor-not-allowed disabled:opacity-60"
                   disabled={salvandoParticipante === entidade.id_entidade}
                   key={entidade.id_entidade}
                   onClick={() => alternarParticipacao(entidade)}
                   type="button"
                 >
-                  <span>
-                    <strong>{entidade.nome}</strong>
-                    <small>{entidade.cpf_cnpj || "Sem documento"}</small>
+                  <span className="grid min-w-0 gap-1">
+                    <strong className="truncate text-sm text-slate-950">
+                      {entidade.nome}
+                    </strong>
+                    <small className="truncate text-xs font-semibold text-slate-500">
+                      {entidade.cpf_cnpj || "Sem documento"}
+                    </small>
                   </span>
-                  <span
-                    className={`toggle-pill ${
-                      entidade.participa_folha ? "active" : ""
-                    }`}
+                  <Badge
+                    className="shrink-0"
+                    variant={entidade.participa_folha ? "default" : "secondary"}
                   >
                     {entidade.participa_folha ? "Na folha" : "Fora da folha"}
-                  </span>
+                  </Badge>
                 </button>
               ))}
               {!entidadesFiltradasFolha.length ? (
-                <p className="empty-state">
+                <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
                   {carregandoEntidadesFolha
                     ? "Carregando cadastros..."
                     : "Nenhum cadastro encontrado."}
                 </p>
               ) : null}
             </div>
-            <div className="pagination-row">
-              <button
-                className="secondary-button"
+            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-emerald-100 pt-3">
+              <Button
                 disabled={carregandoEntidadesFolha || entidadesFolhaPage <= 1}
                 onClick={() => carregarEntidadesFolha(entidadesFolhaPage - 1)}
                 type="button"
+                variant="secondary"
               >
                 Anterior
-              </button>
-              <span>
-                Pagina {entidadesFolhaMeta.page} de{" "}
+              </Button>
+              <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
+                Página {entidadesFolhaMeta.page} de{" "}
                 {entidadesFolhaMeta.totalPages}
               </span>
-              <button
-                className="secondary-button"
+              <Button
                 disabled={
                   carregandoEntidadesFolha ||
                   entidadesFolhaPage >= entidadesFolhaMeta.totalPages
                 }
                 onClick={() => carregarEntidadesFolha(entidadesFolhaPage + 1)}
                 type="button"
+                variant="secondary"
               >
-                Proxima
-              </button>
+                Próxima
+              </Button>
             </div>
           </div>
         </Modal>
@@ -1494,12 +1414,16 @@ function FolhaPage({ onBack }) {
           onClose={() => setModalAberto(null)}
           title={`Descontos de ${meses[Number(linhaDescontos.mes) - 1]?.label}`}
         >
-          <div className="modal-body">
-            <div className="form-grid one-column">
+          <div className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
               {descontoCampos.map((item) => (
-                <label key={item.campo}>
+                <label
+                  className="grid gap-1.5 text-sm font-bold text-slate-700"
+                  key={item.campo}
+                >
                   {item.label}
                   <MoneyInput
+                    className="w-full"
                     onChange={(value) =>
                       alterarLinha(linhaDescontos.mes, item.campo, value)
                     }
@@ -1508,30 +1432,41 @@ function FolhaPage({ onBack }) {
                 </label>
               ))}
             </div>
-            <div className="modal-summary">
-              <span>Total de descontos</span>
-              <strong>{dinheiro(totalDescontos(linhaDescontos))}</strong>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3">
+              <span className="text-sm font-bold text-slate-600">
+                Total de descontos
+              </span>
+              <strong className="text-lg text-slate-950">
+                {dinheiro(totalDescontos(linhaDescontos))}
+              </strong>
             </div>
-            <div className="form-actions">
-              <button
-                className="primary-button"
+            <div className="flex justify-end">
+              <Button
                 onClick={() => setModalAberto(null)}
                 type="button"
               >
                 Aplicar
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>
       ) : null}
 
       {modalAberto === "salarios" ? (
-        <Modal onClose={() => setModalAberto(null)} title="Registros salariais">
-          <div className="modal-body">
-            <form className="compact-form" onSubmit={adicionarSalario}>
-              <label>
+        <Modal
+          contentClassName="flex min-h-0 flex-col overflow-y-auto lg:overflow-hidden"
+          onClose={() => setModalAberto(null)}
+          title="Registros salariais"
+          width="xl"
+        >
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <form
+              className="grid shrink-0 gap-4 rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 md:grid-cols-2 lg:grid-cols-12"
+              onSubmit={adicionarSalario}
+            >
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
                 Início
-                <input
+                <Input
                   onChange={(event) =>
                     setSalarioForm((form) => ({
                       ...form,
@@ -1543,9 +1478,9 @@ function FolhaPage({ onBack }) {
                   value={salarioForm.inicio_vigencia}
                 />
               </label>
-              <label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
                 Fim opcional
-                <input
+                <Input
                   onChange={(event) =>
                     setSalarioForm((form) => ({
                       ...form,
@@ -1556,9 +1491,9 @@ function FolhaPage({ onBack }) {
                   value={salarioForm.fim_vigencia}
                 />
               </label>
-              <label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
                 Salário
-                <input
+                <Input
                   min="0"
                   onChange={(event) =>
                     setSalarioForm((form) => ({
@@ -1572,10 +1507,10 @@ function FolhaPage({ onBack }) {
                   value={salarioForm.salario}
                 />
               </label>
-              <label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
                 Percentual
-                <span className="input-with-button">
-                  <input
+                <span className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <Input
                     min="0"
                     onChange={(event) =>
                       setSalarioForm((form) => ({
@@ -1587,18 +1522,18 @@ function FolhaPage({ onBack }) {
                     type="number"
                     value={salarioForm.percentual}
                   />
-                  <button
-                    className="secondary-button"
+                  <Button
                     onClick={calcularPercentualSalario}
                     type="button"
+                    variant="secondary"
                   >
                     Calcular
-                  </button>
+                  </Button>
                 </span>
               </label>
-              <label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 md:col-span-2 lg:col-span-12">
                 Observação
-                <input
+                <Input
                   onChange={(event) =>
                     setSalarioForm((form) => ({
                       ...form,
@@ -1608,72 +1543,86 @@ function FolhaPage({ onBack }) {
                   value={salarioForm.observacao}
                 />
               </label>
-              <button className="primary-button" type="submit">
-                {salarioEditandoId ? "Salvar alteracoes" : "Adicionar"}
-              </button>
-              {salarioEditandoId ? (
-                <button
-                  className="secondary-button"
-                  onClick={limparEdicaoSalario}
-                  type="button"
-                >
-                  Cancelar
-                </button>
-              ) : null}
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end md:col-span-2 lg:col-span-12">
+                <Button className="sm:min-w-44" type="submit">
+                  {salarioEditandoId ? "Salvar alterações" : "Adicionar"}
+                </Button>
+                {salarioEditandoId ? (
+                  <Button
+                    className="sm:min-w-32"
+                    onClick={limparEdicaoSalario}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Cancelar
+                  </Button>
+                ) : null}
+              </div>
             </form>
-            <div className="mini-list">
+            <div className="grid min-h-0 gap-2 lg:flex-1 lg:overflow-y-auto lg:pr-1">
               {registrosSalariais.map((registro) => (
-                <div key={registro.id_registro_salarial}>
-                  <span className="mini-list-content">
-                    <strong>{dinheiro(registro.salario)}</strong>
-                    <span>
-                      {registro.inicio_vigencia} a{" "}
-                      {registro.fim_vigencia || "Atual"}
+                <div
+                  className="flex flex-col gap-3 rounded-lg border border-emerald-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                  key={registro.id_registro_salarial}
+                >
+                  <span className="grid min-w-0 gap-1">
+                    <strong className="text-sm text-slate-950">
+                      {dinheiro(registro.salario)}
+                    </strong>
+                    <span className="text-xs font-semibold text-slate-600">
+                      {formatDateBR(registro.inicio_vigencia)} a{" "}
+                      {registro.fim_vigencia
+                        ? formatDateBR(registro.fim_vigencia)
+                        : "Atual"}
                       {registro.percentual ? ` - ${registro.percentual}%` : ""}
                     </span>
                   </span>
-                  <span className="inline-actions">
-                    <button
-                      className="secondary-button tiny-button"
+                  <span className="flex flex-wrap gap-2">
+                    <Button
                       onClick={() => editarSalario(registro)}
+                      size="sm"
                       type="button"
+                      variant="secondary"
                     >
                       Editar
-                    </button>
-                    <button
-                      className="secondary-button tiny-button danger-button"
+                    </Button>
+                    <Button
                       onClick={() => excluirSalario(registro)}
+                      size="sm"
                       type="button"
+                      variant="destructive"
                     >
                       Excluir
-                    </button>
+                    </Button>
                   </span>
                 </div>
               ))}
               {!registrosSalariais.length ? (
-                <p className="empty-state">Nenhum registro salarial.</p>
+                <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                  Nenhum registro salarial.
+                </p>
               ) : null}
             </div>
-            <div className="pagination-row">
-              <button
-                className="secondary-button"
+            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-emerald-100 pt-3">
+              <Button
                 disabled={salarioPage <= 1}
                 onClick={() => setSalarioPage((current) => current - 1)}
                 type="button"
+                variant="secondary"
               >
                 Anterior
-              </button>
-              <span>
-                Pagina {salarioMeta.page} de {salarioMeta.totalPages}
+              </Button>
+              <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
+                Página {salarioMeta.page} de {salarioMeta.totalPages}
               </span>
-              <button
-                className="secondary-button"
+              <Button
                 disabled={salarioPage >= salarioMeta.totalPages}
                 onClick={() => setSalarioPage((current) => current + 1)}
                 type="button"
+                variant="secondary"
               >
-                Proxima
-              </button>
+                Próxima
+              </Button>
             </div>
           </div>
         </Modal>
@@ -1687,53 +1636,74 @@ function FolhaPage({ onBack }) {
           title={impactoSalarial.titulo}
           width="lg"
         >
-          <div className="modal-body">
-            <p className="impact-intro">{impactoSalarial.mensagem}</p>
+          <div className="grid gap-4">
+            <p className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-slate-700">
+              {impactoSalarial.mensagem}
+            </p>
 
-            <div className="impact-grid">
-              <section>
-                <h3>Ferias afetadas</h3>
+            <div className="grid gap-4 md:grid-cols-2">
+              <section className="grid gap-2 rounded-lg border border-emerald-100 bg-white p-4">
+                <h3 className="text-sm font-bold text-slate-950">
+                  Férias afetadas
+                </h3>
                 {(impactoSalarial.impacto?.ferias || []).length ? (
-                  <ul className="impact-list">
+                  <ul className="grid gap-2 text-sm text-slate-700">
                     {impactoSalarial.impacto.ferias.map((item) => (
-                      <li key={`ferias-${item.id_ferias}`}>
+                      <li
+                        className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"
+                        key={`ferias-${item.id_ferias}`}
+                      >
                         {item.descricao ||
-                          `Ferias de ${item.inicio_gozado} a ${item.fim_gozado}`}
+                          `Férias de ${formatDateBR(item.inicio_gozado)} a ${formatDateBR(item.fim_gozado)}`}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="empty-state">Nenhuma feria afetada.</p>
+                  <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                    Nenhum registro de férias afetado.
+                  </p>
                 )}
               </section>
 
-              <section>
-                <h3>Folhas afetadas</h3>
+              <section className="grid gap-2 rounded-lg border border-emerald-100 bg-white p-4">
+                <h3 className="text-sm font-bold text-slate-950">
+                  Folhas afetadas
+                </h3>
                 {(impactoSalarial.impacto?.lancamentos || []).length ? (
-                  <ul className="impact-list">
+                  <ul className="grid gap-2 text-sm text-slate-700">
                     {impactoSalarial.impacto.lancamentos.map((item) => (
-                      <li key={`folha-${item.ano}-${item.mes}`}>
+                      <li
+                        className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2"
+                        key={`folha-${item.ano}-${item.mes}`}
+                      >
                         {item.descricao ||
                           `Folha de pagamento ${mesAno(item.ano, item.mes)}`}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="empty-state">Nenhuma folha afetada.</p>
+                  <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                    Nenhuma folha afetada.
+                  </p>
                 )}
               </section>
             </div>
 
             {(impactoSalarial.impacto?.sem_salario || []).length ? (
-              <section className="impact-warning">
-                <h3>Sem salario vigente</h3>
-                <p>
+              <section className="grid gap-2 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h3 className="text-sm font-bold text-amber-900">
+                  Sem salário vigente
+                </h3>
+                <p className="text-sm font-semibold text-amber-900">
                   Os trechos abaixo serao recalculados com valor 0 onde nao
                   houver salario vigente.
                 </p>
-                <ul className="impact-list">
+                <ul className="grid gap-2 text-sm text-amber-950">
                   {impactoSalarial.impacto.sem_salario.map((item, index) => (
-                    <li key={`${item.tipo}-${item.referencia || index}`}>
+                    <li
+                      className="rounded-md border border-amber-200 bg-white/70 px-3 py-2"
+                      key={`${item.tipo}-${item.referencia || index}`}
+                    >
                       {item.descricao}
                     </li>
                   ))}
@@ -1741,23 +1711,22 @@ function FolhaPage({ onBack }) {
               </section>
             ) : null}
 
-            <div className="form-actions">
-              <button
-                className="secondary-button"
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
                 disabled={processandoImpacto}
                 onClick={() => setImpactoSalarial(null)}
                 type="button"
+                variant="secondary"
               >
                 Cancelar
-              </button>
-              <button
-                className="primary-button"
+              </Button>
+              <Button
                 disabled={processandoImpacto}
                 onClick={confirmarImpactoSalarial}
                 type="button"
               >
                 {processandoImpacto ? "Confirmando..." : "Confirmar"}
-              </button>
+              </Button>
             </div>
           </div>
         </Modal>
@@ -1765,15 +1734,19 @@ function FolhaPage({ onBack }) {
 
       {modalAberto === "ferias" ? (
         <Modal
+          contentClassName="flex min-h-0 flex-col overflow-y-auto lg:overflow-hidden"
           onClose={() => setModalAberto(null)}
           title="Registro de férias"
-          width="lg"
+          width="xl"
         >
-          <div className="modal-body">
-            <form className="compact-form" onSubmit={adicionarFerias}>
-              <label>
-                Inicio gozado
-                <input
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <form
+              className="grid shrink-0 gap-4 rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 md:grid-cols-3 lg:grid-cols-12"
+              onSubmit={adicionarFerias}
+            >
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
+                Início gozado
+                <Input
                   onChange={(event) =>
                     setFeriasForm((form) => ({
                       ...form,
@@ -1785,9 +1758,9 @@ function FolhaPage({ onBack }) {
                   value={feriasForm.inicio_gozado}
                 />
               </label>
-              <label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
                 Fim gozado
-                <input
+                <Input
                   onChange={(event) =>
                     setFeriasForm((form) => ({
                       ...form,
@@ -1799,9 +1772,9 @@ function FolhaPage({ onBack }) {
                   value={feriasForm.fim_gozado}
                 />
               </label>
-              <label>
+              <label className="grid gap-1.5 text-sm font-bold text-slate-700 lg:col-span-3">
                 Abono opcional
-                <input
+                <Input
                   min="0"
                   onChange={(event) =>
                     setFeriasForm((form) => ({
@@ -1814,99 +1787,107 @@ function FolhaPage({ onBack }) {
                   value={feriasForm.valor_abono}
                 />
               </label>
-              <button className="primary-button" type="submit">
-                {feriasEditandoId ? "Salvar alteracoes" : "Adicionar"}
-              </button>
-              {feriasEditandoId ? (
-                <button
-                  className="secondary-button"
-                  onClick={limparEdicaoFerias}
-                  type="button"
-                >
-                  Cancelar
-                </button>
-              ) : null}
+              <div className="flex flex-col gap-2 md:col-span-3 sm:flex-row sm:justify-end lg:col-span-3 lg:items-end">
+                <Button className="sm:min-w-44" type="submit">
+                  {feriasEditandoId ? "Salvar alterações" : "Adicionar"}
+                </Button>
+                {feriasEditandoId ? (
+                  <Button
+                    className="sm:min-w-32"
+                    onClick={limparEdicaoFerias}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Cancelar
+                  </Button>
+                ) : null}
+              </div>
             </form>
-            <div className="summary-grid compact-summary">
-              <div>
-                <span>Periodo aquisitivo</span>
-                <strong>
+            <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Período aquisitivo</span>
+                <strong className="self-end text-sm text-slate-950">
                   {feriasSummary.periodo_aquisitivo_inicio
-                    ? `${feriasSummary.periodo_aquisitivo_inicio} a ${feriasSummary.periodo_aquisitivo_fim}`
+                    ? `${formatDateBR(feriasSummary.periodo_aquisitivo_inicio)} a ${formatDateBR(feriasSummary.periodo_aquisitivo_fim)}`
                     : "-"}
                 </strong>
               </div>
-              <div>
-                <span>Anos aquisitivos</span>
-                <strong>{feriasSummary.anos_aquisitivos || 0}</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Anos aquisitivos</span>
+                <strong className="self-end text-lg text-slate-950">{feriasSummary.anos_aquisitivos || 0}</strong>
               </div>
-              <div>
-                <span>Dias adquiridos</span>
-                <strong>{feriasSummary.dias_adquiridos || 0} dias</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Dias adquiridos</span>
+                <strong className="self-end text-lg text-slate-950">{feriasSummary.dias_adquiridos || 0} dias</strong>
               </div>
-              <div>
-                <span>Dias gozados</span>
-                <strong>{feriasSummary.total_dias_gozados || 0} dias</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Dias gozados</span>
+                <strong className="self-end text-lg text-slate-950">{feriasSummary.total_dias_gozados || 0} dias</strong>
               </div>
-              <div>
-                <span>Saldo</span>
-                <strong>{feriasSummary.saldo_ferias_dias || 0} dias</strong>
+              <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+                <span className="text-xs font-black uppercase text-slate-500">Saldo</span>
+                <strong className="self-end text-lg text-slate-950">{feriasSummary.saldo_ferias_dias || 0} dias</strong>
               </div>
             </div>
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Inicio gozado</th>
-                    <th>Fim gozado</th>
-                    <th>Dias</th>
-                    <th>Valor calculado</th>
-                    <th>Abono</th>
-                    <th>Total</th>
-                    <th>Acoes</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="min-h-0 lg:flex-1">
+              <Table
+                className="min-w-[760px]"
+                wrapperClassName="max-h-[44vh] rounded-md border border-emerald-100 lg:h-full"
+              >
+                <TableHeader className="sticky top-0 z-10 bg-emerald-50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Início gozado</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Fim gozado</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Dias</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Valor calculado</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Abono</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Total</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {ferias.map((item) => (
-                    <tr key={item.id_ferias}>
-                      <td>{item.inicio_gozado}</td>
-                      <td>{item.fim_gozado}</td>
-                      <td>{item.dias_gozados} dias</td>
-                      <td>{dinheiro(item.valor_ferias)}</td>
-                      <td>{dinheiro(item.valor_abono)}</td>
-                      <td>{dinheiro(item.valor_total_ferias)}</td>
-                      <td>
-                        <span className="inline-actions">
-                          <button
-                            className="secondary-button tiny-button"
+                    <TableRow key={item.id_ferias}>
+                      <TableCell className="px-3 py-2">{formatDateBR(item.inicio_gozado)}</TableCell>
+                      <TableCell className="px-3 py-2">{formatDateBR(item.fim_gozado)}</TableCell>
+                      <TableCell className="px-3 py-2">{item.dias_gozados} dias</TableCell>
+                      <TableCell className="px-3 py-2">{dinheiro(item.valor_ferias)}</TableCell>
+                      <TableCell className="px-3 py-2">{dinheiro(item.valor_abono)}</TableCell>
+                      <TableCell className="px-3 py-2">{dinheiro(item.valor_total_ferias)}</TableCell>
+                      <TableCell className="px-3 py-2">
+                        <span className="flex flex-wrap gap-2">
+                          <Button
                             onClick={() => editarFerias(item)}
+                            size="sm"
                             type="button"
+                            variant="secondary"
                           >
                             Editar
-                          </button>
-                          <button
-                            className="secondary-button tiny-button danger-button"
+                          </Button>
+                          <Button
                             onClick={() => excluirFerias(item)}
+                            size="sm"
                             type="button"
+                            variant="destructive"
                           >
                             Excluir
-                          </button>
+                          </Button>
                         </span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan="2">
+                </TableBody>
+                <TableFooter className="sticky bottom-0 bg-emerald-50">
+                  <TableRow className="hover:bg-emerald-50">
+                    <TableCell className="px-3 py-2" colSpan="2">
                       <strong>Total de férias gozadas</strong>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
                       <strong>
                         {feriasSummary.total_dias_gozados || 0} dias
                       </strong>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
                       <strong>
                         {dinheiro(
                           ferias.reduce(
@@ -1915,8 +1896,8 @@ function FolhaPage({ onBack }) {
                           ),
                         )}
                       </strong>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
                       <strong>
                         {dinheiro(
                           ferias.reduce(
@@ -1925,8 +1906,8 @@ function FolhaPage({ onBack }) {
                           ),
                         )}
                       </strong>
-                    </td>
-                    <td>
+                    </TableCell>
+                    <TableCell className="px-3 py-2">
                       <strong>
                         {dinheiro(
                           ferias.reduce(
@@ -1936,35 +1917,37 @@ function FolhaPage({ onBack }) {
                           ),
                         )}
                       </strong>
-                    </td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
+                    </TableCell>
+                    <TableCell className="px-3 py-2"></TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
               {!ferias.length ? (
-                <p className="empty-state">Nenhum registro de férias.</p>
+                <p className="m-0 p-4 text-sm font-semibold text-slate-500">
+                  Nenhum registro de férias.
+                </p>
               ) : null}
             </div>
-            <div className="pagination-row">
-              <button
-                className="secondary-button"
+            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-emerald-100 pt-3">
+              <Button
                 disabled={feriasPage <= 1}
                 onClick={() => setFeriasPage((current) => current - 1)}
                 type="button"
+                variant="secondary"
               >
                 Anterior
-              </button>
-              <span>
-                Pagina {feriasMeta.page} de {feriasMeta.totalPages}
+              </Button>
+              <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
+                Página {feriasMeta.page} de {feriasMeta.totalPages}
               </span>
-              <button
-                className="secondary-button"
+              <Button
                 disabled={feriasPage >= feriasMeta.totalPages}
                 onClick={() => setFeriasPage((current) => current + 1)}
                 type="button"
+                variant="secondary"
               >
-                Proxima
-              </button>
+                Próxima
+              </Button>
             </div>
           </div>
         </Modal>

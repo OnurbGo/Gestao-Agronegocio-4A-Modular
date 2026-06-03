@@ -1,21 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { listarEntidades } from "@/modules/entidades/services/entidades.service";
 import DocumentosPanel from "@/shared/components/data-display/DocumentosPanel";
-import ReportHeader from "@/shared/components/data-display/ReportHeader";
 import StatusMessage from "@/shared/components/feedback/StatusMessage";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/shared/components/ui/alert-dialog";
 import { Button } from "@/shared/components/ui/button";
 import { normalizePaginated } from "@/shared/services/api";
+import { formatDateTimeBR } from "@/shared/utils/date";
+import ImovelForm from "../components/ImovelForm";
+import ImoveisListPanel from "../components/ImoveisListPanel";
+import ImoveisPrintReport from "../components/ImoveisPrintReport";
 import {
   atualizarImovel,
   buscarImovel,
@@ -23,92 +15,13 @@ import {
   listarImoveis,
   removerImovel,
 } from "../services/imoveis.service";
-
-const PAGE_SIZE = 10;
-
-const emptyForm = {
-  nome: "",
-  lote: "",
-  municipio: "",
-  n_lote: "",
-  gleba: "",
-  colonia: "",
-  matricula: "",
-  nirf: "",
-  incra: "",
-  proprietarios_ids: [],
-  area_total: "",
-  observacao: "",
-};
-
-function mascaraNirf(value) {
-  const d = value.replace(/\D/g, "").slice(0, 8);
-  if (d.length <= 1) return d;
-  if (d.length <= 4) return `${d[0]}.${d.slice(1)}`;
-  if (d.length <= 7) return `${d[0]}.${d.slice(1, 4)}.${d.slice(4)}`;
-  return `${d[0]}.${d.slice(1, 4)}.${d.slice(4, 7)}-${d[7]}`;
-}
-
-function mascaraIncra(value) {
-  const d = value.replace(/\D/g, "").slice(0, 13);
-  if (d.length <= 3) return d;
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
-  if (d.length <= 12)
-    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}.${d.slice(9)}`;
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}.${d.slice(9, 12)}-${d[12]}`;
-}
-
-function mascaraMatricula(value) {
-  const d = value.replace(/\D/g, "").slice(0, 9);
-  return d.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-}
-
-function normalizeForm(imovel) {
-  if (!imovel) return emptyForm;
-  return {
-    nome: imovel.nome || "",
-    lote: imovel.lote || "",
-    municipio: imovel.municipio || "",
-    n_lote: imovel.n_lote || "",
-    gleba: imovel.gleba || "",
-    colonia: imovel.colonia || "",
-    matricula: imovel.matricula || "",
-    nirf: imovel.nirf || "",
-    incra: imovel.incra || "",
-    proprietarios_ids: imovel.proprietarios?.map((p) => p.id_entidade) ?? [],
-    area_total: imovel.area_total || "",
-    observacao: imovel.observacao || "",
-  };
-}
-
-function montarPayload(form) {
-  return {
-    nome: form.nome,
-    lote: form.lote,
-    municipio: form.municipio,
-    n_lote: form.n_lote,
-    gleba: form.gleba,
-    colonia: form.colonia,
-    matricula: form.matricula,
-    nirf: form.nirf,
-    incra: form.incra,
-    proprietarios_ids: form.proprietarios_ids,
-    area_total: form.area_total,
-    observacao: form.observacao,
-  };
-}
-
-function calcularAlqueires(ha) {
-  const valor = parseFloat(ha);
-  if (!ha || isNaN(valor) || valor <= 0) return "";
-  return (valor / 2.42).toFixed(4);
-}
-
-function formatArea(value) {
-  const alqueires = calcularAlqueires(value);
-  return alqueires ? `${alqueires} alq` : "-";
-}
+import {
+  PAGE_SIZE,
+  calcularAlqueires,
+  emptyForm,
+  montarPayload,
+  normalizeForm,
+} from "../utils";
 
 function ImoveisPage({ onBack }) {
   const [termo, setTermo] = useState("");
@@ -368,10 +281,7 @@ function ImoveisPage({ onBack }) {
       const relatorio = {
         title: "Relatório de Imóveis",
         subtitle: `${data.total} registro(s) encontrado(s)`,
-        emittedAt: new Intl.DateTimeFormat("pt-BR", {
-          dateStyle: "short",
-          timeStyle: "short",
-        }).format(new Date()),
+        emittedAt: formatDateTimeBR(new Date()),
         filters: [
           { label: "Pesquisa", value: termo },
           { label: "Lote", value: loteFiltro },
@@ -392,471 +302,86 @@ function ImoveisPage({ onBack }) {
   }
 
   return (
-    <main className="workspace-page">
-      <section className="page-heading no-print">
-        <button className="ghost-button" onClick={onBack} type="button">
+    <main className="grid gap-5 px-5 py-7 sm:px-7">
+      <section className="no-print flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Button onClick={onBack} type="button" variant="outline">
           Voltar
-        </button>
+        </Button>
         <div>
-          <span>Cadastro rural</span>
-          <h1>Imóveis</h1>
+          <span className="text-xs font-black uppercase tracking-wide text-emerald-800">
+            Cadastro rural
+          </span>
+          <h1 className="mt-1 text-4xl font-bold leading-tight text-slate-950">
+            Imóveis
+          </h1>
         </div>
       </section>
 
       <StatusMessage status={status} />
 
-      <section className="split-layout no-print">
-        <aside className="panel list-panel">
-          <div className="panel-heading">
-            <h2>Registros</h2>
-            <span>{meta.total}</span>
-          </div>
-          <div className="search-row">
-            <input
-              onChange={(event) => setTermo(event.target.value)}
-              placeholder="Buscar por nome, município ou matrícula"
-              type="search"
-              value={termo}
-            />
-            <button
-              className="secondary-button"
-              disabled={loading}
-              onClick={() => carregarDados({ page: 1 })}
-              type="button"
-            >
-              Buscar
-            </button>
-          </div>
-          <div className="filter-row">
-            <input
-              onChange={(event) => {
-                setLoteFiltro(event.target.value);
-                carregarDados({
-                  page: 1,
-                  lote: event.target.value || undefined,
-                });
-              }}
-              placeholder="Filtrar por lote"
-              type="search"
-              value={loteFiltro}
-            />
-            <input
-              onChange={(event) => {
-                setMunicipioFiltro(event.target.value);
-                carregarDados({
-                  page: 1,
-                  municipio: event.target.value || undefined,
-                });
-              }}
-              placeholder="Filtrar por município"
-              type="search"
-              value={municipioFiltro}
-            />
-            <input
-              onChange={(event) => {
-                setColoniaFiltro(event.target.value);
-                carregarDados({
-                  page: 1,
-                  colonia: event.target.value || undefined,
-                });
-              }}
-              placeholder="Filtrar por colônia"
-              type="search"
-              value={coloniaFiltro}
-            />
-          </div>
-          <button
-            className="secondary-button full"
-            disabled={loading}
-            onClick={imprimirRelatorio}
-            type="button"
-          >
-            Imprimir relatório
-          </button>
-          <button
-            className="primary-button full"
-            onClick={novoImovel}
-            type="button"
-          >
-            Novo imóvel
-          </button>
-          <div className="record-list">
-            {imoveis.map((imovel) => (
-              <button
-                className={`record-row ${imovel.id_imovel === selectedId ? "active" : ""}`}
-                key={imovel.id_imovel}
-                onClick={() => selecionar(imovel.id_imovel)}
-                type="button"
-              >
-                <strong>{imovel.nome}</strong>
-                <span>
-                  {imovel.nirf ||
-                    imovel.incra ||
-                    imovel.matricula ||
-                    "Sem registro"}
-                </span>
-                <small>
-                  {imovel.municipio || imovel.cidade || "Sem município"}
-                </small>
-              </button>
-            ))}
-            {!imoveis.length ? (
-              <p className="empty-state">
-                {loading ? "Carregando..." : "Nenhum imóvel encontrado."}
-              </p>
-            ) : null}
-          </div>
-          <div className="pagination-row">
-            <button
-              className="secondary-button"
-              disabled={loading || page <= 1}
-              onClick={() => carregarDados({ page: page - 1 })}
-              type="button"
-            >
-              Anterior
-            </button>
-            <span>
-              Página {page} de {meta.totalPages}
-            </span>
-            <button
-              className="secondary-button"
-              disabled={loading || page >= meta.totalPages}
-              onClick={() => carregarDados({ page: page + 1 })}
-              type="button"
-            >
-              Próxima
-            </button>
-          </div>
-        </aside>
+      <section className="no-print grid items-start gap-5 xl:grid-cols-[330px_minmax(0,1fr)]">
+        <ImoveisListPanel
+          coloniaFiltro={coloniaFiltro}
+          imoveis={imoveis}
+          loading={loading}
+          loteFiltro={loteFiltro}
+          meta={meta}
+          municipioFiltro={municipioFiltro}
+          onColoniaChange={(value) => {
+            setColoniaFiltro(value);
+            carregarDados({
+              page: 1,
+              colonia: value || undefined,
+            });
+          }}
+          onLoteChange={(value) => {
+            setLoteFiltro(value);
+            carregarDados({
+              page: 1,
+              lote: value || undefined,
+            });
+          }}
+          onMunicipioChange={(value) => {
+            setMunicipioFiltro(value);
+            carregarDados({
+              page: 1,
+              municipio: value || undefined,
+            });
+          }}
+          onNew={novoImovel}
+          onPageChange={(nextPage) => carregarDados({ page: nextPage })}
+          onPrint={imprimirRelatorio}
+          onSearch={() => carregarDados({ page: 1 })}
+          onSearchChange={setTermo}
+          onSelect={selecionar}
+          page={page}
+          selectedId={selectedId}
+          termo={termo}
+        />
 
-        <section className="detail-stack">
-          <form className="panel form-grid" onSubmit={salvar}>
-            <div className="panel-heading span-2">
-              <h2>{selected ? selected.nome : "Novo imóvel"}</h2>
-            </div>
-
-            <fieldset className="span-2 field-group">
-              <legend>Identificação do imóvel</legend>
-
-              <label className="span-2">
-                Nome do imóvel
-                <input
-                  onChange={(event) => updateField("nome", event.target.value)}
-                  required
-                  value={form.nome}
-                />
-              </label>
-
-              <label>
-                Lote
-                <input
-                  onChange={(event) => updateField("lote", event.target.value)}
-                  value={form.lote}
-                />
-              </label>
-              <label>
-                Município
-                <input
-                  onChange={(event) =>
-                    updateField("municipio", event.target.value)
-                  }
-                  value={form.municipio}
-                />
-              </label>
-
-              <label>
-                N.º do lote
-                <input
-                  onChange={(event) =>
-                    updateField("n_lote", event.target.value)
-                  }
-                  value={form.n_lote}
-                />
-              </label>
-              <label>
-                Gleba
-                <input
-                  onChange={(event) => updateField("gleba", event.target.value)}
-                  value={form.gleba}
-                />
-              </label>
-
-              <label>
-                Colônia
-                <input
-                  onChange={(event) =>
-                    updateField("colonia", event.target.value)
-                  }
-                  value={form.colonia}
-                />
-              </label>
-              <label>
-                Matrícula
-                <input
-                  inputMode="numeric"
-                  maxLength={11}
-                  onChange={(event) =>
-                    updateField(
-                      "matricula",
-                      mascaraMatricula(event.target.value),
-                    )
-                  }
-                  placeholder="000.000"
-                  value={form.matricula}
-                />
-              </label>
-
-              <label>
-                NIRF
-                <input
-                  inputMode="numeric"
-                  maxLength={10}
-                  onChange={(event) =>
-                    updateField("nirf", mascaraNirf(event.target.value))
-                  }
-                  placeholder="0.000.000-0"
-                  value={form.nirf}
-                />
-              </label>
-              <label>
-                INCRA
-                <input
-                  inputMode="numeric"
-                  maxLength={17}
-                  onChange={(event) =>
-                    updateField("incra", mascaraIncra(event.target.value))
-                  }
-                  placeholder="000.000.000.000-0"
-                  value={form.incra}
-                />
-              </label>
-
-              <div className="span-2">
-                <p className="field-label">
-                  Entidades vinculadas
-                  {form.proprietarios_ids.length > 0 && (
-                    <span className="badge">
-                      {form.proprietarios_ids.length} selecionado(s)
-                    </span>
-                  )}
-                </p>
-                <div className="entity-picker">
-                  <div className="entity-chip-list">
-                    {entidadesSelecionadas.map((entidade) => (
-                      <div className="entity-chip" key={entidade.id_entidade}>
-                        <div className="entity-chip-copy">
-                          <strong>{entidade.nome}</strong>
-                          <span>{entidade.cpf_cnpj || "Sem CPF/CNPJ"}</span>
-                        </div>
-                        <button
-                          aria-label={`Remover ${entidade.nome}`}
-                          className="entity-chip-remove"
-                          onClick={() =>
-                            removerEntidadeSelecionada(entidade.id_entidade)
-                          }
-                          type="button"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                    {!entidadesSelecionadas.length && (
-                      <p className="entity-picker-empty">
-                        Nenhuma entidade selecionada.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="search-row entity-picker-search">
-                    <input
-                      onChange={(event) =>
-                        setProprietarioTermo(event.target.value)
-                      }
-                      placeholder="Buscar entidade por nome ou CPF/CNPJ"
-                      type="search"
-                      value={proprietarioTermo}
-                    />
-                  </div>
-
-                  <div className="entity-results-list">
-                    {entidadesFiltradas.map((entidade) => {
-                      const selecionado = form.proprietarios_ids.includes(
-                        entidade.id_entidade,
-                      );
-
-                      return (
-                        <button
-                          className={`entity-result-item ${selecionado ? "active" : ""}`}
-                          key={entidade.id_entidade}
-                          onClick={() =>
-                            selecionarEntidade(entidade.id_entidade)
-                          }
-                          type="button"
-                        >
-                          <div className="entity-result-main">
-                            <strong>{entidade.nome}</strong>
-                            <span>{entidade.cpf_cnpj || "Sem CPF/CNPJ"}</span>
-                          </div>
-                          <small>
-                            {selecionado
-                              ? "Selecionada"
-                              : "Toque para vincular"}
-                          </small>
-                        </button>
-                      );
-                    })}
-                    {!entidadesFiltradas.length ? (
-                      <p className="entity-picker-empty entity-picker-empty--results">
-                        {proprietarioTermo
-                          ? "Nenhuma entidade encontrada."
-                          : "Nenhuma entidade cadastrada. "}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-
-            <fieldset className="span-2 field-group">
-              <legend>Área</legend>
-
-              <label>
-                Área em Há
-                <input
-                  min="0"
-                  onChange={(event) =>
-                    updateField("area_total", event.target.value)
-                  }
-                  step="0.0001"
-                  type="number"
-                  value={form.area_total}
-                />
-              </label>
-              <label>
-                Área em Alqueires
-                <input
-                  readOnly
-                  title="Calculado automaticamente (1 alqueire paulista = 2,42 ha)"
-                  type="text"
-                  value={areaAlq}
-                />
-              </label>
-
-              <label className="span-2">
-                Observação
-                <textarea
-                  onChange={(event) =>
-                    updateField("observacao", event.target.value)
-                  }
-                  value={form.observacao}
-                />
-              </label>
-            </fieldset>
-
-            <div className="form-actions span-2">
-              {selectedId ? (
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      disabled={loading}
-                      type="button"
-                      variant="destructive"
-                    >
-                      Remover
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Esta ação vai remover o imóvel selecionado. Essa ação
-                        não pode ser desfeita pela tela.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel asChild>
-                        <Button type="button" variant="outline">
-                          Cancelar
-                        </Button>
-                      </AlertDialogCancel>
-                      <AlertDialogAction asChild>
-                        <Button
-                          disabled={loading}
-                          onClick={remover}
-                          type="button"
-                          variant="destructive"
-                        >
-                          Remover
-                        </Button>
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              ) : null}
-              <button
-                className="primary-button"
-                disabled={loading}
-                type="submit"
-              >
-                Salvar
-              </button>
-            </div>
-          </form>
+        <section className="grid min-w-0 gap-5">
+          <ImovelForm
+            areaAlq={areaAlq}
+            entidadesFiltradas={entidadesFiltradas}
+            entidadesSelecionadas={entidadesSelecionadas}
+            form={form}
+            loading={loading}
+            onFieldChange={updateField}
+            onProprietarioRemove={removerEntidadeSelecionada}
+            onProprietarioSearchChange={setProprietarioTermo}
+            onProprietarioSelect={selecionarEntidade}
+            onRemove={remover}
+            onSubmit={salvar}
+            proprietarioTermo={proprietarioTermo}
+            selected={selected}
+            selectedId={selectedId}
+          />
 
           <DocumentosPanel origem="IMOVEL" ownerId={selectedId} />
         </section>
       </section>
 
-      {reportData ? (
-        <section className="panel printable-report print-only-report">
-          <ReportHeader
-            emittedAt={reportData.emittedAt}
-            filters={reportData.filters}
-            subtitle={reportData.subtitle}
-            title={reportData.title}
-          />
-
-          <table className="report-print-table">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Lote</th>
-                <th>Município</th>
-                <th>Colônia</th>
-                <th>Matrícula</th>
-                <th>Área (alq)</th>
-                <th>Proprietários</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reportData.rows.map((item) => (
-                <tr key={item.id_imovel}>
-                  <td>{item.nome || "-"}</td>
-                  <td>{item.lote || item.n_lote || "-"}</td>
-                  <td>{item.municipio || item.cidade || "-"}</td>
-                  <td>{item.colonia || "-"}</td>
-                  <td>{item.matricula || "-"}</td>
-                  <td>{formatArea(item.area_total)}</td>
-                  <td>
-                    {item.proprietarios
-                      ?.map((proprietario) => proprietario.nome)
-                      .join(", ") || "-"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <section className="report-print-totals">
-            {reportData.totals.map((item) => (
-              <div key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
-            ))}
-          </section>
-        </section>
-      ) : null}
+      {reportData ? <ImoveisPrintReport reportData={reportData} /> : null}
     </main>
   );
 }

@@ -29,17 +29,28 @@ function EscritorioHome({ usuario, onNavigate }) {
   )
 
   return (
-    <main className="module-home">
-      <section className="module-hero">
+    <main className="grid gap-6 px-5 py-7 sm:px-7">
+      <section className="flex flex-col gap-4 border-b border-emerald-100 pb-6 md:flex-row md:items-end md:justify-between">
         <div>
-          <span>Escritório</span>
-          <h1>Área operacional</h1>
-          <p>Escolha uma rotina para consultar cadastros e folha de pagamento.</p>
+          <span className="text-xs font-black uppercase tracking-wide text-emerald-800">
+            Escritório
+          </span>
+          <h1 className="mt-2 text-4xl font-bold leading-tight tracking-normal text-slate-950">
+            Área operacional
+          </h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
+            Escolha uma rotina para consultar cadastros e folha de pagamento.
+          </p>
         </div>
-        <strong>{usuario?.nome || 'Usuário'}</strong>
+        <strong className="inline-flex self-start rounded-full bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-900 md:self-auto">
+          {usuario?.nome || 'Usuário'}
+        </strong>
       </section>
 
-      <section className="module-card-grid" aria-label="Rotinas do escritório">
+      <section
+        className="grid gap-4 xl:grid-cols-3"
+        aria-label="Rotinas do escritório"
+      >
         {visibleCards.map((card) => (
           <WorkspaceRoutineCard
             card={card}

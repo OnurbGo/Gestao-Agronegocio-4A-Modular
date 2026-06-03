@@ -20,6 +20,23 @@ type UploadedUserPhoto = {
   size: number;
 };
 
+type PermissaoContaAlvo = {
+  modulo: string;
+  pode_visualizar?: boolean;
+  pode_criar?: boolean;
+  pode_editar?: boolean;
+  pode_excluir?: boolean;
+  pode_restaurar?: boolean;
+};
+
+type UsuarioComConta = {
+  conta?: {
+    modulos?: PermissaoContaAlvo[];
+  } | null;
+};
+
+const MODULOS_PROTEGIDOS = ["ADMIN", "GERENTE"];
+
 @Injectable()
 export class UsersService {
   constructor(private readonly usersRepository: UsersRepository) {}
@@ -69,11 +86,7 @@ export class UsersService {
   }
 
   async atualizar(id_usuario: number, data: AtualizarUsuarioInput, ator: AuthContext) {
-    const podeEditar = ator.usuario_id === id_usuario || ator.possuiAdmin || ator.possuiGerente;
-
-    if (!podeEditar) {
-      throw new ForbiddenException("Usuario sem permissao para alterar este perfil.");
-    }
+    await this.garantirPodeEditarPerfil(id_usuario, ator);
 
     const usuario = await this.buscarPorId(id_usuario, ator);
     await usuario.update(data);
@@ -85,12 +98,7 @@ export class UsersService {
     file: UploadedUserPhoto | undefined,
     ator: AuthContext,
   ) {
-    const podeEditar =
-      ator.usuario_id === id_usuario || ator.possuiAdmin || ator.possuiGerente;
-
-    if (!podeEditar) {
-      throw new ForbiddenException("Usuario sem permissao para alterar este perfil.");
-    }
+    await this.garantirPodeEditarPerfil(id_usuario, ator);
 
     if (!file?.filename) {
       throw new BadRequestException("Foto de perfil e obrigatoria.");
@@ -104,6 +112,56 @@ export class UsersService {
     await this.removerFotoAnterior(fotoAnterior, file.filename);
 
     return usuario;
+  }
+
+  private async garantirPodeEditarPerfil(
+    id_usuario: number,
+    ator: AuthContext,
+  ) {
+    const editaProprioPerfil = ator.usuario_id === id_usuario;
+    const podeEditar =
+      editaProprioPerfil || ator.possuiAdmin || ator.possuiGerente;
+
+    if (!podeEditar) {
+      throw new ForbiddenException("Usuario sem permissao para alterar este perfil.");
+    }
+
+    if (editaProprioPerfil || ator.possuiAdmin || !ator.possuiGerente) {
+      return;
+    }
+
+    const usuarioAlvo =
+      await this.usersRepository.buscarPorIdComConta(id_usuario);
+
+    if (!usuarioAlvo) {
+      throw new NotFoundException("Usuario nao encontrado.");
+    }
+
+    if (this.usuarioPossuiModuloProtegido(usuarioAlvo)) {
+      throw new ForbiddenException(
+        "GERENTE nao pode alterar perfis de contas ADMIN ou GERENTE.",
+      );
+    }
+  }
+
+  private usuarioPossuiModuloProtegido(usuario: UsuarioComConta) {
+    return Boolean(
+      usuario.conta?.modulos?.some(
+        (modulo) =>
+          MODULOS_PROTEGIDOS.includes(modulo.modulo) &&
+          this.moduloTemPermissaoAtiva(modulo),
+      ),
+    );
+  }
+
+  private moduloTemPermissaoAtiva(modulo: PermissaoContaAlvo) {
+    return Boolean(
+      modulo.pode_visualizar ||
+        modulo.pode_criar ||
+        modulo.pode_editar ||
+        modulo.pode_excluir ||
+        modulo.pode_restaurar,
+    );
   }
 
   private async removerFotoAnterior(

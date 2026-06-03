@@ -1,34 +1,52 @@
 import { ArrowRight } from "lucide-react";
+import { Button } from "@/shared/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 
 function WorkspaceRoutineCard({ card, onOpen }) {
   const Icon = card.icon;
 
   return (
-    <button
-      className="group grid min-h-[12rem] gap-4 rounded-lg border border-emerald-100 bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
-      onClick={onOpen}
-      type="button"
-    >
-      <span className="flex min-w-0 items-center gap-4">
-        <span className="grid h-10 w-10 mt-3 shrink-0 place-items-center rounded-md bg-emerald-700 text-white transition group-hover:bg-emerald-800">
-          <Icon aria-hidden="true" className="h-5 w-5" />
+    <Card className="min-w-0 border-emerald-100 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md">
+      <button
+        className="grid h-full min-h-36 w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 p-5 text-left max-sm:grid-cols-[auto_minmax(0,1fr)]"
+        onClick={onOpen}
+        type="button"
+      >
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-emerald-700 text-white">
+          <Icon aria-hidden="true" className="h-6 w-6" />
         </span>
-        <strong className="min-w-0 text-xl font-bold leading-tight text-slate-950">
-          {card.title}
-        </strong>
-      </span>
 
-      <small className="mt-4 text-sm leading-7 text-slate-600">
-        {card.description}
-      </small>
-
-      <div className="mt-auto pb-8">
-        <span className="inline-flex items-center gap-2 text-base font-bold text-emerald-800">
-          Abrir
-          <ArrowRight aria-hidden="true" className="h-5 w-5" />
+        <span className="grid min-w-0 gap-2">
+          <CardHeader className="p-0">
+            <CardTitle className="text-2xl leading-tight text-slate-950">
+              {card.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <CardDescription className="text-sm font-semibold leading-6 text-slate-600">
+              {card.description}
+            </CardDescription>
+          </CardContent>
         </span>
-      </div>
-    </button>
+
+        <Button
+          asChild
+          className="shrink-0 px-0 text-base max-sm:col-span-2 max-sm:justify-self-end"
+          variant="ghost"
+        >
+          <span>
+            Abrir
+            <ArrowRight aria-hidden="true" className="h-5 w-5" />
+          </span>
+        </Button>
+      </button>
+    </Card>
   );
 }
 

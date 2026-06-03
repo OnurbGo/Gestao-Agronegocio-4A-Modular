@@ -69,6 +69,7 @@ export class EntidadesService {
 
   async criar(data: EntidadeInput, usuario: AuthContext, ip?: string) {
     const transaction = await this.entidadesRepository.criarTransacao();
+    let entidadeId = 0;
 
     try {
       const entidade = await this.entidadesRepository.criar(
@@ -81,23 +82,24 @@ export class EntidadesService {
         transaction,
       );
       await transaction.commit();
-
-      const criada = await this.buscarPorId(entidade.id_entidade);
-      await this.auditService.registrar({
-        conta_id: usuario.conta_id,
-        usuario_id: usuario.usuario_id,
-        acao: "ENTIDADE_CRIADA",
-        recurso: "ENTIDADE",
-        recurso_id: entidade.id_entidade,
-        valor_novo: criada,
-        ip,
-      });
-
-      return criada;
+      entidadeId = entidade.id_entidade;
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
+
+    const criada = await this.buscarPorId(entidadeId);
+    await this.auditService.registrar({
+      conta_id: usuario.conta_id,
+      usuario_id: usuario.usuario_id,
+      acao: "ENTIDADE_CRIADA",
+      recurso: "ENTIDADE",
+      recurso_id: entidadeId,
+      valor_novo: criada,
+      ip,
+    });
+
+    return criada;
   }
 
   async buscarPorId(id_entidade: number) {
