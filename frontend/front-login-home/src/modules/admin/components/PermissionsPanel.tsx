@@ -27,20 +27,25 @@ function PermissionsPanel({
   onSave,
 }: PermissionsPanelProps) {
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between gap-3">
-        <div>
+    <Card className="min-w-0 border-emerald-100">
+      <CardHeader className="flex-col items-start justify-between gap-4 border-b border-emerald-50 lg:flex-row lg:items-center">
+        <div className="min-w-0">
           <CardTitle>
             {selectedAccount?.usuario?.nome || "Permissões"}
           </CardTitle>
           {selectedAccount ? (
-            <p className="mt-2 text-sm text-slate-600">
+            <p className="mt-2 truncate text-sm text-slate-600">
               {selectedAccount.email}
             </p>
-          ) : null}
+          ) : (
+            <p className="mt-2 text-sm text-slate-600">
+              Selecione um membro para revisar permissões.
+            </p>
+          )}
         </div>
         {selectedAccount ? (
           <Button
+            className="w-full sm:w-auto"
             disabled={saving || selectedAccountLocked}
             onClick={() => onStatusChange(selectedAccount)}
             type="button"
@@ -51,6 +56,11 @@ function PermissionsPanel({
         ) : null}
       </CardHeader>
       <CardContent className="grid gap-5">
+        {selectedAccountLocked ? (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            Esta conta é protegida para o seu perfil atual.
+          </p>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {modules.map((moduleId) => {
             const checked = selectedModules.includes(moduleId);
@@ -85,6 +95,7 @@ function PermissionsPanel({
 
         <div className="flex justify-end">
           <Button
+            className="w-full sm:w-auto"
             disabled={saving || !selectedAccount || selectedAccountLocked}
             onClick={onSave}
             type="button"
@@ -99,4 +110,3 @@ function PermissionsPanel({
 }
 
 export default PermissionsPanel;
-

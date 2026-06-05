@@ -32,10 +32,15 @@ function AccessRequestsPanel({
   onReasonChange,
 }: AccessRequestsPanelProps) {
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Pedidos de acesso</CardTitle>
-        <Badge>{meta.total}</Badge>
+    <Card className="min-w-0 border-emerald-100">
+      <CardHeader className="flex-row items-start justify-between gap-3 border-b border-emerald-50">
+        <div className="min-w-0">
+          <CardTitle>Pedidos de acesso</CardTitle>
+          <p className="mt-1 text-sm text-slate-600">
+            Solicitações aguardando aprovação.
+          </p>
+        </div>
+        <Badge className="shrink-0">{meta.total}</Badge>
       </CardHeader>
       <CardContent className="grid gap-3">
         {requests.length ? (
@@ -46,23 +51,25 @@ function AccessRequestsPanel({
 
             return (
               <article
-                className="grid gap-3 rounded-lg border border-slate-200 p-4"
+                className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
                 key={request.id_solicitacao_conta}
               >
-                <div className="min-w-0">
-                  <strong className="block truncate text-slate-950">
-                    {request.nome}
-                  </strong>
-                  <span className="block truncate text-sm text-slate-600">
-                    {request.email}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {requestedModules.map((moduleId) => (
-                    <Badge key={moduleId} variant="secondary">
-                      {getModuleLabel(moduleId)}
-                    </Badge>
-                  ))}
+                <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+                  <div className="min-w-0">
+                    <strong className="block truncate text-slate-950">
+                      {request.nome}
+                    </strong>
+                    <span className="block truncate text-sm text-slate-600">
+                      {request.email}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 md:justify-end">
+                    {requestedModules.map((moduleId) => (
+                      <Badge key={moduleId} variant="secondary">
+                        {getModuleLabel(moduleId)}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
                 <Input
                   disabled={saving}
@@ -76,7 +83,7 @@ function AccessRequestsPanel({
                   type="text"
                   value={rejectReasons[request.id_solicitacao_conta] || ""}
                 />
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button
                     disabled={saving}
                     onClick={() => onReject(request)}
@@ -99,7 +106,7 @@ function AccessRequestsPanel({
             );
           })
         ) : (
-          <p className="rounded-md border border-dashed border-slate-200 p-4 text-sm font-medium text-slate-500">
+          <p className="rounded-md border border-dashed border-emerald-100 bg-emerald-50/40 p-4 text-sm font-medium text-slate-600">
             {loading ? "Carregando..." : "Nenhum pedido pendente."}
           </p>
         )}
@@ -114,4 +121,3 @@ function AccessRequestsPanel({
 }
 
 export default AccessRequestsPanel;
-

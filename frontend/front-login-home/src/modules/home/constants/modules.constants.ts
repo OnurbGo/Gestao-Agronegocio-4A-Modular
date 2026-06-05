@@ -1,10 +1,12 @@
+import { resolveEscritorioUrl } from "@/shared/utils/frontend-url";
+
 export const SYSTEM_MODULES = [
   {
     id: "ESCRITORIO",
     nome: "Escritório",
     descricao: "Pessoas/empresas e cadastros base.",
     status: "Disponível",
-    url: import.meta.env.VITE_ESCRITORIO_URL || "http://localhost:5174",
+    url: resolveEscritorioUrl(import.meta.env.VITE_ESCRITORIO_URL),
   },
   {
     id: "BALANCA",

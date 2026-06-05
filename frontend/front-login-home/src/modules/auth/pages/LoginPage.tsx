@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ChevronRight,
+  Cog,
   Leaf,
   Lightbulb,
   LoaderCircle,
@@ -30,6 +31,8 @@ const INITIAL_BOOTSTRAP = {
   email: '',
   senha: '',
 }
+
+const ENTERING_SYSTEM_DELAY_MS = 1500
 
 const MODE_OPTIONS = [
   { id: 'login', label: 'Entrar' },
@@ -103,6 +106,26 @@ function SubmitButton({ children, loading }) {
   )
 }
 
+function EnteringSystemState() {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#f4f7f2] px-4 py-8 text-slate-900">
+      <section className="grid w-full max-w-md justify-items-center gap-5 rounded-lg border border-emerald-100 bg-white px-8 py-10 text-center shadow-xl">
+        <span className="grid h-16 w-16 place-items-center rounded-full bg-emerald-50 text-emerald-800 ring-8 ring-emerald-50/70">
+          <Cog aria-hidden="true" className="h-8 w-8 animate-spin" />
+        </span>
+        <div className="grid gap-2">
+          <h1 className="text-2xl font-bold text-slate-950">
+            Entrando no sistema...
+          </h1>
+          <p className="text-sm leading-6 text-slate-600">
+            Preparando sua área de trabalho.
+          </p>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function LoginPage({ onAuthenticated }) {
   const [mode, setMode] = useState('login')
   const [loginForm, setLoginForm] = useState(INITIAL_LOGIN)
@@ -110,8 +133,33 @@ function LoginPage({ onAuthenticated }) {
   const [bootstrapForm, setBootstrapForm] = useState(INITIAL_BOOTSTRAP)
   const [status, setStatus] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [enteringSystem, setEnteringSystem] = useState(false)
+  const redirectTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(
+    null,
+  )
 
   const content = MODE_CONTENT[mode]
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current) {
+        window.clearTimeout(redirectTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  function startAuthenticatedTransition(usuario) {
+    if (redirectTimeoutRef.current) {
+      window.clearTimeout(redirectTimeoutRef.current)
+    }
+
+    setStatus(null)
+    setEnteringSystem(true)
+    redirectTimeoutRef.current = window.setTimeout(() => {
+      redirectTimeoutRef.current = null
+      onAuthenticated(usuario)
+    }, ENTERING_SYSTEM_DELAY_MS)
+  }
 
   function changeMode(nextMode) {
     setMode(nextMode)
@@ -151,7 +199,7 @@ function LoginPage({ onAuthenticated }) {
 
     try {
       const usuario = await login(loginForm)
-      onAuthenticated(usuario)
+      startAuthenticatedTransition(usuario)
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
     } finally {
@@ -190,12 +238,16 @@ function LoginPage({ onAuthenticated }) {
         email: bootstrapForm.email,
         senha: bootstrapForm.senha,
       })
-      onAuthenticated(usuario)
+      startAuthenticatedTransition(usuario)
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (enteringSystem) {
+    return <EnteringSystemState />
   }
 
   return (

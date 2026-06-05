@@ -8,7 +8,12 @@ import Modal from "@/shared/components/layout/Modal";
 import StatusMessage from "@/shared/components/feedback/StatusMessage";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 import {
   Table,
@@ -944,41 +949,76 @@ function FolhaPage({ onBack }) {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Lançamentos</span>
-                <strong className="self-end text-xl text-slate-950">{relatorio?.itens?.length || 0}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Lançamentos
+                </span>
+                <strong className="self-end text-xl text-slate-950">
+                  {relatorio?.itens?.length || 0}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Total final + férias</span>
-                <strong className="self-end text-xl text-slate-950">{dinheiro(relatorio?.total)}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Total final + férias
+                </span>
+                <strong className="self-end text-xl text-slate-950">
+                  {dinheiro(relatorio?.total)}
+                </strong>
               </div>
             </div>
             <div className="overflow-auto rounded-md border border-emerald-100">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr>
-                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Participante</th>
-                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Bruto</th>
-                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Proporcional</th>
-                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Líquido</th>
-                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Final</th>
-                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Final + Férias</th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Participante
+                    </th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Bruto
+                    </th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Proporcional
+                    </th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Líquido
+                    </th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Final
+                    </th>
+                    <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Final + Férias
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {(relatorio?.itens || []).map((item) => (
                     <tr key={item.id_folha_mensal}>
-                      <td className="border-t border-emerald-50 px-3 py-2">{item.entidade?.nome}</td>
-                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_bruto)}</td>
-                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_proporcional)}</td>
-                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_liquido)}</td>
-                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_liquido_com_desconto)}</td>
-                      <td className="border-t border-emerald-50 px-3 py-2">{dinheiro(item.salario_final_com_ferias)}</td>
+                      <td className="border-t border-emerald-50 px-3 py-2">
+                        {item.entidade?.nome}
+                      </td>
+                      <td className="border-t border-emerald-50 px-3 py-2">
+                        {dinheiro(item.salario_bruto)}
+                      </td>
+                      <td className="border-t border-emerald-50 px-3 py-2">
+                        {dinheiro(item.salario_proporcional)}
+                      </td>
+                      <td className="border-t border-emerald-50 px-3 py-2">
+                        {dinheiro(item.salario_liquido)}
+                      </td>
+                      <td className="border-t border-emerald-50 px-3 py-2">
+                        {dinheiro(item.salario_liquido_com_desconto)}
+                      </td>
+                      <td className="border-t border-emerald-50 px-3 py-2">
+                        {dinheiro(item.salario_final_com_ferias)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td className="border-t border-emerald-100 bg-emerald-50 px-3 py-2" colSpan="5">
+                    <td
+                      className="border-t border-emerald-100 bg-emerald-50 px-3 py-2"
+                      colSpan="5"
+                    >
                       <strong>Total final + férias</strong>
                     </td>
                     <td className="border-t border-emerald-100 bg-emerald-50 px-3 py-2">
@@ -988,7 +1028,9 @@ function FolhaPage({ onBack }) {
                 </tfoot>
               </table>
               {!relatorio?.itens?.length ? (
-                <p className="m-0 p-4 text-sm font-semibold text-slate-500">Nenhum lançamento no período.</p>
+                <p className="m-0 p-4 text-sm font-semibold text-slate-500">
+                  Nenhum lançamento no período.
+                </p>
               ) : null}
             </div>
             <PayrollMonthlyChart relatorio={relatorio} />
@@ -1002,98 +1044,127 @@ function FolhaPage({ onBack }) {
               <Badge>{participantesMeta.total}</Badge>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-col gap-3">
-            <Button
-              onClick={abrirParticipantes}
-              type="button"
-            >
-              Gerenciar participantes
-            </Button>
-            <Input
-              onChange={(event) => {
-                setParticipantePage(1);
-                setTermo(event.target.value);
-              }}
-              placeholder="Buscar participante"
-              type="search"
-              value={termo}
-            />
-            <div className="grid gap-2">
-              {participantes.map((participante) => (
-                <button
-                  className={`grid min-h-20 w-full gap-1 rounded-lg border bg-white px-4 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40 ${
-                    participante.id_entidade === participanteId
-                      ? "border-emerald-700 bg-emerald-50"
-                      : "border-emerald-100"
-                  }`}
-                  key={participante.id_entidade}
-                  onClick={() => {
-                    limparEdicaoSalario();
-                    limparEdicaoFerias();
-                    setParticipanteId(participante.id_entidade);
-                    setSalarioPage(1);
-                    setFeriasPage(1);
-                  }}
+              <Button onClick={abrirParticipantes} type="button">
+                Gerenciar participantes
+              </Button>
+              <Input
+                onChange={(event) => {
+                  setParticipantePage(1);
+                  setTermo(event.target.value);
+                }}
+                placeholder="Buscar participante"
+                type="search"
+                value={termo}
+              />
+              <div className="grid gap-2">
+                {participantes.map((participante) => (
+                  <button
+                    className={`grid min-h-20 w-full gap-1 rounded-lg border bg-white px-4 py-3 text-left transition hover:border-emerald-300 hover:bg-emerald-50/40 ${
+                      participante.id_entidade === participanteId
+                        ? "border-emerald-700 bg-emerald-50"
+                        : "border-emerald-100"
+                    }`}
+                    key={participante.id_entidade}
+                    onClick={() => {
+                      limparEdicaoSalario();
+                      limparEdicaoFerias();
+                      setParticipanteId(participante.id_entidade);
+                      setSalarioPage(1);
+                      setFeriasPage(1);
+                    }}
+                    type="button"
+                  >
+                    <strong className="truncate text-sm font-bold text-slate-950">
+                      {participante.nome}
+                    </strong>
+                    <span className="truncate text-xs font-semibold text-slate-600">
+                      {participante.cpf_cnpj}
+                    </span>
+                    <small className="truncate text-xs font-bold text-emerald-900">
+                      {dinheiro(participante.salario_atual)}
+                    </small>
+                  </button>
+                ))}
+                {!participantes.length ? (
+                  <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                    Nenhum participante encontrado.
+                  </p>
+                ) : null}
+              </div>
+              <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <Button
+                  disabled={participantePage <= 1}
+                  onClick={() => setParticipantePage((current) => current - 1)}
                   type="button"
+                  variant="secondary"
                 >
-                  <strong className="truncate text-sm font-bold text-slate-950">{participante.nome}</strong>
-                  <span className="truncate text-xs font-semibold text-slate-600">{participante.cpf_cnpj}</span>
-                  <small className="truncate text-xs font-bold text-emerald-900">{dinheiro(participante.salario_atual)}</small>
-                </button>
-              ))}
-              {!participantes.length ? (
-                <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">Nenhum participante encontrado.</p>
-              ) : null}
-            </div>
-            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
-              <Button
-                disabled={participantePage <= 1}
-                onClick={() => setParticipantePage((current) => current - 1)}
-                type="button"
-                variant="secondary"
-              >
-                Anterior
-              </Button>
-              <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
-                Página {participantesMeta.page} de{" "}
-                {participantesMeta.totalPages}
-              </span>
-              <Button
-                disabled={participantePage >= participantesMeta.totalPages}
-                onClick={() => setParticipantePage((current) => current + 1)}
-                type="button"
-                variant="secondary"
-              >
-                Próxima
-              </Button>
-            </div>
+                  Anterior
+                </Button>
+                <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
+                  Página {participantesMeta.page} de{" "}
+                  {participantesMeta.totalPages}
+                </span>
+                <Button
+                  disabled={participantePage >= participantesMeta.totalPages}
+                  onClick={() => setParticipantePage((current) => current + 1)}
+                  type="button"
+                  variant="secondary"
+                >
+                  Próxima
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           <section className="grid min-w-0 max-w-full gap-5">
             <section className="grid min-w-0 max-w-full gap-3 sm:grid-cols-2 xl:grid-cols-6">
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Participante</span>
-                <strong className="self-end break-words text-lg text-slate-950">{detalhe?.nome || "-"}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Participante
+                </span>
+                <strong className="self-end break-words text-lg text-slate-950">
+                  {detalhe?.nome || "-"}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Salário atual</span>
-                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(detalhe?.salario_atual)}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Salário atual
+                </span>
+                <strong className="self-end break-words text-lg text-slate-950">
+                  {dinheiro(detalhe?.salario_atual)}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Admissão</span>
-                <strong className="self-end break-words text-lg text-slate-950">{formatDateBR(detalhe?.data_admissao)}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Admissão
+                </span>
+                <strong className="self-end break-words text-lg text-slate-950">
+                  {formatDateBR(detalhe?.data_admissao)}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Total bruto</span>
-                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(totais.bruto)}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Total bruto
+                </span>
+                <strong className="self-end break-words text-lg text-slate-950">
+                  {dinheiro(totais.bruto)}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Total final</span>
-                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(totais.final)}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Total final
+                </span>
+                <strong className="self-end break-words text-lg text-slate-950">
+                  {dinheiro(totais.final)}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Final + férias</span>
-                <strong className="self-end break-words text-lg text-slate-950">{dinheiro(totais.finalComFerias)}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Final + férias
+                </span>
+                <strong className="self-end break-words text-lg text-slate-950">
+                  {dinheiro(totais.finalComFerias)}
+                </strong>
               </div>
             </section>
 
@@ -1164,7 +1235,9 @@ function FolhaPage({ onBack }) {
                   <TableBody>
                     {linhas.map((linha) => (
                       <TableRow key={linha.mes}>
-                        <TableCell className="px-3 py-2 font-semibold">{meses[Number(linha.mes) - 1]?.label}</TableCell>
+                        <TableCell className="px-3 py-2 font-semibold">
+                          {meses[Number(linha.mes) - 1]?.label}
+                        </TableCell>
                         <TableCell className="px-3 py-2">
                           <Input
                             className="h-9 w-20 px-2"
@@ -1181,8 +1254,12 @@ function FolhaPage({ onBack }) {
                             value={linha.dias_trabalhados}
                           />
                         </TableCell>
-                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_bruto)}</TableCell>
-                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_proporcional)}</TableCell>
+                        <TableCell className="px-3 py-2">
+                          {dinheiro(linha.salario_bruto)}
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          {dinheiro(linha.salario_proporcional)}
+                        </TableCell>
                         <TableCell className="px-3 py-2">
                           <MoneyInput
                             onChange={(value) =>
@@ -1215,10 +1292,14 @@ function FolhaPage({ onBack }) {
                             value={linha.comissao}
                           />
                         </TableCell>
-                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_liquido)}</TableCell>
+                        <TableCell className="px-3 py-2">
+                          {dinheiro(linha.salario_liquido)}
+                        </TableCell>
                         <TableCell className="px-3 py-2">
                           <div className="flex min-w-36 items-center gap-2">
-                            <span className="whitespace-nowrap font-semibold">{dinheiro(totalDescontos(linha))}</span>
+                            <span className="whitespace-nowrap font-semibold">
+                              {dinheiro(totalDescontos(linha))}
+                            </span>
                             <Button
                               onClick={() => abrirDescontos(linha.mes)}
                               size="sm"
@@ -1229,8 +1310,12 @@ function FolhaPage({ onBack }) {
                             </Button>
                           </div>
                         </TableCell>
-                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_liquido_com_desconto)}</TableCell>
-                        <TableCell className="px-3 py-2">{dinheiro(linha.salario_final_com_ferias)}</TableCell>
+                        <TableCell className="px-3 py-2">
+                          {dinheiro(linha.salario_liquido_com_desconto)}
+                        </TableCell>
+                        <TableCell className="px-3 py-2">
+                          {dinheiro(linha.salario_final_com_ferias)}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1245,38 +1330,38 @@ function FolhaPage({ onBack }) {
                   <Badge>{salarioMeta.total}</Badge>
                 </CardHeader>
                 <CardContent className="grid gap-3">
-                <Button
-                  className="w-full"
-                  disabled={!participanteId}
-                  onClick={() => setModalAberto("salarios")}
-                  type="button"
-                  variant="secondary"
-                >
-                  Gerenciar salários
-                </Button>
-                <div className="grid gap-2">
-                  {registrosSalariais.slice(0, 5).map((registro) => (
-                    <div
-                      className="grid gap-1 rounded-lg border border-emerald-100 bg-white p-3"
-                      key={registro.id_registro_salarial}
-                    >
-                      <strong className="text-sm text-slate-950">
-                        {dinheiro(registro.salario)}
-                      </strong>
-                      <span className="text-xs font-semibold text-slate-600">
-                        {formatDateBR(registro.inicio_vigencia)} a{" "}
-                        {registro.fim_vigencia
-                          ? formatDateBR(registro.fim_vigencia)
-                          : "Atual"}
-                      </span>
-                    </div>
-                  ))}
-                  {!registrosSalariais.length ? (
-                    <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
-                      Nenhum registro salarial.
-                    </p>
-                  ) : null}
-                </div>
+                  <Button
+                    className="w-full"
+                    disabled={!participanteId}
+                    onClick={() => setModalAberto("salarios")}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Gerenciar salários
+                  </Button>
+                  <div className="grid gap-2">
+                    {registrosSalariais.slice(0, 5).map((registro) => (
+                      <div
+                        className="grid gap-1 rounded-lg border border-emerald-100 bg-white p-3"
+                        key={registro.id_registro_salarial}
+                      >
+                        <strong className="text-sm text-slate-950">
+                          {dinheiro(registro.salario)}
+                        </strong>
+                        <span className="text-xs font-semibold text-slate-600">
+                          {formatDateBR(registro.inicio_vigencia)} a{" "}
+                          {registro.fim_vigencia
+                            ? formatDateBR(registro.fim_vigencia)
+                            : "Atual"}
+                        </span>
+                      </div>
+                    ))}
+                    {!registrosSalariais.length ? (
+                      <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                        Nenhum registro salarial.
+                      </p>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1286,37 +1371,37 @@ function FolhaPage({ onBack }) {
                   <Badge>{feriasMeta.total}</Badge>
                 </CardHeader>
                 <CardContent className="grid gap-3">
-                <Button
-                  className="w-full"
-                  disabled={!participanteId}
-                  onClick={() => setModalAberto("ferias")}
-                  type="button"
-                  variant="secondary"
-                >
-                  Gerenciar férias
-                </Button>
-                <div className="grid gap-2">
-                  {ferias.slice(0, 5).map((item) => (
-                    <div
-                      className="grid gap-1 rounded-lg border border-emerald-100 bg-white p-3"
-                      key={item.id_ferias}
-                    >
-                      <strong className="text-sm text-slate-950">
-                        {item.dias_gozados} dias
-                      </strong>
-                      <span className="text-xs font-semibold text-slate-600">
-                        {formatDateBR(item.inicio_gozado)} a{" "}
-                        {formatDateBR(item.fim_gozado)} -{" "}
-                        {dinheiro(item.valor_total_ferias)}
-                      </span>
-                    </div>
-                  ))}
-                  {!ferias.length ? (
-                    <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
-                      Nenhum registro de férias.
-                    </p>
-                  ) : null}
-                </div>
+                  <Button
+                    className="w-full"
+                    disabled={!participanteId}
+                    onClick={() => setModalAberto("ferias")}
+                    type="button"
+                    variant="secondary"
+                  >
+                    Gerenciar férias
+                  </Button>
+                  <div className="grid gap-2">
+                    {ferias.slice(0, 5).map((item) => (
+                      <div
+                        className="grid gap-1 rounded-lg border border-emerald-100 bg-white p-3"
+                        key={item.id_ferias}
+                      >
+                        <strong className="text-sm text-slate-950">
+                          {item.dias_gozados} dias
+                        </strong>
+                        <span className="text-xs font-semibold text-slate-600">
+                          {formatDateBR(item.inicio_gozado)} a{" "}
+                          {formatDateBR(item.fim_gozado)} -{" "}
+                          {dinheiro(item.valor_total_ferias)}
+                        </span>
+                      </div>
+                    ))}
+                    {!ferias.length ? (
+                      <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                        Nenhum registro de férias.
+                      </p>
+                    ) : null}
+                  </div>
                 </CardContent>
               </Card>
             </section>
@@ -1441,10 +1526,7 @@ function FolhaPage({ onBack }) {
               </strong>
             </div>
             <div className="flex justify-end">
-              <Button
-                onClick={() => setModalAberto(null)}
-                type="button"
-              >
+              <Button onClick={() => setModalAberto(null)} type="button">
                 Aplicar
               </Button>
             </div>
@@ -1805,7 +1887,9 @@ function FolhaPage({ onBack }) {
             </form>
             <div className="grid shrink-0 gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Período aquisitivo</span>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Período aquisitivo
+                </span>
                 <strong className="self-end text-sm text-slate-950">
                   {feriasSummary.periodo_aquisitivo_inicio
                     ? `${formatDateBR(feriasSummary.periodo_aquisitivo_inicio)} a ${formatDateBR(feriasSummary.periodo_aquisitivo_fim)}`
@@ -1813,20 +1897,36 @@ function FolhaPage({ onBack }) {
                 </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Anos aquisitivos</span>
-                <strong className="self-end text-lg text-slate-950">{feriasSummary.anos_aquisitivos || 0}</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Anos aquisitivos
+                </span>
+                <strong className="self-end text-lg text-slate-950">
+                  {feriasSummary.anos_aquisitivos || 0}
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Dias adquiridos</span>
-                <strong className="self-end text-lg text-slate-950">{feriasSummary.dias_adquiridos || 0} dias</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Dias adquiridos
+                </span>
+                <strong className="self-end text-lg text-slate-950">
+                  {feriasSummary.dias_adquiridos || 0} dias
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Dias gozados</span>
-                <strong className="self-end text-lg text-slate-950">{feriasSummary.total_dias_gozados || 0} dias</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Dias gozados
+                </span>
+                <strong className="self-end text-lg text-slate-950">
+                  {feriasSummary.total_dias_gozados || 0} dias
+                </strong>
               </div>
               <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
-                <span className="text-xs font-black uppercase text-slate-500">Saldo</span>
-                <strong className="self-end text-lg text-slate-950">{feriasSummary.saldo_ferias_dias || 0} dias</strong>
+                <span className="text-xs font-black uppercase text-slate-500">
+                  Saldo
+                </span>
+                <strong className="self-end text-lg text-slate-950">
+                  {feriasSummary.saldo_ferias_dias || 0} dias
+                </strong>
               </div>
             </div>
             <div className="min-h-0 lg:flex-1">
@@ -1836,24 +1936,50 @@ function FolhaPage({ onBack }) {
               >
                 <TableHeader className="sticky top-0 z-10 bg-emerald-50">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Início gozado</TableHead>
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Fim gozado</TableHead>
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Dias</TableHead>
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Valor calculado</TableHead>
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Abono</TableHead>
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Total</TableHead>
-                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">Ações</TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Início gozado
+                    </TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Fim gozado
+                    </TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Dias
+                    </TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Valor calculado
+                    </TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Abono
+                    </TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Total
+                    </TableHead>
+                    <TableHead className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                      Ações
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {ferias.map((item) => (
                     <TableRow key={item.id_ferias}>
-                      <TableCell className="px-3 py-2">{formatDateBR(item.inicio_gozado)}</TableCell>
-                      <TableCell className="px-3 py-2">{formatDateBR(item.fim_gozado)}</TableCell>
-                      <TableCell className="px-3 py-2">{item.dias_gozados} dias</TableCell>
-                      <TableCell className="px-3 py-2">{dinheiro(item.valor_ferias)}</TableCell>
-                      <TableCell className="px-3 py-2">{dinheiro(item.valor_abono)}</TableCell>
-                      <TableCell className="px-3 py-2">{dinheiro(item.valor_total_ferias)}</TableCell>
+                      <TableCell className="px-3 py-2">
+                        {formatDateBR(item.inicio_gozado)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {formatDateBR(item.fim_gozado)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {item.dias_gozados} dias
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {dinheiro(item.valor_ferias)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {dinheiro(item.valor_abono)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {dinheiro(item.valor_total_ferias)}
+                      </TableCell>
                       <TableCell className="px-3 py-2">
                         <span className="flex flex-wrap gap-2">
                           <Button

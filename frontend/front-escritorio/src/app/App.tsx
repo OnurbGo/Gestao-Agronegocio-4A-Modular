@@ -10,6 +10,7 @@ import {
   hasModuleAccess,
 } from "@/modules/auth/services/auth.service";
 import { clearToken, consumeAccessTokenFromUrl } from "@/shared/services/api";
+import { resolveLoginHomeUrl } from "@/shared/utils/frontend-url";
 
 function AccessGate({ title, message, action }) {
   return (
@@ -85,8 +86,9 @@ function EscritorioShell({ usuario }) {
           <button
             className="inline-flex items-center gap-2 rounded-md border border-emerald-200 px-4 py-3 text-sm font-bold text-emerald-800 transition hover:bg-emerald-50"
             onClick={() => {
-              window.location.href =
-                import.meta.env.VITE_LOGIN_HOME_URL || "http://localhost:5173";
+              window.location.href = resolveLoginHomeUrl(
+                import.meta.env.VITE_LOGIN_HOME_URL,
+              );
             }}
             type="button"
           >
@@ -163,8 +165,9 @@ function App() {
         action={{
           label: "Voltar ao login",
           onClick: () => {
-            window.location.href =
-              import.meta.env.VITE_LOGIN_HOME_URL || "http://localhost:5173";
+            window.location.href = resolveLoginHomeUrl(
+              import.meta.env.VITE_LOGIN_HOME_URL,
+            );
           },
         }}
         message={error || "Entre novamente para continuar."}

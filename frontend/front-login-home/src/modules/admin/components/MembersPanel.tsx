@@ -21,15 +21,20 @@ function MembersPanel({
   onSelect,
 }: MembersPanelProps) {
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Membros</CardTitle>
-        <Badge>{meta.total}</Badge>
+    <Card className="min-w-0 border-emerald-100">
+      <CardHeader className="flex-row items-start justify-between gap-3 border-b border-emerald-50">
+        <div className="min-w-0">
+          <CardTitle>Membros</CardTitle>
+          <p className="mt-1 text-sm text-slate-600">
+            Contas que você pode gerenciar.
+          </p>
+        </div>
+        <Badge className="shrink-0">{meta.total}</Badge>
       </CardHeader>
-      <CardContent>
-        <div className="grid max-h-[420px] gap-2 overflow-auto">
+      <CardContent className="grid gap-3">
+        <div className="grid max-h-[440px] min-w-0 gap-2 overflow-auto pr-1">
           {loading ? (
-            <p className="rounded-md border border-dashed border-slate-200 p-4 text-sm font-medium text-slate-500">
+            <p className="rounded-md border border-dashed border-emerald-100 bg-emerald-50/40 p-4 text-sm font-medium text-slate-600">
               Carregando...
             </p>
           ) : accounts.length ? (
@@ -52,13 +57,17 @@ function MembersPanel({
                     {account.email}
                   </small>
                 </span>
-                <em className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold not-italic text-emerald-800">
+                <em className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold not-italic ${
+                  account.ativo
+                    ? "bg-emerald-50 text-emerald-800"
+                    : "bg-slate-100 text-slate-600"
+                }`}>
                   {account.ativo ? "Ativo" : "Inativo"}
                 </em>
               </button>
             ))
           ) : (
-            <p className="rounded-md border border-dashed border-slate-200 p-4 text-sm font-medium text-slate-500">
+            <p className="rounded-md border border-dashed border-emerald-100 bg-emerald-50/40 p-4 text-sm font-medium text-slate-600">
               Nenhum membro encontrado.
             </p>
           )}
@@ -74,4 +83,3 @@ function MembersPanel({
 }
 
 export default MembersPanel;
-

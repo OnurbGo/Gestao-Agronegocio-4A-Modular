@@ -1,4 +1,5 @@
 import type { PageMeta } from "../types";
+import { Button } from "@/shared/components/ui/button";
 
 type PaginationControlsProps = {
   meta: PageMeta;
@@ -12,26 +13,28 @@ function PaginationControls({
   onPageChange,
 }: PaginationControlsProps) {
   return (
-    <div className="mt-3 flex items-center justify-between gap-3">
-      <button
-        className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+    <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+      <Button
+        className="w-full"
         disabled={loading || meta.page <= 1}
         onClick={() => onPageChange(meta.page - 1)}
         type="button"
+        variant="outline"
       >
         Anterior
-      </button>
-      <span className="whitespace-nowrap text-xs font-bold text-slate-500">
-        Pagina {meta.page} de {meta.totalPages}
+      </Button>
+      <span className="whitespace-nowrap rounded-full bg-slate-100 px-3 py-2 text-center text-xs font-bold text-slate-600">
+        Página {meta.page} de {meta.totalPages}
       </span>
-      <button
-        className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+      <Button
+        className="w-full"
         disabled={loading || meta.page >= meta.totalPages}
         onClick={() => onPageChange(meta.page + 1)}
         type="button"
+        variant="outline"
       >
-        Proxima
-      </button>
+        Próxima
+      </Button>
     </div>
   );
 }
