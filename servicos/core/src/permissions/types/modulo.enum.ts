@@ -5,6 +5,7 @@ export const MODULOS = [
   "FOLHA",
   "BALANCA",
   "SILO",
+  "LANCAMENTOS_SILO",
   "BARRACAO",
   "LAVOURA",
   "ALMOXARIFADO",

@@ -9,12 +9,19 @@ export class OpenApiProxyService {
     process.env.ESCRITORIO_OPENAPI_URL ||
     "http://escritorio-service:3000/openapi.json";
 
+  private readonly siloUrl =
+    process.env.SILO_OPENAPI_URL || "http://silo-service:3000/openapi.json";
+
   getCoreSpec() {
     return this.fetchSpec(this.coreUrl, "Core");
   }
 
   getEscritorioSpec() {
     return this.fetchSpec(this.escritorioUrl, "Escritorio");
+  }
+
+  getSiloSpec() {
+    return this.fetchSpec(this.siloUrl, "Silo");
   }
 
   private async fetchSpec(url: string, serviceName: string) {
