@@ -28,7 +28,15 @@ export default defineConfig([
       ...tsPlugin.configs.recommended.rules,
       ...reactHooks.configs.flat.recommended.rules,
       ...reactRefresh.configs.vite.rules,
+      'no-undef': 'off',
       'no-unused-vars': 'off',
+      'react-refresh/only-export-components': [
+        'error',
+        {
+          allowConstantExport: true,
+          allowExportNames: ['buttonVariants', 'badgeVariants'],
+        },
+      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

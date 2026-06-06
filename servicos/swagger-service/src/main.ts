@@ -9,7 +9,7 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle("Gestao Agronegocio 4A APIs")
-    .setDescription("Documentacao centralizada das APIs Core e Escritorio.")
+    .setDescription("Documentacao centralizada das APIs Core, Escritorio e Silo.")
     .setVersion("1.0")
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
@@ -20,6 +20,7 @@ async function bootstrap() {
       urls: [
         { name: "Core API", url: "/api-docs/core-json" },
         { name: "Escritorio API", url: "/api-docs/escritorio-json" },
+        { name: "Silo API", url: "/api-docs/silo-json" },
       ],
     },
   });

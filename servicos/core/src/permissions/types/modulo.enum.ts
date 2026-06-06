@@ -5,10 +5,12 @@ export const MODULOS = [
   "FOLHA",
   "BALANCA",
   "SILO",
+  "LANCAMENTOS_SILO",
   "BARRACAO",
   "LAVOURA",
   "ALMOXARIFADO",
   "FINANCEIRO",
+  "CLASSIFICACAO",
 ] as const;
 
 export const ACOES_PERMISSAO = [
@@ -40,4 +42,3 @@ export const ACAO_CAMPO: Record<AcaoPermissao, keyof PermissaoModulo> = {
   excluir: "pode_excluir",
   restaurar: "pode_restaurar",
 };
-

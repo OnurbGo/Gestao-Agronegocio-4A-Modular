@@ -14,4 +14,9 @@ export class OpenApiProxyController {
   escritorio() {
     return this.openApiProxyService.getEscritorioSpec();
   }
+
+  @Get("silo-json")
+  silo() {
+    return this.openApiProxyService.getSiloSpec();
+  }
 }

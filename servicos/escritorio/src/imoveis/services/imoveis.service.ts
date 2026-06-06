@@ -1,5 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { Op } from "sequelize";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { Op, Transaction } from "sequelize";
 import { AuditService } from "../../audit/services/audit.service";
 import { AuthContext } from "../../auth-client/types/auth.types";
 import { Entidade } from "../../entidades/entities/entidade.entity";
@@ -65,21 +69,40 @@ export class ImoveisService {
   }
 
   async criar(data: ImovelInput, usuario: AuthContext, ip?: string) {
-    const imovel = await this.imoveisRepository.criar(this.getDados(data));
+    const transaction = await this.imoveisRepository.criarTransacao();
+    let imovelId = 0;
 
-    await this.imoveisRepository.sincronizarProprietarios(
-      imovel.id_imovel,
-      data.proprietarios_ids ?? [],
-    );
+    try {
+      const proprietariosIds = await this.validarProprietariosIds(
+        data.proprietarios_ids ?? [],
+        transaction,
+      );
+      const imovel = await this.imoveisRepository.criar(
+        this.getDados(data),
+        transaction,
+      );
 
-    const criado = await this.buscarPorId(imovel.id_imovel);
+      await this.imoveisRepository.sincronizarProprietarios(
+        imovel.id_imovel,
+        proprietariosIds,
+        transaction,
+      );
+
+      await transaction.commit();
+      imovelId = imovel.id_imovel;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+
+    const criado = await this.buscarPorId(imovelId);
 
     await this.auditService.registrar({
       conta_id: usuario.conta_id,
       usuario_id: usuario.usuario_id,
       acao: "IMOVEL_CRIADO",
       recurso: "IMOVEL",
-      recurso_id: imovel.id_imovel,
+      recurso_id: imovelId,
       valor_novo: criado.get({ plain: true }),
       ip,
     });
@@ -103,16 +126,42 @@ export class ImoveisService {
     usuario: AuthContext,
     ip?: string,
   ) {
-    const imovel = await this.buscarPorId(id_imovel);
-    const anterior = imovel.get({ plain: true });
+    const transaction = await this.imoveisRepository.criarTransacao();
+    let anterior: Record<string, unknown> | null = null;
 
-    await imovel.update(this.getDados(data));
-
-    if (data.proprietarios_ids !== undefined) {
-      await this.imoveisRepository.sincronizarProprietarios(
+    try {
+      const imovel = await this.imoveisRepository.buscarPorId(
         id_imovel,
-        data.proprietarios_ids,
+        transaction,
       );
+
+      if (!imovel) {
+        throw new NotFoundException("Imovel nao encontrado.");
+      }
+
+      anterior = imovel.get({ plain: true });
+      const proprietariosIds =
+        data.proprietarios_ids === undefined
+          ? undefined
+          : await this.validarProprietariosIds(
+              data.proprietarios_ids,
+              transaction,
+            );
+
+      await imovel.update(this.getDados(data), { transaction });
+
+      if (proprietariosIds !== undefined) {
+        await this.imoveisRepository.sincronizarProprietarios(
+          id_imovel,
+          proprietariosIds,
+          transaction,
+        );
+      }
+
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
     }
 
     const atualizado = await this.buscarPorId(id_imovel);
@@ -132,12 +181,33 @@ export class ImoveisService {
   }
 
   async remover(id_imovel: number, usuario: AuthContext, ip?: string) {
-    const imovel = await this.buscarPorId(id_imovel);
-    const anterior = imovel.get({ plain: true });
+    const transaction = await this.imoveisRepository.criarTransacao();
+    let anterior: Record<string, unknown> | null = null;
 
-    await this.imoveisRepository.sincronizarProprietarios(id_imovel, []);
-    await imovel.update({ ativo: false });
-    await imovel.destroy();
+    try {
+      const imovel = await this.imoveisRepository.buscarPorId(
+        id_imovel,
+        transaction,
+      );
+
+      if (!imovel) {
+        throw new NotFoundException("Imovel nao encontrado.");
+      }
+
+      anterior = imovel.get({ plain: true });
+
+      await this.imoveisRepository.sincronizarProprietarios(
+        id_imovel,
+        [],
+        transaction,
+      );
+      await imovel.update({ ativo: false }, { transaction });
+      await imovel.destroy({ transaction });
+      await transaction.commit();
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
 
     await this.auditService.registrar({
       conta_id: usuario.conta_id,
@@ -172,5 +242,33 @@ export class ImoveisService {
     }
 
     return dados;
+  }
+
+  private async validarProprietariosIds(
+    proprietariosIds: number[],
+    transaction?: Transaction,
+  ) {
+    const idsUnicos = Array.from(new Set(proprietariosIds));
+
+    if (!idsUnicos.length) {
+      return [];
+    }
+
+    const proprietarios = await this.imoveisRepository.buscarEntidadesPorIds(
+      idsUnicos,
+      transaction,
+    );
+    const idsEncontrados = new Set(
+      proprietarios.map((proprietario) => proprietario.id_entidade),
+    );
+    const idsInvalidos = idsUnicos.filter((id) => !idsEncontrados.has(id));
+
+    if (idsInvalidos.length) {
+      throw new BadRequestException(
+        `Proprietario(s) nao encontrado(s): ${idsInvalidos.join(", ")}.`,
+      );
+    }
+
+    return idsUnicos;
   }
 }

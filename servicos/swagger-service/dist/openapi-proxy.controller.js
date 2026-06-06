@@ -22,6 +22,9 @@ let OpenApiProxyController = class OpenApiProxyController {
     escritorio() {
         return this.openApiProxyService.getEscritorioSpec();
     }
+    silo() {
+        return this.openApiProxyService.getSiloSpec();
+    }
 };
 exports.OpenApiProxyController = OpenApiProxyController;
 __decorate([
@@ -36,6 +39,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], OpenApiProxyController.prototype, "escritorio", null);
+__decorate([
+    (0, common_1.Get)("silo-json"),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], OpenApiProxyController.prototype, "silo", null);
 exports.OpenApiProxyController = OpenApiProxyController = __decorate([
     (0, common_1.Controller)("api-docs"),
     __metadata("design:paramtypes", [openapi_proxy_service_1.OpenApiProxyService])

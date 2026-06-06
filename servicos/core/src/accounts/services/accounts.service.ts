@@ -80,6 +80,8 @@ export class AccountsService {
     const transaction = await this.accountsRepository.criarTransacao({
       isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE,
     });
+    let contaId = 0;
+    let usuarioId = 0;
 
     try {
       const totalContas = await this.accountsRepository.contarContas(transaction);
@@ -124,23 +126,25 @@ export class AccountsService {
       );
 
       await transaction.commit();
-
-      const criada = await this.buscarPorId(conta.id_conta);
-      await this.auditService.registrar({
-        conta_id: ator?.conta_id || conta.id_conta,
-        usuario_id: ator?.usuario_id || usuario.id_usuario,
-        acao: "CONTA_CRIADA",
-        recurso: "CONTA",
-        recurso_id: conta.id_conta,
-        valor_novo: criada?.get({ plain: true }),
-        ip,
-      });
-
-      return criada;
+      contaId = conta.id_conta;
+      usuarioId = usuario.id_usuario;
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
+
+    const criada = await this.buscarPorId(contaId);
+    await this.auditService.registrar({
+      conta_id: ator?.conta_id || contaId,
+      usuario_id: ator?.usuario_id || usuarioId,
+      acao: "CONTA_CRIADA",
+      recurso: "CONTA",
+      recurso_id: contaId,
+      valor_novo: criada?.get({ plain: true }),
+      ip,
+    });
+
+    return criada;
   }
 
   async buscarPorId(id_conta: number, ator?: AuthContext) {
@@ -354,6 +358,7 @@ export class AccountsService {
     }
 
     const transaction = await this.accountsRepository.criarTransacao();
+    let contaId = 0;
 
     try {
       const usuario = await this.accountsRepository.criarUsuario(
@@ -394,23 +399,24 @@ export class AccountsService {
       );
 
       await transaction.commit();
-
-      const criada = await this.buscarPorId(conta.id_conta);
-      await this.auditService.registrar({
-        conta_id: ator.conta_id,
-        usuario_id: ator.usuario_id,
-        acao: "SOLICITACAO_CONTA_APROVADA",
-        recurso: "SOLICITACAO_CONTA",
-        recurso_id: idSolicitacao,
-        valor_novo: criada?.get({ plain: true }),
-        ip,
-      });
-
-      return criada;
+      contaId = conta.id_conta;
     } catch (error) {
       await transaction.rollback();
       throw error;
     }
+
+    const criada = await this.buscarPorId(contaId);
+    await this.auditService.registrar({
+      conta_id: ator.conta_id,
+      usuario_id: ator.usuario_id,
+      acao: "SOLICITACAO_CONTA_APROVADA",
+      recurso: "SOLICITACAO_CONTA",
+      recurso_id: idSolicitacao,
+      valor_novo: criada?.get({ plain: true }),
+      ip,
+    });
+
+    return criada;
   }
 
   async recusarSolicitacao(
