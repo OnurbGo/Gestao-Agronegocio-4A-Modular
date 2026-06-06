@@ -1,41 +1,42 @@
-import { resolveEscritorioUrl } from "@/utils/frontend-url";
+import { resolveEscritorioUrl, resolveSiloUrl } from "@/utils/frontend-url";
 
 export const SYSTEM_MODULES = [
   {
     id: "ESCRITORIO",
-    nome: "Escritório",
+    nome: "Escritorio",
     descricao: "Pessoas/empresas e cadastros base.",
-    status: "Disponível",
+    status: "Disponivel",
     url: resolveEscritorioUrl(import.meta.env.VITE_ESCRITORIO_URL),
   },
   {
     id: "BALANCA",
-    nome: "Balança",
-    descricao: "Pesagens, entradas e saídas.",
+    nome: "Balanca",
+    descricao: "Pesagens, entradas e saidas.",
     status: "Em planejamento",
   },
   {
     id: "SILO",
     nome: "Silo",
-    descricao: "Armazenagem, lotes e movimentações.",
-    status: "Em planejamento",
+    descricao: "Armazenagem, lotes e movimentacoes.",
+    status: "Disponivel",
+    url: resolveSiloUrl(import.meta.env.VITE_SILO_URL),
   },
   {
     id: "BARRACAO",
-    nome: "Barracão",
-    descricao: "Operações, máquinas e apoio de campo.",
+    nome: "Barracao",
+    descricao: "Operacoes, maquinas e apoio de campo.",
     status: "Em planejamento",
   },
   {
     id: "LAVOURA",
     nome: "Lavoura",
-    descricao: "Talhões, safras e acompanhamentos.",
+    descricao: "Talhoes, safras e acompanhamentos.",
     status: "Em planejamento",
   },
   {
     id: "ALMOXARIFADO",
     nome: "Almoxarifado",
-    descricao: "Estoque, requisições e compras.",
+    descricao: "Estoque, requisicoes e compras.",
     status: "Em planejamento",
   },
 ];
@@ -44,6 +45,8 @@ export const ADMIN_MODULES = [
   "ADMIN",
   "GERENTE",
   ...SYSTEM_MODULES.map((module) => module.id),
+  "CLASSIFICACAO",
+  "LANCAMENTOS_SILO",
   "FOLHA",
   "FINANCEIRO",
 ];
@@ -51,6 +54,8 @@ export const ADMIN_MODULES = [
 export const MODULE_LABELS = {
   ADMIN: "Admin",
   GERENTE: "Gerente",
+  CLASSIFICACAO: "Classificacao",
+  LANCAMENTOS_SILO: "Lancamentos Silo",
   FOLHA: "Folha de Pagamento",
   FINANCEIRO: "Financeiro",
   ...Object.fromEntries(

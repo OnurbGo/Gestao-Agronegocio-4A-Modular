@@ -16,40 +16,21 @@ function normalizeLocalhostUrl(url: URL) {
   return url;
 }
 
-export function resolveEscritorioUrl(configuredUrl?: string) {
+export function resolveLoginHomeUrl(configuredUrl?: string) {
   const value = configuredUrl?.trim();
 
   if (value) {
     return normalizeLocalhostUrl(new URL(value, window.location.origin)).href;
   }
 
-  if (window.location.port === "5173") {
+  if (window.location.port === "5175") {
     const url = new URL(window.location.href);
-    url.port = "5174";
+    url.port = "5173";
     url.pathname = "/";
     url.search = "";
     url.hash = "";
     return url.href;
   }
 
-  return "/escritorio/";
-}
-
-export function resolveSiloUrl(configuredUrl?: string) {
-  const value = configuredUrl?.trim();
-
-  if (value) {
-    return normalizeLocalhostUrl(new URL(value, window.location.origin)).href;
-  }
-
-  if (window.location.port === "5173") {
-    const url = new URL(window.location.href);
-    url.port = "5175";
-    url.pathname = "/";
-    url.search = "";
-    url.hash = "";
-    return url.href;
-  }
-
-  return "/silo/";
+  return "/";
 }
