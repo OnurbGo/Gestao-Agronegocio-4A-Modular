@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import ImovelSearchSelect from '@/components/references/ImovelSearchSelect'
+import { getImovelLabel } from '@/components/references/reference-formatters'
 import StatusMessage from '@/components/feedback/StatusMessage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,10 +17,12 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { canEdit } from '@/services/auth.service'
 import { normalizePaginated } from '@/services/api'
+import { buscarImovelReferencia } from '@/services/escritorio-referencias.service'
 import { dadosSaidaApi, pesagensApi } from '@/services/silo.service'
 import type {
   AuthUser,
   DadosSaidaPesagem,
+  ImovelReferencia,
   Pesagem,
   StatusMessageState,
 } from '@/types'
@@ -74,7 +78,7 @@ const emptyForm: DadosSaidaForm = {
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel concluir.'
+  return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
 function optionalNumber(value: string) {
@@ -125,6 +129,9 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
   const [pesagens, setPesagens] = useState<Pesagem[]>([])
   const [selectedDados, setSelectedDados] = useState<DadosSaidaPesagem | null>(null)
   const [selectedPesagem, setSelectedPesagem] = useState<Pesagem | null>(null)
+  const [loteImovel, setLoteImovel] = useState<ImovelReferencia | null>(null)
+  const [selectedImovelEmissor, setSelectedImovelEmissor] =
+    useState<ImovelReferencia | null>(null)
   const [form, setForm] = useState<DadosSaidaForm>(emptyForm)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -134,22 +141,44 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
   const mayEdit = canEdit(usuario, 'LANCAMENTOS_SILO')
   const automaticRows = useMemo(
     () => [
-      ['Data finalizacao', formatDateTime(selectedPesagem?.finalizada_em)],
+      ['Data finalização', formatDateTime(selectedPesagem?.finalizada_em)],
       ['Romaneio', selectedPesagem?.numero_romaneio],
       ['Placa', selectedPesagem?.placa],
       ['Conta', selectedPesagem?.conta_produto?.nome],
       ['Item', selectedPesagem?.item?.nome],
-      ['Deposito', selectedPesagem?.deposito?.nome],
+      ['Depósito', selectedPesagem?.deposito?.nome],
       ['Destino', selectedPesagem?.destino?.nome],
-      ['Imovel lote ref.', selectedPesagem?.lote_operacional?.imovel_id_ref],
-      ['Peso liquido', formatKg(selectedPesagem?.peso_liquido_kg)],
+      ['Imóvel do lote', loteImovel ? getImovelLabel(loteImovel) : selectedPesagem?.lote_operacional?.imovel_id_ref],
+      ['Peso líquido', formatKg(selectedPesagem?.peso_liquido_kg)],
       ['Umidade', formatPercent(selectedPesagem?.classificacao?.umidade_percentual)],
       ['Impureza', formatPercent(selectedPesagem?.classificacao?.impureza_percentual)],
       ['Peso final', formatKg(selectedPesagem?.classificacao?.peso_final_kg)],
       ['Sacas finais', formatSacas(selectedPesagem?.classificacao?.sacas_final)],
     ],
-    [selectedPesagem],
+    [loteImovel, selectedPesagem],
   )
+
+  useEffect(() => {
+    let active = true
+    const imovelId = selectedPesagem?.lote_operacional?.imovel_id_ref
+    setLoteImovel(null)
+
+    if (!imovelId) return
+
+    async function resolveImovel() {
+      try {
+        const imovel = await buscarImovelReferencia(Number(imovelId))
+        if (active) setLoteImovel(imovel)
+      } catch {
+        if (active) setLoteImovel(null)
+      }
+    }
+
+    void resolveImovel()
+    return () => {
+      active = false
+    }
+  }, [selectedPesagem?.lote_operacional?.imovel_id_ref])
 
   async function loadPage(nextPage = page) {
     setLoading(true)
@@ -180,6 +209,7 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
     setSelectedDados(dados)
     setForm(normalizeForm(dados))
     setSelectedPesagem(dados.pesagem || null)
+    setSelectedImovelEmissor(null)
 
     if (dados.pesagem_id && !dados.pesagem) {
       try {
@@ -193,6 +223,7 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
   async function selectPesagemById(value: string) {
     setForm((current) => ({ ...current, pesagem_id: value }))
     setSelectedDados(null)
+    setSelectedImovelEmissor(null)
 
     const pesagemId = Number(value)
     if (!pesagemId) {
@@ -219,6 +250,8 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
   function newComplemento() {
     setSelectedDados(null)
     setSelectedPesagem(null)
+    setLoteImovel(null)
+    setSelectedImovelEmissor(null)
     setForm(emptyForm)
     setStatus(null)
   }
@@ -227,7 +260,7 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
     event.preventDefault()
 
     if (!mayEdit) {
-      setStatus({ type: 'warning', message: 'Sem permissao para salvar dados de saida.' })
+      setStatus({ type: 'warning', message: 'Sem permissão para salvar dados de saída.' })
       return
     }
 
@@ -250,7 +283,7 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
       setSelectedDados(saved)
       setForm(normalizeForm(saved))
       setSelectedPesagem(saved.pesagem || selectedPesagem)
-      setStatus({ type: 'success', message: 'Dados de saida salvos.' })
+      setStatus({ type: 'success', message: 'Dados de saída salvos.' })
       await loadPage(page)
     } catch (error) {
       setStatus({ type: 'error', message: toErrorMessage(error) })
@@ -262,8 +295,8 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
   return (
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
-        title="Dados de Saida"
-        description="Complementacao comercial e fiscal opcional, preservando os dados automaticos da pesagem."
+        title="Dados de Saída"
+        description="Complementação comercial e fiscal opcional, preservando os dados automáticos da pesagem."
         actions={<Button onClick={newComplemento} type="button">Novo complemento</Button>}
       />
 
@@ -307,18 +340,18 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
             <EmptyState title={loading ? 'Carregando dados...' : undefined} />
           )}
           <div className="mt-4 flex justify-between text-sm text-slate-600">
-            <span>Pagina {page} de {totalPages}</span>
+            <span>Página {page} de {totalPages}</span>
             <div className="flex gap-2">
               <Button disabled={page <= 1 || loading} onClick={() => void loadPage(page - 1)} type="button" variant="outline">Anterior</Button>
-              <Button disabled={page >= totalPages || loading} onClick={() => void loadPage(page + 1)} type="button" variant="outline">Proxima</Button>
+              <Button disabled={page >= totalPages || loading} onClick={() => void loadPage(page + 1)} type="button" variant="outline">Próxima</Button>
             </div>
           </div>
         </ScreenSection>
 
-        <ScreenSection title="Complementar saida">
+        <ScreenSection title="Complementar saída">
           <form className="grid gap-4" onSubmit={save}>
             <div>
-              <Label>Pesagem de saida</Label>
+              <Label>Pesagem de saída</Label>
               <select className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm" onChange={(event) => void selectPesagemById(event.target.value)} value={form.pesagem_id}>
                 <option value="">Selecione</option>
                 {pesagens.map((pesagem) => (
@@ -330,7 +363,7 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
             </div>
 
             <div className="rounded-md border border-slate-100 bg-slate-50 p-4">
-              <h3 className="text-sm font-bold text-slate-700">Dados automaticos</h3>
+              <h3 className="text-sm font-bold text-slate-700">Dados automáticos</h3>
               <div className="mt-3 grid gap-2 text-sm">
                 {automaticRows.map(([label, value]) => (
                   <div className="flex justify-between gap-4 border-b border-slate-200/70 py-1.5" key={label}>
@@ -342,7 +375,7 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <Input placeholder="Numero NF" value={form.numero_nota_fiscal} onChange={(event) => updateField('numero_nota_fiscal', event.target.value)} />
+              <Input placeholder="Número NF" value={form.numero_nota_fiscal} onChange={(event) => updateField('numero_nota_fiscal', event.target.value)} />
               <Input placeholder="CAD/Pro" value={form.cad_pro} onChange={(event) => updateField('cad_pro', event.target.value)} />
               <Input placeholder="Peso NF kg" type="number" value={form.peso_nf_kg} onChange={(event) => updateField('peso_nf_kg', event.target.value)} />
               <Input placeholder="Peso NF sacas" type="number" value={form.peso_nf_sacas} onChange={(event) => updateField('peso_nf_sacas', event.target.value)} />
@@ -353,9 +386,26 @@ function DadosSaidaPage({ usuario }: DadosSaidaPageProps) {
               <Input placeholder="Frete" type="number" value={form.frete_valor} onChange={(event) => updateField('frete_valor', event.target.value)} />
               <Input placeholder="Corretagem" type="number" value={form.corretagem_valor} onChange={(event) => updateField('corretagem_valor', event.target.value)} />
               <Input placeholder="Royalties" type="number" value={form.royalties_valor} onChange={(event) => updateField('royalties_valor', event.target.value)} />
-              <Input placeholder="Imovel emissor ref." type="number" value={form.imovel_emissor_id_ref} onChange={(event) => updateField('imovel_emissor_id_ref', event.target.value)} />
+              <div className="sm:col-span-2">
+                <ImovelSearchSelect
+                  onClear={() => {
+                    setSelectedImovelEmissor(null)
+                    updateField('imovel_emissor_id_ref', '')
+                  }}
+                  onSelect={(imovel) => {
+                    setSelectedImovelEmissor(imovel)
+                    updateField('imovel_emissor_id_ref', String(imovel.id_imovel))
+                  }}
+                  selectedId={
+                    form.imovel_emissor_id_ref
+                      ? Number(form.imovel_emissor_id_ref)
+                      : null
+                  }
+                  selectedImovel={selectedImovelEmissor}
+                />
+              </div>
             </div>
-            <Textarea placeholder="Observacao" value={form.observacao} onChange={(event) => updateField('observacao', event.target.value)} />
+            <Textarea placeholder="Observação" value={form.observacao} onChange={(event) => updateField('observacao', event.target.value)} />
             <div className="flex gap-2">
               <Button disabled={loading || !mayEdit} type="submit">Salvar parcial</Button>
               <Button onClick={newComplemento} type="button" variant="outline">Limpar</Button>

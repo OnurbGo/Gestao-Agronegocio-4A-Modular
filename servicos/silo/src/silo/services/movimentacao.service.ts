@@ -112,11 +112,13 @@ export class MovimentacaoService {
         pesagem.conta_produto_id,
         pesagem.item_id,
         transaction,
+        true,
       ),
       this.siloRepository.buscarSaldoDeposito(
         pesagem.deposito_id,
         pesagem.item_id,
         transaction,
+        true,
       ),
     ]);
 
@@ -144,6 +146,7 @@ export class MovimentacaoService {
       contaProdutoId,
       itemId,
       transaction,
+      true,
     );
     const delta = tipo === "ENTRADA" ? quantidadeKg : -quantidadeKg;
 
@@ -183,6 +186,7 @@ export class MovimentacaoService {
       depositoId,
       itemId,
       transaction,
+      true,
     );
     const delta = tipo === "ENTRADA" ? quantidadeKg : -quantidadeKg;
 

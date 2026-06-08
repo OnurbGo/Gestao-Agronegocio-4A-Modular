@@ -38,7 +38,7 @@ const emptyForm: ClassificacaoForm = {
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel concluir.'
+  return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
 function ClassificacaoPage() {
@@ -126,7 +126,7 @@ function ClassificacaoPage() {
         impureza_percentual: Number(form.impureza_percentual),
       })
       setSelected(updated)
-      setStatus({ type: 'success', message: 'Classificacao registrada.' })
+      setStatus({ type: 'success', message: 'Classificação registrada.' })
       await loadPesagens(page)
     } catch (error) {
       setStatus({ type: 'error', message: toErrorMessage(error) })
@@ -138,8 +138,8 @@ function ClassificacaoPage() {
   return (
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
-        title="Classificacao"
-        description="Registro tecnico de umidade e impureza para calculo automatico de descontos."
+        title="Classificação"
+        description="Registro técnico de umidade e impureza para cálculo automático de descontos."
       />
 
       <StatusMessage status={status} />
@@ -190,10 +190,10 @@ function ClassificacaoPage() {
           )}
 
           <div className="mt-4 flex justify-between text-sm text-slate-600">
-            <span>Pagina {page} de {totalPages}</span>
+            <span>Página {page} de {totalPages}</span>
             <div className="flex gap-2">
               <Button disabled={page <= 1 || loading} onClick={() => void loadPesagens(page - 1)} type="button" variant="outline">Anterior</Button>
-              <Button disabled={page >= totalPages || loading} onClick={() => void loadPesagens(page + 1)} type="button" variant="outline">Proxima</Button>
+              <Button disabled={page >= totalPages || loading} onClick={() => void loadPesagens(page + 1)} type="button" variant="outline">Próxima</Button>
             </div>
           </div>
         </ScreenSection>
@@ -219,7 +219,7 @@ function ClassificacaoPage() {
                   <Label>Impureza % *</Label>
                   <Input className="mt-2" onChange={(event) => setForm((current) => ({ ...current, impureza_percentual: event.target.value }))} required type="number" value={form.impureza_percentual} />
                 </div>
-                <Button disabled={loading} type="submit">Finalizar classificacao</Button>
+                <Button disabled={loading} type="submit">Finalizar classificação</Button>
               </form>
 
               <div className="rounded-md border border-emerald-100 bg-emerald-50 p-4">

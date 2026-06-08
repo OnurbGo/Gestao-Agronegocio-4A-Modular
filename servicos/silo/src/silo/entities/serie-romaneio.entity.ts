@@ -8,6 +8,7 @@ import {
   Table,
 } from "sequelize-typescript";
 import { Pesagem } from "./pesagem.entity";
+import { RomaneioRange } from "./romaneio-range.entity";
 
 @Table({
   tableName: "SERIE_ROMANEIO",
@@ -45,4 +46,10 @@ export class SerieRomaneio extends Model {
     as: "pesagens",
   })
   declare pesagens?: Pesagem[];
+
+  @HasMany(() => RomaneioRange, {
+    foreignKey: "serie_romaneio_id",
+    as: "romaneio_ranges",
+  })
+  declare romaneio_ranges?: RomaneioRange[];
 }

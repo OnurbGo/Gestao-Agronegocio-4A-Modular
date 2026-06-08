@@ -22,6 +22,7 @@ import { Item } from "../entities/item.entity";
 import { LoteOperacional } from "../entities/lote-operacional.entity";
 import { MovimentacaoProduto } from "../entities/movimentacao-produto.entity";
 import { Pesagem } from "../entities/pesagem.entity";
+import { RomaneioRange } from "../entities/romaneio-range.entity";
 import { SaldoContaProduto } from "../entities/saldo-conta-produto.entity";
 import { SaldoDeposito } from "../entities/saldo-deposito.entity";
 import { SerieRomaneio } from "../entities/serie-romaneio.entity";
@@ -41,6 +42,8 @@ export class SiloRepository {
     @InjectModel(Destino) private readonly destinoModel: typeof Destino,
     @InjectModel(SerieRomaneio)
     private readonly serieRomaneioModel: typeof SerieRomaneio,
+    @InjectModel(RomaneioRange)
+    private readonly romaneioRangeModel: typeof RomaneioRange,
     @InjectModel(LoteOperacional)
     private readonly loteOperacionalModel: typeof LoteOperacional,
     @InjectModel(Pesagem) private readonly pesagemModel: typeof Pesagem,
@@ -153,6 +156,15 @@ export class SiloRepository {
     });
   }
 
+  buscarSerieAtivaParaAtualizacao(transaction: Transaction) {
+    return this.serieRomaneioModel.findOne({
+      where: { ativa: true },
+      order: [["iniciada_em", "DESC"]],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+  }
+
   criarSerieRomaneio(data: Record<string, unknown>, transaction?: Transaction) {
     return this.serieRomaneioModel.create(data, { transaction });
   }
@@ -162,6 +174,21 @@ export class SiloRepository {
       { ativa: false, encerrada_em: new Date() },
       { where: { ativa: true }, transaction },
     );
+  }
+
+  criarRomaneioRange(data: Record<string, unknown>, transaction?: Transaction) {
+    return this.romaneioRangeModel.create(data, { transaction });
+  }
+
+  buscarRomaneioRange(
+    id: number,
+    transaction?: Transaction,
+    lockForUpdate = false,
+  ) {
+    return this.romaneioRangeModel.findByPk(id, {
+      transaction,
+      lock: lockForUpdate && transaction ? transaction.LOCK.UPDATE : undefined,
+    });
   }
 
   listarLotes(options: FindAndCountOptions) {
@@ -186,6 +213,37 @@ export class SiloRepository {
 
   criarPesagem(data: Record<string, unknown>, transaction?: Transaction) {
     return this.pesagemModel.create(data, { transaction });
+  }
+
+  buscarPesagemPorClientRequestId(
+    clientRequestId: string,
+    options: FindOptions = {},
+  ) {
+    return this.pesagemModel.findOne({
+      ...options,
+      where: { client_request_id: clientRequestId, ...(options.where || {}) },
+    });
+  }
+
+  buscarPesagemPorRomaneio(
+    serieRomaneioId: number,
+    numeroRomaneio: number,
+    transaction?: Transaction,
+  ) {
+    return this.pesagemModel.findOne({
+      where: {
+        serie_romaneio_id: serieRomaneioId,
+        numero_romaneio: numeroRomaneio,
+      },
+      transaction,
+    });
+  }
+
+  contarPesagensPorRange(romaneioRangeId: number, transaction?: Transaction) {
+    return this.pesagemModel.count({
+      where: { romaneio_range_id: romaneioRangeId },
+      transaction,
+    });
   }
 
   buscarClassificacaoPorPesagem(pesagemId: number, transaction?: Transaction) {
@@ -296,10 +354,12 @@ export class SiloRepository {
     contaProdutoId: number,
     itemId: number,
     transaction?: Transaction,
+    lockForUpdate = false,
   ) {
     return this.saldoContaModel.findOne({
       where: { conta_produto_id: contaProdutoId, item_id: itemId },
       transaction,
+      lock: lockForUpdate && transaction ? transaction.LOCK.UPDATE : undefined,
     });
   }
 
@@ -315,10 +375,12 @@ export class SiloRepository {
     depositoId: number,
     itemId: number,
     transaction?: Transaction,
+    lockForUpdate = false,
   ) {
     return this.saldoDepositoModel.findOne({
       where: { deposito_id: depositoId, item_id: itemId },
       transaction,
+      lock: lockForUpdate && transaction ? transaction.LOCK.UPDATE : undefined,
     });
   }
 

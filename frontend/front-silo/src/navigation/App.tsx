@@ -7,7 +7,7 @@ import AccessGate from './components/AccessGate'
 import SiloShell from './components/SiloShell'
 
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Nao foi possivel validar o acesso.'
+  return error instanceof Error ? error.message : 'Não foi possível validar o acesso.'
 }
 
 function App() {
@@ -27,7 +27,7 @@ function App() {
         if (!mounted) return
 
         if (!hasSiloAccess(currentUser)) {
-          setError('Voce nao tem acesso a este modulo.')
+          setError('Você não tem acesso a este módulo.')
           return
         }
 

@@ -116,6 +116,13 @@ export class AtualizarItemDto {
 }
 
 export class TransportadoraDto {
+  @Transform(({ value }) => emptyToNull(value))
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  entidade_id_ref?: number | null;
+
   @IsString()
   @MinLength(2)
   nome!: string;
@@ -131,6 +138,11 @@ export class TransportadoraDto {
   @IsOptional()
   @IsString()
   telefone?: string | null;
+
+  @Transform(({ value }) => emptyToNull(value))
+  @IsOptional()
+  @IsString()
+  observacao?: string | null;
 
   @IsOptional()
   @IsBoolean()
@@ -138,6 +150,13 @@ export class TransportadoraDto {
 }
 
 export class AtualizarTransportadoraDto {
+  @Transform(({ value }) => emptyToNull(value))
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  entidade_id_ref?: number | null;
+
   @IsOptional()
   @IsString()
   @MinLength(2)
@@ -155,12 +174,24 @@ export class AtualizarTransportadoraDto {
   @IsString()
   telefone?: string | null;
 
+  @Transform(({ value }) => emptyToNull(value))
+  @IsOptional()
+  @IsString()
+  observacao?: string | null;
+
   @IsOptional()
   @IsBoolean()
   ativa?: boolean;
 }
 
 export class EmissorDto {
+  @Transform(({ value }) => emptyToNull(value))
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  entidade_id_ref?: number | null;
+
   @IsString()
   @MinLength(2)
   nome!: string;
@@ -172,12 +203,24 @@ export class EmissorDto {
   @IsString()
   documento?: string | null;
 
+  @Transform(({ value }) => emptyToNull(value))
+  @IsOptional()
+  @IsString()
+  observacao?: string | null;
+
   @IsOptional()
   @IsBoolean()
   ativo = true;
 }
 
 export class AtualizarEmissorDto {
+  @Transform(({ value }) => emptyToNull(value))
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  entidade_id_ref?: number | null;
+
   @IsOptional()
   @IsString()
   @MinLength(2)
@@ -189,6 +232,11 @@ export class AtualizarEmissorDto {
   @IsOptional()
   @IsString()
   documento?: string | null;
+
+  @Transform(({ value }) => emptyToNull(value))
+  @IsOptional()
+  @IsString()
+  observacao?: string | null;
 
   @IsOptional()
   @IsBoolean()

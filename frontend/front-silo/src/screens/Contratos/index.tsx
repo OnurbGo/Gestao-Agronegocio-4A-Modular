@@ -56,7 +56,7 @@ const emptyForm: ContratoForm = {
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel concluir.'
+  return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
 function optionalNumber(value: string) {
@@ -215,7 +215,7 @@ function ContratosPage({ usuario }: ContratosPageProps) {
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Contratos"
-        description="Contrato formal opcional para saidas e embarques, com gestao restrita."
+        description="Contrato formal opcional para saídas e embarques, com gestão restrita."
         actions={<Button disabled={!canManage} onClick={newContrato} type="button">Novo contrato</Button>}
       />
 
@@ -264,10 +264,10 @@ function ContratosPage({ usuario }: ContratosPageProps) {
             <EmptyState title={loading ? 'Carregando contratos...' : undefined} />
           )}
           <div className="mt-4 flex justify-between text-sm text-slate-600">
-            <span>Pagina {page} de {totalPages}</span>
+            <span>Página {page} de {totalPages}</span>
             <div className="flex gap-2">
               <Button disabled={page <= 1 || loading} onClick={() => void loadContratos(page - 1)} type="button" variant="outline">Anterior</Button>
-              <Button disabled={page >= totalPages || loading} onClick={() => void loadContratos(page + 1)} type="button" variant="outline">Proxima</Button>
+              <Button disabled={page >= totalPages || loading} onClick={() => void loadContratos(page + 1)} type="button" variant="outline">Próxima</Button>
             </div>
           </div>
         </ScreenSection>
@@ -301,7 +301,7 @@ function ContratosPage({ usuario }: ContratosPageProps) {
             <Input placeholder="Comprador nome cache" value={form.comprador_nome_cache} onChange={(event) => setForm((current) => ({ ...current, comprador_nome_cache: event.target.value }))} />
             <Input placeholder="Quantidade contratada kg" required type="number" value={form.quantidade_contratada_kg} onChange={(event) => setForm((current) => ({ ...current, quantidade_contratada_kg: event.target.value }))} />
             <Input type="date" value={form.data_contrato} onChange={(event) => setForm((current) => ({ ...current, data_contrato: event.target.value }))} />
-            <Textarea placeholder="Observacao" value={form.observacao} onChange={(event) => setForm((current) => ({ ...current, observacao: event.target.value }))} />
+            <Textarea placeholder="Observação" value={form.observacao} onChange={(event) => setForm((current) => ({ ...current, observacao: event.target.value }))} />
             <div className="grid gap-2 rounded-md border border-slate-100 bg-slate-50 p-4 text-sm">
               <span>Entregue: {formatKg(selected?.quantidade_entregue_kg)}</span>
               <span>Saldo: {formatKg(selected?.saldo_kg)}</span>

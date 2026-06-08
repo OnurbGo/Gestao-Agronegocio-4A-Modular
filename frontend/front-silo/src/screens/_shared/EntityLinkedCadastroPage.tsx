@@ -18,70 +18,103 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { canCreate, canEdit } from '@/services/auth.service'
 import { normalizePaginated } from '@/services/api'
-import { contasProdutoApi } from '@/services/silo.service'
 import type {
   AuthUser,
-  ContaProduto,
+  CadastroAuxiliar,
   EntidadeReferencia,
+  PaginatedResponse,
+  QueryParams,
   StatusMessageState,
 } from '@/types'
-import EmptyState from '@/screens/_shared/EmptyState'
-import PageHeader from '@/screens/_shared/PageHeader'
-import ScreenSection from '@/screens/_shared/ScreenSection'
+import EmptyState from './EmptyState'
+import PageHeader from './PageHeader'
+import ScreenSection from './ScreenSection'
 
-type ContasProdutoPageProps = {
-  usuario: AuthUser
-}
-
-type ContaForm = {
+type EntityLinkedCadastroForm = {
   entidade_id_ref: string
   nome: string
   documento: string
-  ativa: boolean
+  telefone: string
   observacao: string
+  ativo: boolean
+}
+
+type EntityLinkedCadastroApi<TItem extends CadastroAuxiliar> = {
+  list: (params?: QueryParams) => Promise<PaginatedResponse<TItem> | TItem[]>
+  create: (payload: Record<string, unknown>) => Promise<TItem>
+  update: (id: number, payload: Record<string, unknown>) => Promise<TItem>
+  remove: (id: number) => Promise<unknown>
+}
+
+type EntityLinkedCadastroPageProps<TItem extends CadastroAuxiliar> = {
+  usuario: AuthUser
+  title: string
+  description: string
+  api: EntityLinkedCadastroApi<TItem>
+  idFrom: (item: TItem) => number
+  moduleId?: string
+  statusField: 'ativo' | 'ativa'
+  hasTelefone?: boolean
+  linkedHelp?: string
 }
 
 const PAGE_SIZE = 20
-const emptyForm: ContaForm = {
+const emptyForm: EntityLinkedCadastroForm = {
   entidade_id_ref: '',
   nome: '',
   documento: '',
-  ativa: true,
+  telefone: '',
   observacao: '',
+  ativo: true,
 }
 
 function toErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
-function normalizeForm(item?: ContaProduto | null): ContaForm {
+function normalizeForm(item?: CadastroAuxiliar | null): EntityLinkedCadastroForm {
   return {
     entidade_id_ref: item?.entidade_id_ref ? String(item.entidade_id_ref) : '',
     nome: item?.nome || '',
     documento: item?.documento || '',
-    ativa: item?.ativa !== false,
-    observacao: item?.observacao || '',
+    telefone: item?.telefone || '',
+    observacao: item?.observacao || item?.descricao || '',
+    ativo: item?.ativo !== false && item?.ativa !== false,
   }
 }
 
-function buildPayload(form: ContaForm) {
+function buildPayload(
+  form: EntityLinkedCadastroForm,
+  statusField: 'ativo' | 'ativa',
+  hasTelefone: boolean,
+) {
   return {
     entidade_id_ref: form.entidade_id_ref ? Number(form.entidade_id_ref) : null,
     nome: form.nome.trim(),
     documento: form.documento.trim() || null,
-    ativa: form.ativa,
+    telefone: hasTelefone ? form.telefone.trim() || null : undefined,
     observacao: form.observacao.trim() || null,
+    [statusField]: form.ativo,
   }
 }
 
-function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
-  const [contas, setContas] = useState<ContaProduto[]>([])
+function EntityLinkedCadastroPage<TItem extends CadastroAuxiliar>({
+  usuario,
+  title,
+  description,
+  api,
+  idFrom,
+  moduleId = 'SILO',
+  statusField,
+  hasTelefone,
+  linkedHelp,
+}: EntityLinkedCadastroPageProps<TItem>) {
+  const [items, setItems] = useState<TItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [selectedEntidade, setSelectedEntidade] =
     useState<EntidadeReferencia | null>(null)
-  const [form, setForm] = useState<ContaForm>(emptyForm)
+  const [form, setForm] = useState<EntityLinkedCadastroForm>(emptyForm)
   const [termo, setTermo] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -89,28 +122,27 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
   const [status, setStatus] = useState<StatusMessageState>(null)
 
   const selected = useMemo(
-    () => contas.find((conta) => conta.id_conta_produto === selectedId),
-    [contas, selectedId],
+    () => items.find((item) => idFrom(item) === selectedId),
+    [idFrom, items, selectedId],
   )
-  const mayCreate = canCreate(usuario, 'SILO')
-  const mayEdit = canEdit(usuario, 'SILO')
+  const mayCreate = canCreate(usuario, moduleId)
+  const mayEdit = canEdit(usuario, moduleId)
   const canSave = selectedId ? mayEdit : mayCreate
 
-  async function loadContas(nextPage = page) {
+  async function loadItems(nextPage = page) {
     setLoading(true)
     setStatus(null)
 
     try {
-      const response = await contasProdutoApi.list({
+      const response = await api.list({
         search: termo || undefined,
         termo: termo || undefined,
         nome: termo || undefined,
-        ativa: statusFilter === '' ? undefined : statusFilter === 'ativa',
         page: nextPage,
         limit: PAGE_SIZE,
       })
       const normalized = normalizePaginated(response, PAGE_SIZE)
-      setContas(normalized.items)
+      setItems(normalized.items)
       setPage(normalized.page)
       setTotalPages(normalized.totalPages)
       setTotal(normalized.total)
@@ -122,17 +154,17 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
   }
 
   useEffect(() => {
-    void loadContas(1)
+    void loadItems(1)
   }, [])
 
-  function selectConta(conta: ContaProduto) {
-    setSelectedId(conta.id_conta_produto)
+  function selectItem(item: TItem) {
+    setSelectedId(idFrom(item))
     setSelectedEntidade(null)
-    setForm(normalizeForm(conta))
+    setForm(normalizeForm(item))
     setStatus(null)
   }
 
-  function newConta() {
+  function newItem() {
     setSelectedId(null)
     setSelectedEntidade(null)
     setForm(emptyForm)
@@ -146,6 +178,7 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
       entidade_id_ref: String(entidade.id_entidade),
       nome: entidade.nome || current.nome,
       documento: getEntidadeDocumento(entidade) || current.documento,
+      telefone: entidade.telefone || entidade.celular || current.telefone,
     }))
   }
 
@@ -156,7 +189,6 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-
     if (!canSave) {
       setStatus({ type: 'warning', message: 'Sem permissão para salvar.' })
       return
@@ -167,12 +199,12 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
 
     try {
       const saved = selectedId
-        ? await contasProdutoApi.update(selectedId, buildPayload(form))
-        : await contasProdutoApi.create(buildPayload(form))
-      setSelectedId(saved.id_conta_produto)
+        ? await api.update(selectedId, buildPayload(form, statusField, Boolean(hasTelefone)))
+        : await api.create(buildPayload(form, statusField, Boolean(hasTelefone)))
+      setSelectedId(idFrom(saved))
       setForm(normalizeForm(saved))
-      setStatus({ type: 'success', message: 'Conta de produto salva.' })
-      await loadContas(page)
+      setStatus({ type: 'success', message: 'Cadastro salvo.' })
+      await loadItems(page)
     } catch (error) {
       setStatus({ type: 'error', message: toErrorMessage(error) })
     } finally {
@@ -182,17 +214,17 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
 
   async function removeSelected() {
     if (!selectedId || !mayEdit) return
-    const confirmed = window.confirm('Desativar esta conta de produto?')
+    const confirmed = window.confirm(`Desativar ${title.toLowerCase()} selecionado?`)
     if (!confirmed) return
 
     setLoading(true)
     setStatus(null)
 
     try {
-      await contasProdutoApi.remove(selectedId)
-      newConta()
-      setStatus({ type: 'success', message: 'Conta removida ou desativada.' })
-      await loadContas(1)
+      await api.remove(selectedId)
+      newItem()
+      setStatus({ type: 'success', message: 'Cadastro removido ou desativado.' })
+      await loadItems(1)
     } catch (error) {
       setStatus({ type: 'error', message: toErrorMessage(error) })
     } finally {
@@ -204,13 +236,19 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         actions={
-          <Button disabled={!mayCreate} onClick={newConta} type="button">
-            Nova conta
+          <Button disabled={!mayCreate} onClick={newItem} type="button">
+            Novo
           </Button>
         }
-        description="Conta que recebe e baixa saldo de produto. Pode ser vinculada a uma Entidade do Escritório ou criada de forma avulsa."
-        title="Contas de Produto"
+        description={description}
+        title={title}
       />
+
+      {linkedHelp ? (
+        <p className="mb-5 rounded-md border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+          {linkedHelp}
+        </p>
+      ) : null}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_460px]">
         <ScreenSection
@@ -222,18 +260,9 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
                 placeholder="Pesquisar nome ou documento"
                 value={termo}
               />
-              <select
-                className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm"
-                onChange={(event) => setStatusFilter(event.target.value)}
-                value={statusFilter}
-              >
-                <option value="">Todas</option>
-                <option value="ativa">Ativas</option>
-                <option value="inativa">Inativas</option>
-              </select>
               <Button
                 disabled={loading}
-                onClick={() => void loadContas(1)}
+                onClick={() => void loadItems(1)}
                 type="button"
                 variant="outline"
               >
@@ -243,41 +272,45 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
           }
           title="Registros"
         >
-          {contas.length ? (
+          {items.length ? (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Documento</TableHead>
+                  {hasTelefone ? <TableHead>Telefone</TableHead> : null}
                   <TableHead className="hidden md:table-cell">Vínculo</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {contas.map((conta) => (
-                  <TableRow
-                    className={
-                      selectedId === conta.id_conta_produto ? 'bg-emerald-50' : undefined
-                    }
-                    key={conta.id_conta_produto}
-                    onClick={() => selectConta(conta)}
-                  >
-                    <TableCell className="font-semibold">{conta.nome || '-'}</TableCell>
-                    <TableCell>{conta.documento || '-'}</TableCell>
-                    <TableCell className="hidden md:table-cell">
-                      {conta.entidade_id_ref ? `Entidade ${conta.entidade_id_ref}` : 'Avulsa'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={conta.ativa === false ? 'secondary' : 'default'}>
-                        {conta.ativa === false ? 'Inativa' : 'Ativa'}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {items.map((item) => {
+                  const itemId = idFrom(item)
+                  const active = statusField === 'ativa' ? item.ativa : item.ativo
+                  return (
+                    <TableRow
+                      className={selectedId === itemId ? 'bg-emerald-50' : undefined}
+                      key={itemId}
+                      onClick={() => selectItem(item)}
+                    >
+                      <TableCell className="font-semibold">{item.nome || '-'}</TableCell>
+                      <TableCell>{item.documento || '-'}</TableCell>
+                      {hasTelefone ? <TableCell>{item.telefone || '-'}</TableCell> : null}
+                      <TableCell className="hidden md:table-cell">
+                        {item.entidade_id_ref ? `Entidade ${item.entidade_id_ref}` : 'Avulso'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={active === false ? 'secondary' : 'default'}>
+                          {active === false ? 'Inativo' : 'Ativo'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           ) : (
-            <EmptyState title={loading ? 'Carregando contas...' : undefined} />
+            <EmptyState title={loading ? 'Carregando registros...' : undefined} />
           )}
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
@@ -287,7 +320,7 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
             <div className="flex gap-2">
               <Button
                 disabled={loading || page <= 1}
-                onClick={() => void loadContas(page - 1)}
+                onClick={() => void loadItems(page - 1)}
                 type="button"
                 variant="outline"
               >
@@ -295,7 +328,7 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
               </Button>
               <Button
                 disabled={loading || page >= totalPages}
-                onClick={() => void loadContas(page + 1)}
+                onClick={() => void loadItems(page + 1)}
                 type="button"
                 variant="outline"
               >
@@ -305,7 +338,7 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
           </div>
         </ScreenSection>
 
-        <ScreenSection title={selected ? selected.nome || 'Editar conta' : 'Nova conta'}>
+        <ScreenSection title={selected ? selected.nome || 'Editar' : 'Novo'}>
           <form className="grid gap-4" onSubmit={save}>
             <EntityLinkedFields
               documento={form.documento}
@@ -322,20 +355,20 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
               }
               onClearEntidade={clearEntidade}
               onSelectEntidade={selectEntidade}
-              nomeLabel="Nome da conta"
             />
 
-            <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-700">
-              <input
-                checked={form.ativa}
-                className="h-4 w-4 accent-emerald-700"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, ativa: event.target.checked }))
-                }
-                type="checkbox"
-              />
-              Conta ativa
-            </label>
+            {hasTelefone ? (
+              <div>
+                <Label>Telefone</Label>
+                <Input
+                  className="mt-2"
+                  onChange={(event) =>
+                    setForm((current) => ({ ...current, telefone: event.target.value }))
+                  }
+                  value={form.telefone}
+                />
+              </div>
+            ) : null}
 
             <div>
               <Label>Observação</Label>
@@ -348,13 +381,25 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
               />
             </div>
 
+            <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold text-slate-700">
+              <input
+                checked={form.ativo}
+                className="h-4 w-4 accent-emerald-700"
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, ativo: event.target.checked }))
+                }
+                type="checkbox"
+              />
+              Cadastro ativo
+            </label>
+
             <StatusMessage status={status} />
 
             <div className="flex flex-wrap gap-2">
               <Button disabled={loading || !canSave} type="submit">
                 Salvar
               </Button>
-              <Button onClick={newConta} type="button" variant="outline">
+              <Button onClick={newItem} type="button" variant="outline">
                 Limpar
               </Button>
               {selectedId ? (
@@ -375,4 +420,4 @@ function ContasProdutoPage({ usuario }: ContasProdutoPageProps) {
   )
 }
 
-export default ContasProdutoPage
+export default EntityLinkedCadastroPage

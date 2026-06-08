@@ -69,7 +69,7 @@ type CrudResourcePageProps<TItem, TForm extends Record<string, unknown>> = {
 const PAGE_SIZE = 20
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel concluir.'
+  return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
 function renderBooleanStatus(value: unknown) {
@@ -123,6 +123,7 @@ function CrudResourcePage<TItem, TForm extends Record<string, unknown>>({
     try {
       const response = await api.list({
         ...defaultFilters,
+        search: termo || undefined,
         termo: termo || undefined,
         nome: termo || undefined,
         ativo: statusFilter === '' ? undefined : statusFilter === 'ativo',
@@ -170,7 +171,7 @@ function CrudResourcePage<TItem, TForm extends Record<string, unknown>>({
     event.preventDefault()
 
     if (!canSave) {
-      setStatus({ type: 'warning', message: 'Sem permissao para salvar.' })
+      setStatus({ type: 'warning', message: 'Sem permissão para salvar.' })
       return
     }
 
@@ -308,7 +309,7 @@ function CrudResourcePage<TItem, TForm extends Record<string, unknown>>({
                 type="button"
                 variant="outline"
               >
-                Proxima
+                Próxima
               </Button>
             </div>
           </div>

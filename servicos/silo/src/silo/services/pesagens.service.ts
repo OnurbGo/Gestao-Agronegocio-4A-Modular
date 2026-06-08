@@ -22,6 +22,10 @@ import { LoteOperacional } from "../entities/lote-operacional.entity";
 import { Pesagem } from "../entities/pesagem.entity";
 import { SerieRomaneio } from "../entities/serie-romaneio.entity";
 import { Transportadora } from "../entities/transportadora.entity";
+import {
+  PesagemOrigem,
+  PesagemStatus,
+} from "../enums/silo.enums";
 import { decimal } from "../helpers/number.utils";
 import { PesoCalculator } from "../helpers/peso-calculator";
 import { SiloRepository } from "../repositories/silo.repository";
@@ -46,6 +50,23 @@ const PESAGEM_INCLUDES = [
   { model: Contrato, as: "contrato" },
   { model: ClassificacaoPesagem, as: "classificacao" },
 ];
+
+export type CriarPesagemComRomaneioInput = PesagemInput & {
+  serie_romaneio_id: number;
+  numero_romaneio: number;
+  client_request_id?: string | null;
+  balanca_client_id?: string | null;
+  origem?: PesagemOrigem;
+  romaneio_range_id?: number | null;
+  pesagem_1_kg?: number;
+  pesagem_2_kg?: number;
+  peso_liquido_kg?: string | null;
+  data_pesagem_1?: Date | null;
+  data_pesagem_2?: Date | null;
+  finalizada_em?: Date | null;
+  created_at_local?: Date | null;
+  status?: PesagemStatus;
+};
 
 @Injectable()
 export class PesagensService {
@@ -200,6 +221,88 @@ export class PesagensService {
     return pesagem;
   }
 
+  async criarComRomaneioReservado(
+    data: CriarPesagemComRomaneioInput,
+    usuario: AuthContext,
+    transaction: Transaction,
+  ) {
+    const lote = await this.lotesService.buscarPorId(
+      data.lote_operacional_id,
+      transaction,
+    );
+    this.validarLotePermitePesagem(lote);
+
+    const contaProdutoId = data.conta_produto_id || lote.conta_produto_id;
+    const itemId = data.item_id || lote.item_id;
+    const destinoId = data.destino_id || lote.destino_id;
+    const contratoId =
+      data.contrato_id === undefined ? lote.contrato_id : data.contrato_id;
+
+    if (!destinoId) {
+      throw new BadRequestException(
+        "Destino e obrigatorio na pesagem ou no lote operacional.",
+      );
+    }
+
+    await this.cadastrosService.validarReferenciasBasicas(
+      {
+        conta_produto_id: contaProdutoId,
+        item_id: itemId,
+        transportadora_id: data.transportadora_id,
+        emissor_id: data.emissor_id,
+        deposito_id: data.deposito_id,
+        destino_id: destinoId,
+      },
+      transaction,
+    );
+    await this.validarContrato(contratoId || null, transaction);
+
+    const pesagem = await this.siloRepository.criarPesagem(
+      {
+        lote_operacional_id: lote.id_lote_operacional,
+        serie_romaneio_id: data.serie_romaneio_id,
+        numero_romaneio: data.numero_romaneio,
+        client_request_id: data.client_request_id || null,
+        balanca_client_id: data.balanca_client_id || null,
+        origem: data.origem || "WEB",
+        romaneio_range_id: data.romaneio_range_id || null,
+        tipo_operacao: data.tipo_operacao,
+        status: data.status || "ABERTA",
+        conta_produto_id: contaProdutoId,
+        item_id: itemId,
+        transportadora_id: data.transportadora_id,
+        emissor_id: data.emissor_id,
+        deposito_id: data.deposito_id,
+        destino_id: destinoId,
+        contrato_id: contratoId || null,
+        placa: data.placa,
+        motorista_nome: data.motorista_nome,
+        observacao: data.observacao || null,
+        pesagem_1_kg:
+          data.pesagem_1_kg === undefined ? null : decimal(data.pesagem_1_kg),
+        pesagem_2_kg:
+          data.pesagem_2_kg === undefined ? null : decimal(data.pesagem_2_kg),
+        peso_liquido_kg: data.peso_liquido_kg || null,
+        data_pesagem_1: data.data_pesagem_1 || null,
+        data_pesagem_2: data.data_pesagem_2 || null,
+        finalizada_em: data.finalizada_em || null,
+        created_at_local: data.created_at_local || null,
+        criado_por: usuario.usuario_id,
+        atualizado_por: usuario.usuario_id,
+      },
+      transaction,
+    );
+
+    if (lote.status === "ABERTO") {
+      await lote.update(
+        { status: "EM_ANDAMENTO", atualizado_por: usuario.usuario_id },
+        { transaction },
+      );
+    }
+
+    return pesagem;
+  }
+
   async atualizar(
     id: number,
     data: AtualizarPesagemInput,
@@ -262,25 +365,6 @@ export class PesagensService {
     ip?: string,
   ) {
     const pesagem = await this.buscarPorId(id);
-
-    if (["FINALIZADA", "CANCELADA"].includes(pesagem.status)) {
-      throw new BadRequestException(
-        "Pesagem finalizada ou cancelada nao pode ser classificada.",
-      );
-    }
-
-    if (!pesagem.peso_liquido_kg) {
-      throw new BadRequestException(
-        "Nao e possivel classificar sem peso liquido calculado.",
-      );
-    }
-
-    const calculo = await this.descontosService.calcularPorItem({
-      item_id: pesagem.item_id,
-      peso_liquido_kg: pesagem.peso_liquido_kg,
-      umidade_percentual: data.umidade_percentual,
-      impureza_percentual: data.impureza_percentual,
-    });
     const anterior = pesagem.classificacao
       ? this.toPlain(pesagem.classificacao)
       : null;
@@ -288,36 +372,11 @@ export class PesagensService {
     let classificacao: ClassificacaoPesagem;
 
     try {
-      const existente = await this.siloRepository.buscarClassificacaoPorPesagem(
-        id,
+      classificacao = await this.classificarEmTransacao(
+        pesagem,
+        data,
+        usuario,
         transaction,
-      );
-
-      if (existente) {
-        await existente.update(
-          {
-            ...calculo,
-            atualizado_por: usuario.usuario_id,
-            atualizado_em: new Date(),
-          },
-          { transaction },
-        );
-        classificacao = existente;
-      } else {
-        classificacao = await this.siloRepository.criarClassificacao(
-          {
-            pesagem_id: id,
-            ...calculo,
-            classificado_por: usuario.usuario_id,
-            classificado_em: new Date(),
-          },
-          transaction,
-        );
-      }
-
-      await pesagem.update(
-        { status: "CLASSIFICADA", atualizado_por: usuario.usuario_id },
-        { transaction },
       );
       await transaction.commit();
     } catch (error) {
@@ -339,67 +398,88 @@ export class PesagensService {
     return atualizada;
   }
 
+  async classificarEmTransacao(
+    pesagem: Pesagem,
+    data: ClassificarPesagemDto,
+    usuario: AuthContext,
+    transaction: Transaction,
+  ) {
+    if (["FINALIZADA", "CANCELADA"].includes(pesagem.status)) {
+      throw new BadRequestException(
+        "Pesagem finalizada ou cancelada nao pode ser classificada.",
+      );
+    }
+
+    if (!pesagem.peso_liquido_kg) {
+      throw new BadRequestException(
+        "Nao e possivel classificar sem peso liquido calculado.",
+      );
+    }
+
+    const calculo = await this.descontosService.calcularPorItem(
+      {
+        item_id: pesagem.item_id,
+        peso_liquido_kg: pesagem.peso_liquido_kg,
+        umidade_percentual: data.umidade_percentual,
+        impureza_percentual: data.impureza_percentual,
+      },
+      transaction,
+    );
+    const existente = await this.siloRepository.buscarClassificacaoPorPesagem(
+      pesagem.id_pesagem,
+      transaction,
+    );
+
+    if (existente) {
+      await existente.update(
+        {
+          ...calculo,
+          atualizado_por: usuario.usuario_id,
+          atualizado_em: new Date(),
+        },
+        { transaction },
+      );
+      await pesagem.update(
+        { status: "CLASSIFICADA", atualizado_por: usuario.usuario_id },
+        { transaction },
+      );
+      return existente;
+    }
+
+    const classificacao = await this.siloRepository.criarClassificacao(
+      {
+        pesagem_id: pesagem.id_pesagem,
+        ...calculo,
+        classificado_por: usuario.usuario_id,
+        classificado_em: new Date(),
+      },
+      transaction,
+    );
+
+    await pesagem.update(
+      { status: "CLASSIFICADA", atualizado_por: usuario.usuario_id },
+      { transaction },
+    );
+    return classificacao;
+  }
+
   async finalizar(
     id: number,
     data: FinalizarPesagemDto,
     usuario: AuthContext,
     ip?: string,
   ) {
-    if (data.permitir_saldo_negativo && !this.isGerenteOuAdmin(usuario)) {
-      throw new BadRequestException(
-        "Apenas ADMIN ou GERENTE pode permitir saida com saldo negativo.",
-      );
-    }
-
-    if (data.permitir_saldo_negativo && !data.justificativa) {
-      throw new BadRequestException(
-        "Justificativa e obrigatoria para permitir saldo negativo.",
-      );
-    }
-
     const transaction = await this.siloRepository.criarTransacao();
     let anterior: object | null = null;
 
     try {
-      const pesagem = await this.buscarPorId(id, transaction);
-      anterior = this.toPlain(pesagem);
-
-      if (pesagem.status === "FINALIZADA") {
-        throw new BadRequestException("Pesagem ja esta finalizada.");
-      }
-
-      if (pesagem.status === "CANCELADA") {
-        throw new BadRequestException("Pesagem cancelada nao pode ser finalizada.");
-      }
-
-      if (!pesagem.pesagem_1_kg || !pesagem.pesagem_2_kg || !pesagem.peso_liquido_kg) {
-        throw new BadRequestException(
-          "Nao e possivel finalizar sem pesagem 1 e pesagem 2.",
-        );
-      }
-
-      if (pesagem.item?.exige_classificacao && !pesagem.classificacao) {
-        throw new BadRequestException(
-          "Item exige classificacao antes da finalizacao.",
-        );
-      }
-
-      await this.movimentacaoService.gerarMovimentacaoFinalizacao({
-        pesagem: pesagem as Pesagem & { classificacao?: ClassificacaoPesagem },
+      const resultado = await this.finalizarEmTransacao(
+        id,
+        data,
         usuario,
-        permitirSaldoNegativo: data.permitir_saldo_negativo,
         transaction,
-      });
-
-      await pesagem.update(
-        {
-          status: "FINALIZADA",
-          finalizada_em: new Date(),
-          atualizado_por: usuario.usuario_id,
-        },
-        { transaction },
       );
-
+      anterior = resultado.anterior;
       await transaction.commit();
     } catch (error) {
       await transaction.rollback();
@@ -421,6 +501,67 @@ export class PesagensService {
       ip,
     });
     return finalizada;
+  }
+
+  async finalizarEmTransacao(
+    id: number,
+    data: FinalizarPesagemDto,
+    usuario: AuthContext,
+    transaction: Transaction,
+  ) {
+    if (data.permitir_saldo_negativo && !this.isGerenteOuAdmin(usuario)) {
+      throw new BadRequestException(
+        "Apenas ADMIN ou GERENTE pode permitir saida com saldo negativo.",
+      );
+    }
+
+    if (data.permitir_saldo_negativo && !data.justificativa) {
+      throw new BadRequestException(
+        "Justificativa e obrigatoria para permitir saldo negativo.",
+      );
+    }
+
+    const pesagem = await this.buscarPorId(id, transaction);
+    const anterior = this.toPlain(pesagem);
+
+    if (pesagem.status === "FINALIZADA") {
+      throw new BadRequestException("Pesagem ja esta finalizada.");
+    }
+
+    if (pesagem.status === "CANCELADA") {
+      throw new BadRequestException("Pesagem cancelada nao pode ser finalizada.");
+    }
+
+    if (!pesagem.pesagem_1_kg || !pesagem.pesagem_2_kg || !pesagem.peso_liquido_kg) {
+      throw new BadRequestException(
+        "Nao e possivel finalizar sem pesagem 1 e pesagem 2.",
+      );
+    }
+
+    if (pesagem.item?.exige_classificacao && !pesagem.classificacao) {
+      throw new BadRequestException(
+        "Item exige classificacao antes da finalizacao.",
+      );
+    }
+
+    const movimentacao =
+      await this.movimentacaoService.gerarMovimentacaoFinalizacao({
+        pesagem: pesagem as Pesagem & { classificacao?: ClassificacaoPesagem },
+        usuario,
+        permitirSaldoNegativo: data.permitir_saldo_negativo,
+        transaction,
+      });
+
+    await pesagem.update(
+      {
+        status: "FINALIZADA",
+        finalizada_em: new Date(),
+        atualizado_por: usuario.usuario_id,
+      },
+      { transaction },
+    );
+
+    return { anterior, movimentacao };
   }
 
   async cancelar(

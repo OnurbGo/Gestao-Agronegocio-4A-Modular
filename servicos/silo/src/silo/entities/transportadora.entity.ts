@@ -24,11 +24,17 @@ export class Transportadora extends Model {
   @Column({ type: DataType.STRING, allowNull: false })
   declare nome: string;
 
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare entidade_id_ref: number | null;
+
   @Column({ type: DataType.STRING, allowNull: true })
   declare documento: string | null;
 
   @Column({ type: DataType.STRING, allowNull: true })
   declare telefone: string | null;
+
+  @Column({ type: DataType.TEXT, allowNull: true })
+  declare observacao: string | null;
 
   @Column({ type: DataType.BOOLEAN, allowNull: false, defaultValue: true })
   declare ativa: boolean;

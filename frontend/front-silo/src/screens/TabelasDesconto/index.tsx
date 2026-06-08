@@ -3,9 +3,7 @@ import type { FormEvent } from 'react'
 import StatusMessage from '@/components/feedback/StatusMessage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -23,26 +21,17 @@ import type {
   StatusMessageState,
   TabelaDesconto,
 } from '@/types'
-import {
-  asText,
-  formatKg,
-  formatPercent,
-  formatSacas,
-} from '@/utils/formatters'
+import { asText } from '@/utils/formatters'
 import EmptyState from '@/screens/_shared/EmptyState'
 import PageHeader from '@/screens/_shared/PageHeader'
 import ScreenSection from '@/screens/_shared/ScreenSection'
+import FaixasDescontoTable from './components/FaixasDescontoTable'
+import SimuladorDesconto from './components/SimuladorDesconto'
+import TabelaDescontoForm from './components/TabelaDescontoForm'
+import type { TabelaDescontoFormState } from './components/TabelaDescontoForm'
 
 type TabelasDescontoPageProps = {
   usuario: AuthUser
-}
-
-type TabelaForm = {
-  item_id: string
-  nome: string
-  ativa: boolean
-  vigencia_inicio: string
-  vigencia_fim: string
 }
 
 type FaixaForm = {
@@ -52,15 +41,8 @@ type FaixaForm = {
   percentual_desconto: string
 }
 
-type SimuladorForm = {
-  item_id: string
-  peso_liquido_kg: string
-  umidade_percentual: string
-  impureza_percentual: string
-}
-
 const PAGE_SIZE = 20
-const emptyTabelaForm: TabelaForm = {
+const emptyTabelaForm: TabelaDescontoFormState = {
   item_id: '',
   nome: '',
   ativa: true,
@@ -73,18 +55,12 @@ const emptyFaixaForm: FaixaForm = {
   valor_final: '',
   percentual_desconto: '',
 }
-const emptySimuladorForm: SimuladorForm = {
-  item_id: '',
-  peso_liquido_kg: '',
-  umidade_percentual: '',
-  impureza_percentual: '',
-}
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel concluir.'
+  return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
-function normalizeTabelaForm(tabela?: TabelaDesconto | null): TabelaForm {
+function normalizeTabelaForm(tabela?: TabelaDesconto | null): TabelaDescontoFormState {
   return {
     item_id: tabela?.item_id ? String(tabela.item_id) : '',
     nome: tabela?.nome || '',
@@ -94,7 +70,7 @@ function normalizeTabelaForm(tabela?: TabelaDesconto | null): TabelaForm {
   }
 }
 
-function buildTabelaPayload(form: TabelaForm) {
+function buildTabelaPayload(form: TabelaDescontoFormState) {
   return {
     item_id: Number(form.item_id),
     nome: form.nome.trim(),
@@ -127,18 +103,12 @@ function hasOverlap(faixas: FaixaDesconto[], form: FaixaForm) {
   })
 }
 
-function getResultValue(result: Record<string, unknown> | null, key: string) {
-  return result?.[key] ?? result?.data?.[key as never]
-}
-
 function TabelasDescontoPage({ usuario }: TabelasDescontoPageProps) {
   const [itens, setItens] = useState<ItemSilo[]>([])
   const [tabelas, setTabelas] = useState<TabelaDesconto[]>([])
   const [selected, setSelected] = useState<TabelaDesconto | null>(null)
-  const [form, setForm] = useState<TabelaForm>(emptyTabelaForm)
+  const [form, setForm] = useState<TabelaDescontoFormState>(emptyTabelaForm)
   const [faixaForm, setFaixaForm] = useState<FaixaForm>(emptyFaixaForm)
-  const [simuladorForm, setSimuladorForm] = useState<SimuladorForm>(emptySimuladorForm)
-  const [simuladorResult, setSimuladorResult] = useState<Record<string, unknown> | null>(null)
   const [filters, setFilters] = useState({ item_id: '', ativa: '' })
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -272,33 +242,11 @@ function TabelasDescontoPage({ usuario }: TabelasDescontoPageProps) {
     }
   }
 
-  async function simular(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setLoading(true)
-    setStatus(null)
-    setSimuladorResult(null)
-
-    try {
-      setSimuladorResult(
-        await tabelasDescontoApi.calcular({
-          item_id: Number(simuladorForm.item_id),
-          peso_liquido_kg: Number(simuladorForm.peso_liquido_kg),
-          umidade_percentual: Number(simuladorForm.umidade_percentual),
-          impureza_percentual: Number(simuladorForm.impureza_percentual),
-        }),
-      )
-    } catch (error) {
-      setStatus({ type: 'error', message: toErrorMessage(error) })
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Tabelas de Desconto"
-        description="Consulta, simulacao e gestao das faixas de umidade e impureza usadas na classificacao."
+        description="Consulta, simulação e gestão das faixas de umidade e impureza usadas na classificação."
         actions={
           <Button disabled={!canManage} onClick={newTabela} type="button">
             Nova tabela
@@ -360,71 +308,31 @@ function TabelasDescontoPage({ usuario }: TabelasDescontoPageProps) {
               <EmptyState title={loading ? 'Carregando tabelas...' : undefined} />
             )}
             <div className="mt-4 flex justify-between text-sm text-slate-600">
-              <span>Pagina {page} de {totalPages}</span>
+              <span>Página {page} de {totalPages}</span>
               <div className="flex gap-2">
                 <Button disabled={page <= 1 || loading} onClick={() => void loadTabelas(page - 1)} type="button" variant="outline">Anterior</Button>
-                <Button disabled={page >= totalPages || loading} onClick={() => void loadTabelas(page + 1)} type="button" variant="outline">Proxima</Button>
+                <Button disabled={page >= totalPages || loading} onClick={() => void loadTabelas(page + 1)} type="button" variant="outline">Próxima</Button>
               </div>
             </div>
           </ScreenSection>
 
-          <ScreenSection title="Simulador">
-            <form className="grid gap-3 md:grid-cols-5" onSubmit={simular}>
-              <select className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm md:col-span-2" onChange={(event) => setSimuladorForm((current) => ({ ...current, item_id: event.target.value }))} required value={simuladorForm.item_id}>
-                <option value="">Item</option>
-                {itens.map((item) => <option key={item.id_item} value={item.id_item}>{item.nome}</option>)}
-              </select>
-              <Input onChange={(event) => setSimuladorForm((current) => ({ ...current, peso_liquido_kg: event.target.value }))} placeholder="Peso liquido kg" required type="number" value={simuladorForm.peso_liquido_kg} />
-              <Input onChange={(event) => setSimuladorForm((current) => ({ ...current, umidade_percentual: event.target.value }))} placeholder="Umidade %" required type="number" value={simuladorForm.umidade_percentual} />
-              <Input onChange={(event) => setSimuladorForm((current) => ({ ...current, impureza_percentual: event.target.value }))} placeholder="Impureza %" required type="number" value={simuladorForm.impureza_percentual} />
-              <Button className="md:col-span-5" disabled={loading} type="submit" variant="outline">
-                Calcular
-              </Button>
-            </form>
-            {simuladorResult ? (
-              <div className="mt-4 grid gap-3 rounded-md border border-emerald-100 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900 md:grid-cols-4">
-                <span>Desc. umidade: {formatKg(getResultValue(simuladorResult, 'desconto_umidade_kg'))}</span>
-                <span>Desc. impureza: {formatKg(getResultValue(simuladorResult, 'desconto_impureza_kg'))}</span>
-                <span>Peso final: {formatKg(getResultValue(simuladorResult, 'peso_final_kg'))}</span>
-                <span>Sacas: {formatSacas(getResultValue(simuladorResult, 'sacas_final'))}</span>
-              </div>
-            ) : null}
+          <ScreenSection title="Simulador de desconto">
+            <SimuladorDesconto itens={itens} />
           </ScreenSection>
         </div>
 
         <div className="grid gap-5">
           <ScreenSection title={selected ? 'Editar tabela' : 'Nova tabela'}>
-            <form className="grid gap-4" onSubmit={saveTabela}>
-              <div>
-                <Label>Item *</Label>
-                <select className="mt-2 h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm" onChange={(event) => setForm((current) => ({ ...current, item_id: event.target.value }))} required value={form.item_id}>
-                  <option value="">Selecione</option>
-                  {itens.map((item) => <option key={item.id_item} value={item.id_item}>{item.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <Label>Nome *</Label>
-                <Input className="mt-2" onChange={(event) => setForm((current) => ({ ...current, nome: event.target.value }))} required value={form.nome} />
-              </div>
-              <label className="flex items-center gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-semibold">
-                <Checkbox checked={form.ativa} onCheckedChange={(checked) => setForm((current) => ({ ...current, ativa: Boolean(checked) }))} />
-                Tabela ativa
-              </label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label>Inicio vigencia</Label>
-                  <Input className="mt-2" onChange={(event) => setForm((current) => ({ ...current, vigencia_inicio: event.target.value }))} type="date" value={form.vigencia_inicio} />
-                </div>
-                <div>
-                  <Label>Fim vigencia</Label>
-                  <Input className="mt-2" onChange={(event) => setForm((current) => ({ ...current, vigencia_fim: event.target.value }))} type="date" value={form.vigencia_fim} />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button disabled={loading || !canManage} type="submit">Salvar</Button>
-                <Button onClick={newTabela} type="button" variant="outline">Limpar</Button>
-              </div>
-            </form>
+            <TabelaDescontoForm
+              canManage={canManage}
+              form={form}
+              itens={itens}
+              loading={loading}
+              onChange={setForm}
+              onClear={newTabela}
+              onSubmit={saveTabela}
+              selected={selected}
+            />
           </ScreenSection>
 
           <ScreenSection title="Faixas">
@@ -448,39 +356,22 @@ function TabelasDescontoPage({ usuario }: TabelasDescontoPageProps) {
               </Button>
             </form>
 
-            <Table wrapperClassName="mt-4">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Intervalo</TableHead>
-                  <TableHead>Desconto</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {faixas.map((faixa) => (
-                  <TableRow key={faixa.id_faixa_desconto}>
-                    <TableCell>{faixa.tipo}</TableCell>
-                    <TableCell>
-                      {formatPercent(faixa.valor_inicial)} a {formatPercent(faixa.valor_final)}
-                    </TableCell>
-                    <TableCell>{formatPercent(faixa.percentual_desconto)}</TableCell>
-                    <TableCell>
-                      <Button disabled={!canManage} onClick={() => void removeFaixa(faixa)} type="button" variant="ghost">
-                        Desativar
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!faixas.length ? (
-                  <TableRow>
-                    <TableCell className="text-slate-500" colSpan={4}>
-                      Nenhuma faixa cadastrada.
-                    </TableCell>
-                  </TableRow>
-                ) : null}
-              </TableBody>
-            </Table>
+            <div className="mt-4 grid gap-4">
+              <FaixasDescontoTable
+                canManage={canManage}
+                faixas={faixas}
+                onRemove={(faixa) => void removeFaixa(faixa)}
+                tipo="UMIDADE"
+                title="Faixas de Umidade"
+              />
+              <FaixasDescontoTable
+                canManage={canManage}
+                faixas={faixas}
+                onRemove={(faixa) => void removeFaixa(faixa)}
+                tipo="IMPUREZA"
+                title="Faixas de Impureza"
+              />
+            </div>
           </ScreenSection>
         </div>
       </div>

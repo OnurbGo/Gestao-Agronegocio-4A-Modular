@@ -115,10 +115,11 @@ function FolhaPage({ onBack }) {
     year: ano,
   });
 
-  const { relatorio, recarregarRelatorio: carregarRelatorio } = usePayrollReport({
-    month: mesRelatorio,
-    year: ano,
-  });
+  const { relatorio, recarregarRelatorio: carregarRelatorio } =
+    usePayrollReport({
+      month: mesRelatorio,
+      year: ano,
+    });
 
   const { registrosSalariais, recarregarSalarios, salarioMeta } =
     useSalaryRecords({

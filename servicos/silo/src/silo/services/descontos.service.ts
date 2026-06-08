@@ -303,8 +303,11 @@ export class DescontosService {
     peso_liquido_kg: number | string;
     umidade_percentual: number | string;
     impureza_percentual: number | string;
-  }) {
-    const tabela = await this.siloRepository.buscarTabelaAtivaPorItem(data.item_id);
+  }, transaction?: Transaction) {
+    const tabela = await this.siloRepository.buscarTabelaAtivaPorItem(
+      data.item_id,
+      transaction,
+    );
 
     if (!tabela) {
       throw new BadRequestException(

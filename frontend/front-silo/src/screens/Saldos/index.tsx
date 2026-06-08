@@ -28,9 +28,10 @@ import { asText, formatKg, formatSacas } from '@/utils/formatters'
 import EmptyState from '@/screens/_shared/EmptyState'
 import PageHeader from '@/screens/_shared/PageHeader'
 import ScreenSection from '@/screens/_shared/ScreenSection'
+import SiloBalanceCard from './components/SiloBalanceCard'
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel carregar saldos.'
+  return error instanceof Error ? error.message : 'Não foi possível carregar saldos.'
 }
 
 function SaldosPage() {
@@ -89,11 +90,16 @@ function SaldosPage() {
     void loadSaldos()
   }, [])
 
+  const maxSaldoDepositoKg = saldosDeposito.reduce(
+    (max, saldo) => Math.max(max, Number(saldo.saldo_kg || 0)),
+    0,
+  )
+
   return (
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Saldos"
-        description="Resumo de performance por conta de produto e deposito, derivado das movimentacoes."
+        description="Resumo de performance por conta de produto e depósito, derivado das movimentações."
       />
       <StatusMessage status={status} />
 
@@ -115,13 +121,29 @@ function SaldosPage() {
             {contas.map((conta) => <option key={conta.id_conta_produto} value={conta.id_conta_produto}>{conta.nome}</option>)}
           </select>
           <select className="h-10 rounded-md border border-slate-200 bg-white px-3 text-sm" onChange={(event) => setFilters((current) => ({ ...current, deposito_id: event.target.value }))} value={filters.deposito_id}>
-            <option value="">Todos os depositos</option>
+            <option value="">Todos os depósitos</option>
             {depositos.map((deposito) => <option key={deposito.id_deposito} value={deposito.id_deposito}>{deposito.nome}</option>)}
           </select>
         </div>
       </ScreenSection>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        <ScreenSection title="Visual de depósitos / silos" className="xl:col-span-2">
+          {saldosDeposito.length ? (
+            <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+              {saldosDeposito.map((saldo) => (
+                <SiloBalanceCard
+                  key={saldo.id_saldo_deposito}
+                  maxSaldoKg={maxSaldoDepositoKg}
+                  saldo={saldo}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={loading ? 'Carregando visual de saldos...' : undefined} />
+          )}
+        </ScreenSection>
+
         <ScreenSection title="Saldo por conta">
           {saldosConta.length ? (
             <Table>
@@ -154,7 +176,7 @@ function SaldosPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Deposito</TableHead>
+                  <TableHead>Depósito</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead>Kg</TableHead>
                   <TableHead>Sacas</TableHead>

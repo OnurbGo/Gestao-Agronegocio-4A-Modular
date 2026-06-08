@@ -65,7 +65,7 @@ const initialState: DashboardState = {
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel carregar o dashboard.'
+  return error instanceof Error ? error.message : 'Não foi possível carregar o dashboard.'
 }
 
 function sumKg(items: Array<{ saldo_kg?: string | number | null }>) {
@@ -177,7 +177,7 @@ function SiloHome({ usuario, onNavigate }: SiloHomeProps) {
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Dashboard do Silo"
-        description={`Operacao web do modulo Silo para ${usuario.nome || 'usuario autenticado'}.`}
+        description={`Operação web do módulo Silo para ${usuario.nome || 'usuário autenticado'}.`}
       />
 
       <StatusMessage status={status} />
@@ -194,11 +194,11 @@ function SiloHome({ usuario, onNavigate }: SiloHomeProps) {
           detail="Resumo por silo/deposito"
           icon={PackageCheck}
           onClick={() => onNavigate('saldos')}
-          title="Saldo depositos"
+          title="Saldo depósitos"
           value={formatKg(metrics.saldoDepositoKg)}
         />
         <SummaryCard
-          detail="Lotes em operacao"
+          detail="Lotes em operação"
           icon={Layers3}
           onClick={() => onNavigate('lotes')}
           title="Lotes abertos"
@@ -208,14 +208,14 @@ function SiloHome({ usuario, onNavigate }: SiloHomeProps) {
           detail="Aguardando umidade/impureza"
           icon={Scale}
           onClick={() => onNavigate('classificacao')}
-          title="Classificacao"
+          title="Classificação"
           value={formatNumber(metrics.pendentesClassificacao)}
         />
         <SummaryCard
           detail="Complementos recentes"
           icon={ClipboardList}
           onClick={() => onNavigate('dados-saida')}
-          title="Dados saida"
+          title="Dados saída"
           value={formatNumber(metrics.dadosSaida)}
         />
       </div>

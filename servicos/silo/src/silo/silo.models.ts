@@ -11,6 +11,7 @@ import { Item } from "./entities/item.entity";
 import { LoteOperacional } from "./entities/lote-operacional.entity";
 import { MovimentacaoProduto } from "./entities/movimentacao-produto.entity";
 import { Pesagem } from "./entities/pesagem.entity";
+import { RomaneioRange } from "./entities/romaneio-range.entity";
 import { SaldoContaProduto } from "./entities/saldo-conta-produto.entity";
 import { SaldoDeposito } from "./entities/saldo-deposito.entity";
 import { SerieRomaneio } from "./entities/serie-romaneio.entity";
@@ -25,6 +26,7 @@ export const SILO_MODELS = [
   Deposito,
   Destino,
   SerieRomaneio,
+  RomaneioRange,
   Contrato,
   LoteOperacional,
   Pesagem,

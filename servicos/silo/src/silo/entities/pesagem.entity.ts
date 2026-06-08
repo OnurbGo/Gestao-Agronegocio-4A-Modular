@@ -12,8 +12,10 @@ import {
   UpdatedAt,
 } from "sequelize-typescript";
 import {
+  PESAGEM_ORIGENS,
   PESAGEM_STATUS,
   PESAGEM_TIPOS_OPERACAO,
+  PesagemOrigem,
   PesagemStatus,
   PesagemTipoOperacao,
 } from "../enums/silo.enums";
@@ -25,13 +27,18 @@ import { Destino } from "./destino.entity";
 import { Emissor } from "./emissor.entity";
 import { Item } from "./item.entity";
 import { LoteOperacional } from "./lote-operacional.entity";
+import { RomaneioRange } from "./romaneio-range.entity";
 import { SerieRomaneio } from "./serie-romaneio.entity";
 import { Transportadora } from "./transportadora.entity";
 
 @Table({
   tableName: "PESAGEM",
   timestamps: true,
-  indexes: [{ unique: true, fields: ["serie_romaneio_id", "numero_romaneio"] }],
+  indexes: [
+    { unique: true, fields: ["serie_romaneio_id", "numero_romaneio"] },
+    { unique: true, fields: ["client_request_id"] },
+    { fields: ["romaneio_range_id", "numero_romaneio"] },
+  ],
 })
 export class Pesagem extends Model {
   @PrimaryKey
@@ -49,6 +56,23 @@ export class Pesagem extends Model {
 
   @Column({ type: DataType.INTEGER, allowNull: false })
   declare numero_romaneio: number;
+
+  @Column({ type: DataType.STRING, allowNull: true })
+  declare client_request_id: string | null;
+
+  @Column({ type: DataType.STRING, allowNull: true })
+  declare balanca_client_id: string | null;
+
+  @Column({
+    type: DataType.ENUM(...PESAGEM_ORIGENS),
+    allowNull: false,
+    defaultValue: "WEB",
+  })
+  declare origem: PesagemOrigem;
+
+  @ForeignKey(() => RomaneioRange)
+  @Column({ type: DataType.INTEGER, allowNull: true })
+  declare romaneio_range_id: number | null;
 
   @Column({ type: DataType.ENUM(...PESAGEM_TIPOS_OPERACAO), allowNull: false })
   declare tipo_operacao: PesagemTipoOperacao;
@@ -115,6 +139,9 @@ export class Pesagem extends Model {
   @Column({ type: DataType.DATE, allowNull: true })
   declare finalizada_em: Date | null;
 
+  @Column({ type: DataType.DATE, allowNull: true })
+  declare created_at_local: Date | null;
+
   @Column({ type: DataType.INTEGER, allowNull: true })
   declare criado_por: number | null;
 
@@ -138,6 +165,12 @@ export class Pesagem extends Model {
     as: "serie_romaneio",
   })
   declare serie_romaneio?: SerieRomaneio;
+
+  @BelongsTo(() => RomaneioRange, {
+    foreignKey: "romaneio_range_id",
+    as: "romaneio_range",
+  })
+  declare romaneio_range?: RomaneioRange;
 
   @BelongsTo(() => ContaProduto, {
     foreignKey: "conta_produto_id",

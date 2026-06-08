@@ -103,10 +103,15 @@ export class ContratosService {
     return criado;
   }
 
-  async buscarPorId(id: number, transaction?: Transaction) {
+  async buscarPorId(
+    id: number,
+    transaction?: Transaction,
+    lockForUpdate = false,
+  ) {
     const contrato = await this.siloRepository.buscarContrato(id, {
       include: CONTRATO_INCLUDES,
       transaction,
+      lock: lockForUpdate && transaction ? transaction.LOCK.UPDATE : undefined,
     });
 
     if (!contrato) {
@@ -209,7 +214,7 @@ export class ContratosService {
     usuarioId: number,
     transaction: Transaction,
   ) {
-    const contrato = await this.buscarPorId(contratoId, transaction);
+    const contrato = await this.buscarPorId(contratoId, transaction, true);
 
     if (contrato.status === "CANCELADO") {
       throw new BadRequestException("Contrato cancelado nao pode receber entrega.");

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
+import ImovelSearchSelect from '@/components/references/ImovelSearchSelect'
+import { getImovelLabel } from '@/components/references/reference-formatters'
 import StatusMessage from '@/components/feedback/StatusMessage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { canCreate, canEdit } from '@/services/auth.service'
 import { normalizePaginated } from '@/services/api'
+import { listarImoveisReferencia } from '@/services/escritorio-referencias.service'
 import {
   contasProdutoApi,
   contratosApi,
@@ -28,6 +31,7 @@ import type {
   ContaProduto,
   ContratoSilo,
   Destino,
+  ImovelReferencia,
   ItemSilo,
   LoteOperacional,
   StatusMessageState,
@@ -72,7 +76,7 @@ const emptyForm: LoteForm = {
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel concluir.'
+  return error instanceof Error ? error.message : 'Não foi possível concluir.'
 }
 
 function optionalNumber(value: string) {
@@ -115,6 +119,8 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
   const [itens, setItens] = useState<ItemSilo[]>([])
   const [destinos, setDestinos] = useState<Destino[]>([])
   const [contratos, setContratos] = useState<ContratoSilo[]>([])
+  const [imoveis, setImoveis] = useState<ImovelReferencia[]>([])
+  const [selectedImovel, setSelectedImovel] = useState<ImovelReferencia | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [selected, setSelected] = useState<LoteOperacional | null>(null)
   const [form, setForm] = useState<LoteForm>(emptyForm)
@@ -138,17 +144,25 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
   const selectedPesagens = useMemo(() => selected?.pesagens || [], [selected])
 
   async function loadOptions() {
-    const [loadedContas, loadedItens, loadedDestinos, loadedContratos] = await Promise.all([
+    const [
+      loadedContas,
+      loadedItens,
+      loadedDestinos,
+      loadedContratos,
+      loadedImoveis,
+    ] = await Promise.all([
       contasProdutoApi.list({ limit: 100 }),
       itensApi.list({ limit: 100 }),
       destinosApi.list({ limit: 100 }),
       contratosApi.list({ limit: 100 }).catch(() => []),
+      listarImoveisReferencia({ limit: 100 }).catch(() => []),
     ])
 
     setContas(normalizePaginated(loadedContas, 100).items)
     setItens(normalizePaginated(loadedItens, 100).items)
     setDestinos(normalizePaginated(loadedDestinos, 100).items)
     setContratos(normalizePaginated(loadedContratos, 100).items)
+    setImoveis(normalizePaginated(loadedImoveis, 100).items)
   }
 
   async function loadLotes(nextPage = page) {
@@ -208,6 +222,9 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
       const detailed = await lotesApi.get(lote.id_lote_operacional)
       setSelectedId(detailed.id_lote_operacional)
       setSelected(detailed)
+      setSelectedImovel(
+        imoveis.find((imovel) => imovel.id_imovel === detailed.imovel_id_ref) || null,
+      )
       setForm(normalizeForm(detailed))
     } catch (error) {
       setStatus({ type: 'error', message: toErrorMessage(error) })
@@ -219,6 +236,7 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
   function newLote() {
     setSelectedId(null)
     setSelected(null)
+    setSelectedImovel(null)
     setForm(emptyForm)
     setStatus(null)
   }
@@ -227,11 +245,17 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
     setForm((current) => ({ ...current, [field]: value }))
   }
 
+  function getImovelResumo(imovelId?: number | null) {
+    if (!imovelId) return '-'
+    const imovel = imoveis.find((item) => item.id_imovel === imovelId)
+    return imovel ? getImovelLabel(imovel) : `Imóvel ${imovelId}`
+  }
+
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!canSave) {
-      setStatus({ type: 'warning', message: 'Sem permissao para salvar lote.' })
+      setStatus({ type: 'warning', message: 'Sem permissão para salvar lote.' })
       return
     }
 
@@ -292,7 +316,7 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Lotes Operacionais"
-        description="Agrupadores operacionais que substituem as planilhas de entrada, saida e embarque."
+        description="Agrupadores operacionais que substituem as planilhas de entrada, saída e embarque."
         actions={
           <Button disabled={!mayCreate} onClick={newLote} type="button">
             Novo lote
@@ -387,6 +411,7 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
                   <TableHead>Status</TableHead>
                   <TableHead className="hidden md:table-cell">Conta</TableHead>
                   <TableHead className="hidden md:table-cell">Item</TableHead>
+                  <TableHead className="hidden lg:table-cell">Imóvel</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -409,6 +434,9 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
                     <TableCell className="hidden md:table-cell">
                       {asText(lote.item?.nome)}
                     </TableCell>
+                    <TableCell className="hidden lg:table-cell">
+                      {getImovelResumo(lote.imovel_id_ref)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -419,14 +447,14 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
             <span>
-              Pagina {page} de {totalPages}
+              Página {page} de {totalPages}
             </span>
             <div className="flex gap-2">
               <Button disabled={page <= 1 || loading} onClick={() => void loadLotes(page - 1)} type="button" variant="outline">
                 Anterior
               </Button>
               <Button disabled={page >= totalPages || loading} onClick={() => void loadLotes(page + 1)} type="button" variant="outline">
-                Proxima
+                Próxima
               </Button>
             </div>
           </div>
@@ -490,12 +518,22 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
                   {destinos.map((destino) => <option key={destino.id_destino} value={destino.id_destino}>{destino.nome}</option>)}
                 </select>
               </div>
-              <div>
-                <Label>Imovel ref.</Label>
-                <Input className="mt-2" onChange={(event) => updateField('imovel_id_ref', event.target.value)} type="number" value={form.imovel_id_ref} />
+              <div className="sm:col-span-2">
+                <ImovelSearchSelect
+                  onClear={() => {
+                    setSelectedImovel(null)
+                    updateField('imovel_id_ref', '')
+                  }}
+                  onSelect={(imovel) => {
+                    setSelectedImovel(imovel)
+                    updateField('imovel_id_ref', String(imovel.id_imovel))
+                  }}
+                  selectedId={form.imovel_id_ref ? Number(form.imovel_id_ref) : null}
+                  selectedImovel={selectedImovel}
+                />
               </div>
               <div>
-                <Label>Area/lote ref.</Label>
+                <Label>Área/lote ref.</Label>
                 <Input className="mt-2" onChange={(event) => updateField('area_lote_id_ref', event.target.value)} type="number" value={form.area_lote_id_ref} />
               </div>
               <div>
@@ -504,7 +542,7 @@ function LotesOperacionaisPage({ usuario }: LotesOperacionaisPageProps) {
               </div>
             </div>
             <div>
-              <Label>Observacao</Label>
+              <Label>Observação</Label>
               <Textarea className="mt-2" onChange={(event) => updateField('observacao', event.target.value)} value={form.observacao} />
             </div>
 

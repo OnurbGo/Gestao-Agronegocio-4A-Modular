@@ -48,7 +48,7 @@ const pesagemStatus = [
 const tiposOperacao = ['ENTRADA', 'SAIDA']
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel carregar pesagens.'
+  return error instanceof Error ? error.message : 'Não foi possível carregar pesagens.'
 }
 
 function PesagensPage() {
@@ -78,7 +78,7 @@ function PesagensPage() {
       ['Lote', selected?.lote_operacional?.nome],
       ['Conta', selected?.conta_produto?.nome],
       ['Item', selected?.item?.nome],
-      ['Deposito', selected?.deposito?.nome],
+      ['Depósito', selected?.deposito?.nome],
       ['Destino', selected?.destino?.nome],
       ['Transportadora', selected?.transportadora?.nome],
       ['Emissor', selected?.emissor?.nome],
@@ -155,7 +155,7 @@ function PesagensPage() {
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Pesagens"
-        description="Consulta operacional de romaneios, pesos, classificacao e dados herdados do lote."
+        description="Consulta operacional de romaneios, pesos, classificação e dados herdados do lote."
       />
 
       <StatusMessage status={status} />
@@ -231,10 +231,10 @@ function PesagensPage() {
           )}
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-            <span>Pagina {page} de {totalPages}</span>
+            <span>Página {page} de {totalPages}</span>
             <div className="flex gap-2">
               <Button disabled={loading || page <= 1} onClick={() => void loadPesagens(page - 1)} type="button" variant="outline">Anterior</Button>
-              <Button disabled={loading || page >= totalPages} onClick={() => void loadPesagens(page + 1)} type="button" variant="outline">Proxima</Button>
+              <Button disabled={loading || page >= totalPages} onClick={() => void loadPesagens(page + 1)} type="button" variant="outline">Próxima</Button>
             </div>
           </div>
         </ScreenSection>
@@ -251,7 +251,7 @@ function PesagensPage() {
                 ))}
               </div>
               <div className="rounded-md border border-emerald-100 bg-emerald-50 p-4">
-                <h3 className="text-sm font-bold text-emerald-900">Classificacao</h3>
+                <h3 className="text-sm font-bold text-emerald-900">Classificação</h3>
                 <div className="mt-3 grid gap-2 text-sm">
                   <span>Umidade: {formatPercent(selected.classificacao?.umidade_percentual)}</span>
                   <span>Impureza: {formatPercent(selected.classificacao?.impureza_percentual)}</span>

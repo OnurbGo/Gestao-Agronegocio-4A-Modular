@@ -7,6 +7,7 @@ import { meses } from "../constants";
 import type { PayrollMonthlyReport } from "@/types";
 import { dinheiro } from "../helpers";
 import PayrollMonthlyChart from "./PayrollMonthlyChart";
+import { Printer, FileSpreadsheet } from "lucide-react";
 
 type PayrollReportPanelProps = {
   ano: number;
@@ -33,7 +34,7 @@ function PayrollReportPanel({
   return (
     <section className="grid gap-4 print:block">
       <Card className="no-print border-emerald-100">
-        <CardContent className="grid gap-3 pt-5 sm:grid-cols-[120px_180px_auto_auto] sm:items-end">
+        <CardContent className="grid gap-3 pt-5 sm:grid-cols-[120px_180px_1fr] sm:items-end">
           <label className="grid gap-1.5 text-sm font-bold text-slate-700">
             Ano
             <Input
@@ -60,17 +61,28 @@ function PayrollReportPanel({
               ))}
             </select>
           </label>
-          <Button
-            disabled={!hasRows}
-            onClick={onPrint}
-            type="button"
-            variant="secondary"
-          >
-            Imprimir relatório
-          </Button>
-          <Button disabled={!hasRows} onClick={onExport} type="button">
-            Exportar planilha
-          </Button>
+          <div className="flex gap-2 justify-end">
+            <Button
+              className="h-8 px-2.5 text-xs"
+              disabled={!hasRows}
+              onClick={onPrint}
+              type="button"
+              variant="secondary"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir relatório
+            </Button>
+
+            <Button
+              className="h-8 px-2.5 text-xs"
+              disabled={!hasRows}
+              onClick={onExport}
+              type="button"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Exportar planilha
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

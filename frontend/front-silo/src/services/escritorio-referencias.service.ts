@@ -1,11 +1,25 @@
 import { requestJson, toQuery } from '@/services/api'
-import type { PaginatedResponse, QueryParams } from '@/types'
+import type {
+  AreaLoteReferencia,
+  EntidadeReferencia,
+  ImovelReferencia,
+  PaginatedResponse,
+  QueryParams,
+  SafraReferencia,
+} from '@/types'
 
-export type ImovelReferencia = {
-  id_imovel: number
-  nome?: string
-  lote?: string
-  municipio?: string
+export function listarEntidadesReferencia(
+  params: QueryParams = {},
+): Promise<PaginatedResponse<EntidadeReferencia> | EntidadeReferencia[]> {
+  return requestJson<
+    PaginatedResponse<EntidadeReferencia> | EntidadeReferencia[]
+  >(`/api/escritorio/entidades${toQuery(params)}`)
+}
+
+export function buscarEntidadeReferencia(
+  id: number,
+): Promise<EntidadeReferencia> {
+  return requestJson<EntidadeReferencia>(`/api/escritorio/entidades/${id}`)
 }
 
 export function listarImoveisReferencia(
@@ -16,5 +30,20 @@ export function listarImoveisReferencia(
   )
 }
 
-// Area/lote e safra ainda nao possuem endpoint confirmado no modulo Escritorio.
-// Manter esta camada isolada evita espalhar chamadas temporarias pelas telas.
+export function buscarImovelReferencia(id: number): Promise<ImovelReferencia> {
+  return requestJson<ImovelReferencia>(`/api/escritorio/imoveis/${id}`)
+}
+
+export function listarAreasLoteReferencia(
+  _params: QueryParams = {},
+): Promise<PaginatedResponse<AreaLoteReferencia> | AreaLoteReferencia[]> {
+  // TODO: conectar quando o módulo Escritório expuser endpoint de área/lote.
+  return Promise.resolve([])
+}
+
+export function listarSafrasReferencia(
+  _params: QueryParams = {},
+): Promise<PaginatedResponse<SafraReferencia> | SafraReferencia[]> {
+  // TODO: conectar quando o módulo Escritório expuser endpoint de safra.
+  return Promise.resolve([])
+}

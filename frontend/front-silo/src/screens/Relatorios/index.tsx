@@ -19,7 +19,7 @@ import PageHeader from '@/screens/_shared/PageHeader'
 import ScreenSection from '@/screens/_shared/ScreenSection'
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Nao foi possivel carregar relatorios.'
+  return error instanceof Error ? error.message : 'Não foi possível carregar relatórios.'
 }
 
 function RelatoriosPage() {
@@ -75,7 +75,7 @@ function RelatoriosPage() {
     <section className="px-4 py-6 sm:px-6">
       <PageHeader
         title="Relatorios"
-        description="Visoes operacionais basicas de entradas, saidas, movimentacoes e lote operacional."
+        description="Visões operacionais básicas de entradas, saídas, movimentações e lote operacional."
         actions={<Button disabled={loading} onClick={() => void loadRelatorios()} type="button" variant="outline">Atualizar</Button>}
       />
       <StatusMessage status={status} />
@@ -105,7 +105,7 @@ function RelatoriosPage() {
                   <TableHead>Data</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Conta</TableHead>
-                  <TableHead>Deposito</TableHead>
+                  <TableHead>Depósito</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead>Quantidade</TableHead>
                 </TableRow>
@@ -172,7 +172,7 @@ function RelatoriosPage() {
                     <TableCell>{formatSacas(pesagem.classificacao?.sacas_final)}</TableCell>
                   </TableRow>
                 ))}
-                {!saidas.length ? <TableRow><TableCell className="text-slate-500" colSpan={4}>Nenhuma saida localizada.</TableCell></TableRow> : null}
+                {!saidas.length ? <TableRow><TableCell className="text-slate-500" colSpan={4}>Nenhuma saída localizada.</TableCell></TableRow> : null}
               </TableBody>
             </Table>
           </ScreenSection>

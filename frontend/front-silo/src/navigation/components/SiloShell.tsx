@@ -6,22 +6,25 @@ import {
   FileText,
   Home,
   Layers3,
+  MapPin,
   PackageCheck,
   Scale,
-  Settings2,
   SlidersHorizontal,
   Truck,
   WalletCards,
+  Warehouse,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { hasModuleAccess } from '@/services/auth.service'
 import type { AuthUser } from '@/types'
 import { resolveLoginHomeUrl } from '@/utils/frontend-url'
-import CadastrosAuxiliaresPage from '@/screens/CadastrosAuxiliares'
 import ClassificacaoPage from '@/screens/Classificacao'
 import ContasProdutoPage from '@/screens/ContasProduto'
 import ContratosPage from '@/screens/Contratos'
 import DadosSaidaPage from '@/screens/DadosSaida'
+import DepositosPage from '@/screens/Depositos'
+import DestinosPage from '@/screens/Destinos'
+import EmissoresPage from '@/screens/Emissores'
 import SiloHome from '@/screens/Home'
 import ItensPage from '@/screens/Itens'
 import LotesOperacionaisPage from '@/screens/LotesOperacionais'
@@ -29,12 +32,16 @@ import PesagensPage from '@/screens/Pesagens'
 import RelatoriosPage from '@/screens/Relatorios'
 import SaldosPage from '@/screens/Saldos'
 import TabelasDescontoPage from '@/screens/TabelasDesconto'
+import TransportadorasPage from '@/screens/Transportadoras'
 
 export type SiloView =
   | 'home'
   | 'contas'
   | 'itens'
-  | 'cadastros'
+  | 'transportadoras'
+  | 'emissores'
+  | 'depositos'
+  | 'destinos'
   | 'descontos'
   | 'lotes'
   | 'pesagens'
@@ -52,15 +59,18 @@ const navItems = [
   { id: 'home', label: 'Dashboard', icon: BarChart3 },
   { id: 'contas', label: 'Contas produto', icon: WalletCards, module: 'SILO' },
   { id: 'itens', label: 'Itens', icon: PackageCheck, module: 'SILO' },
-  { id: 'cadastros', label: 'Cadastros', icon: Settings2, module: 'SILO' },
+  { id: 'transportadoras', label: 'Transportadoras', icon: Truck, module: 'SILO' },
+  { id: 'emissores', label: 'Emissores', icon: FileText, module: 'SILO' },
+  { id: 'depositos', label: 'Depósitos/Silos', icon: Warehouse, module: 'SILO' },
+  { id: 'destinos', label: 'Destinos', icon: MapPin, module: 'SILO' },
   { id: 'descontos', label: 'Descontos', icon: SlidersHorizontal, module: 'CLASSIFICACAO' },
   { id: 'lotes', label: 'Lotes', icon: Layers3, module: 'LANCAMENTOS_SILO' },
   { id: 'pesagens', label: 'Pesagens', icon: Scale, module: 'BALANCA' },
-  { id: 'classificacao', label: 'Classificacao', icon: ClipboardList, module: 'CLASSIFICACAO' },
-  { id: 'dados-saida', label: 'Dados saida', icon: Truck, module: 'LANCAMENTOS_SILO' },
+  { id: 'classificacao', label: 'Classificação', icon: ClipboardList, module: 'CLASSIFICACAO' },
+  { id: 'dados-saida', label: 'Dados de saída', icon: Truck, module: 'LANCAMENTOS_SILO' },
   { id: 'contratos', label: 'Contratos', icon: FileText, managerOnly: true },
   { id: 'saldos', label: 'Saldos', icon: BarChart3, module: 'LANCAMENTOS_SILO' },
-  { id: 'relatorios', label: 'Relatorios', icon: ClipboardList, module: 'LANCAMENTOS_SILO' },
+  { id: 'relatorios', label: 'Relatórios', icon: ClipboardList, module: 'LANCAMENTOS_SILO' },
 ] satisfies Array<{
   id: SiloView
   label: string
@@ -82,7 +92,10 @@ function SiloShell({ usuario }: SiloShellProps) {
   function renderView() {
     if (view === 'contas') return <ContasProdutoPage usuario={usuario} />
     if (view === 'itens') return <ItensPage usuario={usuario} />
-    if (view === 'cadastros') return <CadastrosAuxiliaresPage usuario={usuario} />
+    if (view === 'transportadoras') return <TransportadorasPage usuario={usuario} />
+    if (view === 'emissores') return <EmissoresPage usuario={usuario} />
+    if (view === 'depositos') return <DepositosPage usuario={usuario} />
+    if (view === 'destinos') return <DestinosPage usuario={usuario} />
     if (view === 'descontos') return <TabelasDescontoPage usuario={usuario} />
     if (view === 'lotes') return <LotesOperacionaisPage usuario={usuario} />
     if (view === 'pesagens') return <PesagensPage />

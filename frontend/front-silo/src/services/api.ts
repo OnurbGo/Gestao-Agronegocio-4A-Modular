@@ -102,7 +102,7 @@ function traduzirErro(msg: unknown): string {
   if (typeof msg !== 'string') return String(msg)
 
   if (/property \w+ should not exist/.test(msg)) return 'Campo desconhecido enviado ao servidor'
-  if (/\w+ should not be empty/.test(msg)) return 'Campo obrigatorio nao preenchido'
+  if (/\w+ should not be empty/.test(msg)) return 'Campo obrigatório não preenchido'
   if (/\w+ must be a string/.test(msg)) return 'Valor invalido: deve ser texto'
   if (/\w+ must be an integer number/.test(msg)) return 'Deve ser um numero inteiro'
   if (/\w+ must be a number/.test(msg)) return 'Deve ser um numero valido'
@@ -158,7 +158,7 @@ export async function requestJson<TData = unknown>(
 
   if (!response.ok) {
     throw new Error(
-      getErrorMessage(payload, 'Nao foi possivel concluir a requisicao.'),
+      getErrorMessage(payload, 'Não foi possível concluir a requisição.'),
     )
   }
 

@@ -30,7 +30,7 @@ const fields: Array<CrudField<ItemForm>> = [
   { name: 'nome', label: 'Nome', required: true },
   { name: 'unidade_medida', label: 'Unidade de medida', required: true },
   { name: 'controla_estoque', label: 'Controla estoque', type: 'checkbox' },
-  { name: 'exige_classificacao', label: 'Exige classificacao', type: 'checkbox' },
+  { name: 'exige_classificacao', label: 'Exige classificação', type: 'checkbox' },
   { name: 'ativo', label: 'Item ativo', type: 'checkbox' },
 ]
 
@@ -38,8 +38,8 @@ const columns: Array<CrudColumn<ItemSilo>> = [
   { header: 'Item', render: (item) => item.nome || '-' },
   { header: 'Unidade', render: (item) => item.unidade_medida || '-' },
   {
-    header: 'Classificacao',
-    render: (item) => (item.exige_classificacao === false ? 'Nao' : 'Sim'),
+    header: 'Classificação',
+    render: (item) => (item.exige_classificacao === false ? 'Não' : 'Sim'),
     className: 'hidden md:table-cell',
   },
   { header: 'Status', render: (item) => renderBooleanStatus(item.ativo) },
@@ -71,7 +71,7 @@ function ItensPage({ usuario }: ItensPageProps) {
       api={itensApi}
       buildPayload={buildPayload}
       columns={columns}
-      description="Produtos movimentados pelo Silo, com controle de estoque e classificacao por item."
+      description="Produtos movimentados pelo Silo, com controle de estoque e classificação por item."
       emptyForm={emptyForm}
       fields={fields}
       idFrom={(item) => item.id_item}

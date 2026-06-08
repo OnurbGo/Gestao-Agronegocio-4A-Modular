@@ -70,12 +70,13 @@ function ImoveisPage({ onBack }) {
     const termoNormalizado = proprietarioTermo.trim().toLowerCase();
 
     if (!termoNormalizado) {
-      return entidades;
+      return [];
     }
 
     return entidades.filter((entidade) => {
       const nome = (entidade.nome || "").toLowerCase();
       const cpfCnpj = String(entidade.cpf_cnpj || "").toLowerCase();
+
       return (
         nome.includes(termoNormalizado) || cpfCnpj.includes(termoNormalizado)
       );

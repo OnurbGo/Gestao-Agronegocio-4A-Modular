@@ -40,6 +40,39 @@ export type AuthUser = {
 
 export type BaseEntity = Record<string, unknown>
 
+export type EntidadeReferencia = {
+  id_entidade: number
+  nome?: string
+  cpf_cnpj?: string | null
+  documento?: string | null
+  tipo_pessoa?: string | null
+  telefone?: string | null
+  celular?: string | null
+  cidade?: string | null
+  estado?: string | null
+}
+
+export type ImovelReferencia = {
+  id_imovel: number
+  nome?: string
+  lote?: string | null
+  n_lote?: string | null
+  municipio?: string | null
+  cidade?: string | null
+  colonia?: string | null
+  matricula?: string | null
+}
+
+export type AreaLoteReferencia = {
+  id_area_lote?: number
+  nome?: string
+}
+
+export type SafraReferencia = {
+  id_safra?: number
+  nome?: string
+}
+
 export type ContaProduto = BaseEntity & {
   id_conta_produto: number
   entidade_id_ref?: number | null
@@ -59,9 +92,11 @@ export type ItemSilo = BaseEntity & {
 }
 
 export type CadastroAuxiliar = BaseEntity & {
+  entidade_id_ref?: number | null
   nome?: string
   documento?: string | null
   telefone?: string | null
+  observacao?: string | null
   descricao?: string | null
   ativo?: boolean
   ativa?: boolean
