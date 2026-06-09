@@ -106,7 +106,7 @@ export class UsersService {
 
     const usuario = await this.buscarPorId(id_usuario, ator);
     const fotoAnterior = usuario.imagem_perfil_url;
-    const imagem_perfil_url = `/api/core/uploads/usuarios/${file.filename}`;
+    const imagem_perfil_url = `/uploads/usuarios/${file.filename}`;
 
     await usuario.update({ imagem_perfil_url });
     await this.removerFotoAnterior(fotoAnterior, file.filename);

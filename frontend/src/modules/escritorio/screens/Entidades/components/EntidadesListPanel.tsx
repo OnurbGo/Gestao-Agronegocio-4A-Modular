@@ -1,10 +1,11 @@
 import { Search } from "lucide-react";
+import PaginationControls from "@/shared/components/navigation/PaginationControls";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
-import { cn } from "@/shared/utils/cn";
 import type { Entidade, PageMeta } from "@/shared/types";
+import { cn } from "@/shared/utils/cn";
 import {
   formatCpfCnpj,
   tipoOptions,
@@ -34,7 +35,6 @@ function EntidadesListPanel({
   entidades,
   loading,
   meta,
-  page,
   selectedId,
   termo,
   tipoFiltro,
@@ -133,27 +133,11 @@ function EntidadesListPanel({
           ) : null}
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <Button
-            disabled={loading || page <= 1}
-            onClick={() => onPageChange(page - 1)}
-            type="button"
-            variant="secondary"
-          >
-            Anterior
-          </Button>
-          <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
-            Página {page} de {meta.totalPages}
-          </span>
-          <Button
-            disabled={loading || page >= meta.totalPages}
-            onClick={() => onPageChange(page + 1)}
-            type="button"
-            variant="secondary"
-          >
-            Próxima
-          </Button>
-        </div>
+        <PaginationControls
+          loading={loading}
+          meta={meta}
+          onPageChange={onPageChange}
+        />
       </CardContent>
     </Card>
   );

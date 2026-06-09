@@ -1,4 +1,5 @@
 import ReportHeader from "@/shared/components/data-display/ReportHeader";
+import PrintReportLayout from "@/shared/components/data-display/PrintReportLayout";
 import {
   Table,
   TableBody,
@@ -16,7 +17,7 @@ type ImoveisPrintReportProps = {
 
 function ImoveisPrintReport({ reportData }: ImoveisPrintReportProps) {
   return (
-    <section className="print-only-report rounded-lg border border-emerald-100 bg-white p-4">
+    <PrintReportLayout>
       <ReportHeader
         emittedAt={reportData.emittedAt}
         filters={reportData.filters}
@@ -57,7 +58,7 @@ function ImoveisPrintReport({ reportData }: ImoveisPrintReportProps) {
 
       <section className="mt-3 grid gap-2 sm:grid-cols-4">
         {reportData.totals.map((item) => (
-          <div className="rounded-md border border-emerald-100 bg-emerald-50/40 p-3" key={item.label}>
+          <div className="avoid-print-break rounded-md border border-slate-200 bg-slate-50 p-3" key={item.label}>
             <span className="block text-xs font-bold uppercase text-slate-500">
               {item.label}
             </span>
@@ -65,7 +66,7 @@ function ImoveisPrintReport({ reportData }: ImoveisPrintReportProps) {
           </div>
         ))}
       </section>
-    </section>
+    </PrintReportLayout>
   );
 }
 

@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
+import PaginationControls from "@/shared/components/navigation/PaginationControls";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
-import type { PaginatedResponse } from "@/shared/types";
-import type { PayrollParticipant } from "@/shared/types";
+import type { PaginatedResponse, PayrollParticipant } from "@/shared/types";
 import { dinheiro } from "../helpers";
 
 type PayrollParticipantsPanelProps = {
@@ -21,7 +21,6 @@ type PayrollParticipantsPanelProps = {
 
 function PayrollParticipantsPanel({
   meta,
-  page,
   participants,
   search,
   selectedId,
@@ -75,27 +74,7 @@ function PayrollParticipantsPanel({
             </p>
           ) : null}
         </div>
-        <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
-          <Button
-            disabled={page <= 1}
-            onClick={() => setPage((current) => current - 1)}
-            type="button"
-            variant="secondary"
-          >
-            Anterior
-          </Button>
-          <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
-            Página {meta.page} de {meta.totalPages}
-          </span>
-          <Button
-            disabled={page >= meta.totalPages}
-            onClick={() => setPage((current) => current + 1)}
-            type="button"
-            variant="secondary"
-          >
-            Próxima
-          </Button>
-        </div>
+        <PaginationControls meta={meta} onPageChange={setPage} />
       </CardContent>
     </Card>
   );

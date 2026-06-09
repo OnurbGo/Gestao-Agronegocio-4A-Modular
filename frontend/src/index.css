@@ -47,3 +47,84 @@ textarea {
 #root {
   min-height: 100vh;
 }
+
+.print-only-report {
+  display: none;
+}
+
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    min-height: auto;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  body {
+    min-width: 0;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only-report,
+  .printable-report {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+  }
+
+  .print-only-report *,
+  .printable-report * {
+    box-shadow: none !important;
+  }
+
+  .report-footer {
+    display: block !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10px !important;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-row-group;
+  }
+
+  tr,
+  img,
+  .avoid-print-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  th,
+  td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 5px 6px !important;
+    color: #0f172a !important;
+    vertical-align: top !important;
+  }
+
+  th,
+  tfoot td {
+    background: #f1f5f9 !important;
+    font-weight: 700 !important;
+  }
+}

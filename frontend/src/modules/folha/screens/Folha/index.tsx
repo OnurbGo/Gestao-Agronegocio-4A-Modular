@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
+import { FileText, Table2 } from "lucide-react";
 import {
   atualizarEntidade,
   listarEntidades,
@@ -297,13 +298,6 @@ function FolhaPage({ onBack }) {
 
   async function excluirFerias(item) {
     if (!participanteId) return;
-    if (
-      !window.confirm(
-        "Excluir este registro de ferias? Esta acao entra na auditoria.",
-      )
-    ) {
-      return;
-    }
 
     setStatus(null);
     try {
@@ -608,6 +602,7 @@ function FolhaPage({ onBack }) {
           type="button"
           variant={aba === "relatorio" ? "default" : "outline"}
         >
+          <FileText aria-hidden="true" />
           Relatório mensal
         </Button>
         <Button
@@ -615,6 +610,7 @@ function FolhaPage({ onBack }) {
           type="button"
           variant={aba === "lancamentos" ? "default" : "outline"}
         >
+          <Table2 aria-hidden="true" />
           Lançamentos
         </Button>
       </div>

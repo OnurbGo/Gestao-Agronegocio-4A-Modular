@@ -1,10 +1,10 @@
 import type { Dispatch, FormEventHandler, SetStateAction } from "react";
 import Modal from "@/shared/components/layout/Modal";
+import PaginationControls from "@/shared/components/navigation/PaginationControls";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import type { PaginatedResponse } from "@/shared/types";
+import type { PaginatedResponse, SalaryForm, SalaryRecord } from "@/shared/types";
 import { formatDateBR } from "@/shared/utils/date";
-import type { SalaryForm, SalaryRecord } from "@/shared/types";
 import { dinheiro } from "../helpers";
 
 type SalaryRecordsModalProps = {
@@ -29,7 +29,6 @@ function SalaryRecordsModal({
   form,
   meta,
   open,
-  page,
   records,
   setForm,
   setPage,
@@ -184,27 +183,11 @@ function SalaryRecordsModal({
           ) : null}
         </div>
 
-        <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-emerald-100 pt-3">
-          <Button
-            disabled={page <= 1}
-            onClick={() => setPage((current) => current - 1)}
-            type="button"
-            variant="secondary"
-          >
-            Anterior
-          </Button>
-          <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
-            Página {meta.page} de {meta.totalPages}
-          </span>
-          <Button
-            disabled={page >= meta.totalPages}
-            onClick={() => setPage((current) => current + 1)}
-            type="button"
-            variant="secondary"
-          >
-            Próxima
-          </Button>
-        </div>
+        <PaginationControls
+          className="shrink-0 border-t border-emerald-100 pt-3"
+          meta={meta}
+          onPageChange={setPage}
+        />
       </div>
     </Modal>
   );

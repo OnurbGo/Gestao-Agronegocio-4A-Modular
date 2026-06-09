@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import type { Entidade } from "@/shared/types";
 import Modal from "@/shared/components/layout/Modal";
+import PaginationControls from "@/shared/components/navigation/PaginationControls";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import type { PaginatedResponse } from "@/shared/types";
+import type { Entidade, PaginatedResponse } from "@/shared/types";
 
 type PayrollParticipantsModalProps = {
   entities: Entidade[];
@@ -25,7 +25,6 @@ function PayrollParticipantsModal({
   loading,
   meta,
   open,
-  page,
   savingId,
   search,
   onClose,
@@ -101,31 +100,18 @@ function PayrollParticipantsModal({
           ))}
           {!filteredEntities.length ? (
             <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
-              {loading ? "Carregando cadastros..." : "Nenhum cadastro encontrado."}
+              {loading
+                ? "Carregando cadastros..."
+                : "Nenhum cadastro encontrado."}
             </p>
           ) : null}
         </div>
-        <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-emerald-100 pt-3">
-          <Button
-            disabled={loading || page <= 1}
-            onClick={() => onLoadPage(page - 1)}
-            type="button"
-            variant="secondary"
-          >
-            Anterior
-          </Button>
-          <span className="whitespace-nowrap text-center text-xs font-black text-slate-600">
-            Página {meta.page} de {meta.totalPages}
-          </span>
-          <Button
-            disabled={loading || page >= meta.totalPages}
-            onClick={() => onLoadPage(page + 1)}
-            type="button"
-            variant="secondary"
-          >
-            Próxima
-          </Button>
-        </div>
+        <PaginationControls
+          className="shrink-0 border-t border-emerald-100 pt-3"
+          loading={loading}
+          meta={meta}
+          onPageChange={onLoadPage}
+        />
       </div>
     </Modal>
   );

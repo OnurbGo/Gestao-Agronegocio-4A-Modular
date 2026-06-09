@@ -51,6 +51,35 @@ export function updateStoredUser(usuario: unknown): void {
   localStorage.setItem(USER_KEY, JSON.stringify(usuario));
 }
 
+export function resolveAssetUrl(url?: string | null): string {
+  const value = String(url || "").trim();
+
+  if (!value) {
+    return "";
+  }
+
+  if (/^(blob:|data:|https?:\/\/)/i.test(value)) {
+    return value;
+  }
+
+  const normalized = value.replace(/^\/api\/core\/uploads\//, "/uploads/");
+
+  if (!normalized.startsWith("/")) {
+    return normalized;
+  }
+
+  if (!API_BASE_URL) {
+    return normalized;
+  }
+
+  try {
+    const apiUrl = new URL(API_BASE_URL, window.location.origin);
+    return `${apiUrl.origin}${normalized}`;
+  } catch {
+    return normalized;
+  }
+}
+
 export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem("token", token);

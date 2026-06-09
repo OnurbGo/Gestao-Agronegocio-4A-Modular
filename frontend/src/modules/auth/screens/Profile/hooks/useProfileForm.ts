@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { updateStoredUser } from '@/shared/services/api'
+import { resolveAssetUrl, updateStoredUser } from '@/shared/services/api'
 import { getCurrentUser } from '@/shared/services/auth.service'
 import { updateProfile, updateProfilePhoto } from '@/shared/services/profile.service'
 import type { AuthUser, StatusMessageState } from '@/shared/types'
@@ -25,7 +25,9 @@ export function useProfileForm({ usuario, onUserUpdated }: UseProfileFormArgs) {
     observacao: usuario.observacao || '',
   })
   const [photoFile, setPhotoFile] = useState<File | null>(null)
-  const [previewUrl, setPreviewUrl] = useState(usuario.imagem_perfil_url || '')
+  const [previewUrl, setPreviewUrl] = useState(
+    resolveAssetUrl(usuario.imagem_perfil_url),
+  )
   const [status, setStatus] = useState<StatusMessageState>(null)
   const [saving, setSaving] = useState(false)
 
@@ -53,7 +55,9 @@ export function useProfileForm({ usuario, onUserUpdated }: UseProfileFormArgs) {
     }
 
     setPhotoFile(file)
-    setPreviewUrl(file ? URL.createObjectURL(file) : usuario.imagem_perfil_url || '')
+    setPreviewUrl(
+      file ? URL.createObjectURL(file) : resolveAssetUrl(usuario.imagem_perfil_url),
+    )
     setStatus(null)
   }
 
@@ -76,7 +80,7 @@ export function useProfileForm({ usuario, onUserUpdated }: UseProfileFormArgs) {
       updateStoredUser(refreshed)
       onUserUpdated(refreshed)
       setPhotoFile(null)
-      setPreviewUrl(refreshed.imagem_perfil_url || '')
+      setPreviewUrl(resolveAssetUrl(refreshed.imagem_perfil_url))
       setStatus({ type: 'success', message: 'Perfil atualizado.' })
     } catch (error) {
       setStatus({ type: 'error', message: getErrorMessage(error) })

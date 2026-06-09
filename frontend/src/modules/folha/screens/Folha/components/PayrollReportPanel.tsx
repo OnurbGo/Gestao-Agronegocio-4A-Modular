@@ -1,13 +1,13 @@
+import { FileSpreadsheet, Printer } from "lucide-react";
 import ReportHeader from "@/shared/components/data-display/ReportHeader";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
-import { formatDateTimeBR } from "@/shared/utils/date";
-import { meses } from "../constants";
 import type { PayrollMonthlyReport } from "@/shared/types";
+import { formatDateTimeBR } from "@/shared/utils/date";
 import { dinheiro } from "../helpers";
+import { meses } from "../constants";
 import PayrollMonthlyChart from "./PayrollMonthlyChart";
-import { Printer, FileSpreadsheet } from "lucide-react";
 
 type PayrollReportPanelProps = {
   ano: number;
@@ -61,7 +61,7 @@ function PayrollReportPanel({
               ))}
             </select>
           </label>
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               className="h-8 px-2.5 text-xs"
               disabled={!hasRows}
@@ -92,14 +92,8 @@ function PayrollReportPanel({
           subtitle="Relatório mensal"
           title={`${currentMonth} / ${ano}`}
         />
-        <div className="hidden">
-          <span>Relatório mensal</span>
-          <h2>
-            {currentMonth} / {ano}
-          </h2>
-        </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+          <div className="avoid-print-break grid min-h-20 gap-1 rounded-lg border border-slate-200 bg-white p-3">
             <span className="text-xs font-black uppercase text-slate-500">
               Lançamentos
             </span>
@@ -107,35 +101,35 @@ function PayrollReportPanel({
               {relatorio?.itens?.length || 0}
             </strong>
           </div>
-          <div className="grid min-h-20 gap-1 rounded-lg border border-emerald-100 bg-white p-3">
+          <div className="avoid-print-break grid min-h-20 gap-1 rounded-lg border border-slate-200 bg-white p-3">
             <span className="text-xs font-black uppercase text-slate-500">
-              Total final + férias
+              Total final
             </span>
             <strong className="self-end text-xl text-slate-950">
               {dinheiro(relatorio?.total)}
             </strong>
           </div>
         </div>
-        <div className="overflow-auto rounded-md border border-emerald-100">
+        <div className="mt-3 overflow-auto rounded-md border border-slate-200 print:overflow-visible">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr>
-                <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                <th className="bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
                   Participante
                 </th>
-                <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                <th className="bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
                   Bruto
                 </th>
-                <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                <th className="bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
                   Proporcional
                 </th>
-                <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                <th className="bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
                   Líquido
                 </th>
-                <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                <th className="bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
                   Final
                 </th>
-                <th className="bg-emerald-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
+                <th className="bg-slate-50 px-3 py-2 text-left text-xs font-bold text-slate-600">
                   Final + Férias
                 </th>
               </tr>
@@ -143,22 +137,22 @@ function PayrollReportPanel({
             <tbody>
               {(relatorio?.itens || []).map((item) => (
                 <tr key={item.id_folha_mensal}>
-                  <td className="border-t border-emerald-50 px-3 py-2">
+                  <td className="border-t border-slate-100 px-3 py-2">
                     {item.entidade?.nome}
                   </td>
-                  <td className="border-t border-emerald-50 px-3 py-2">
+                  <td className="border-t border-slate-100 px-3 py-2">
                     {dinheiro(item.salario_bruto)}
                   </td>
-                  <td className="border-t border-emerald-50 px-3 py-2">
+                  <td className="border-t border-slate-100 px-3 py-2">
                     {dinheiro(item.salario_proporcional)}
                   </td>
-                  <td className="border-t border-emerald-50 px-3 py-2">
+                  <td className="border-t border-slate-100 px-3 py-2">
                     {dinheiro(item.salario_liquido)}
                   </td>
-                  <td className="border-t border-emerald-50 px-3 py-2">
+                  <td className="border-t border-slate-100 px-3 py-2">
                     {dinheiro(item.salario_liquido_com_desconto)}
                   </td>
-                  <td className="border-t border-emerald-50 px-3 py-2">
+                  <td className="border-t border-slate-100 px-3 py-2">
                     {dinheiro(item.salario_final_com_ferias)}
                   </td>
                 </tr>
@@ -167,12 +161,12 @@ function PayrollReportPanel({
             <tfoot>
               <tr>
                 <td
-                  className="border-t border-emerald-100 bg-emerald-50 px-3 py-2"
+                  className="border-t border-slate-200 bg-slate-50 px-3 py-2"
                   colSpan={5}
                 >
-                  <strong>Total final + férias</strong>
+                  <strong>Total final</strong>
                 </td>
-                <td className="border-t border-emerald-100 bg-emerald-50 px-3 py-2">
+                <td className="border-t border-slate-200 bg-slate-50 px-3 py-2">
                   <strong>{dinheiro(relatorio?.total)}</strong>
                 </td>
               </tr>
@@ -185,6 +179,9 @@ function PayrollReportPanel({
           ) : null}
         </div>
         <PayrollMonthlyChart relatorio={relatorio} />
+        <footer className="report-footer mt-6 hidden border-t border-slate-200 pt-3 text-center text-[11px] font-semibold text-slate-500 print:block">
+          Gestão Agronegócio 4A
+        </footer>
       </section>
     </section>
   );

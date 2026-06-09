@@ -1,7 +1,10 @@
-import { useEffect } from "react";
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
-import { Button } from "@/shared/components/ui/button";
+import {
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogTitle,
+} from "@/shared/components/ui/dialog";
 import { cn } from "@/shared/utils/cn";
 
 const sizeClasses = {
@@ -29,38 +32,26 @@ function Modal({
 }: ModalProps) {
   const sizeClass = sizeClasses[width] || sizeClasses.md;
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
-
   return (
-    <div
-      aria-modal="true"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-emerald-950/45 p-3 sm:p-4"
-      onMouseDown={onClose}
-      role="dialog"
+    <Dialog
+      open
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          onClose();
+        }
+      }}
     >
-      <section
-        className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-lg border border-emerald-100 bg-white shadow-2xl ${sizeClass}`}
-        onMouseDown={(event) => event.stopPropagation()}
+      <DialogContent
+        className={cn(
+          "z-[60] flex p-0 border-emerald-100",
+          sizeClass,
+        )}
       >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-emerald-100 bg-emerald-700 px-4 py-3 text-white">
-          <h2 className="m-0 text-lg font-bold leading-tight">{title}</h2>
-          <Button
-            aria-label="Fechar"
-            className="border-white/30 bg-white/10 text-white hover:bg-white/20"
-            onClick={onClose}
-            size="icon"
-            type="button"
-            variant="outline"
-          >
-            <X aria-hidden="true" className="h-4 w-4" />
-          </Button>
+          <DialogTitle className="m-0 text-lg font-bold leading-tight text-white">
+            {title}
+          </DialogTitle>
+          <DialogCloseButton aria-label="Fechar" />
         </header>
         <div
           className={cn(
@@ -70,8 +61,8 @@ function Modal({
         >
           {children}
         </div>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
