@@ -1,6 +1,11 @@
+import { Building2 } from "lucide-react";
+
 type ReportHeaderProps = {
   emittedAt?: string;
-  filters?: Array<{ label: string; value?: string | number | null }>;
+  filters?: Array<{
+    label: string;
+    value?: string | number | null;
+  }>;
   subtitle?: string;
   title: string;
 };
@@ -19,52 +24,55 @@ function ReportHeader({
   );
 
   return (
-    <header className="mb-4 border-b border-slate-200 pb-4 text-slate-950">
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <header className="mb-6 border-b border-slate-200 pb-5 print:mb-5 print:pb-4">
+      <div className="mb-6 flex items-start justify-between gap-4 print:mb-5">
         <div className="flex items-center gap-3">
-          <img alt="" className="h-9 w-9" src="/favicon.svg" />
-          <div className="grid gap-0.5">
-            <strong className="text-sm font-bold text-emerald-900 print:text-slate-800">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 print:h-10 print:w-10">
+            <Building2 className="h-6 w-6 print:h-5 print:w-5" />
+          </div>
+
+          <div>
+            <p className="text-base font-bold text-emerald-800 print:text-sm">
               {BRAND_NAME}
-            </strong>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+            </p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
               Relatório do sistema
-            </span>
+            </p>
           </div>
         </div>
 
         {emittedAt ? (
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-right text-xs font-bold text-slate-700">
-            Emitido em
-            <br />
-            <span className="text-slate-950">{emittedAt}</span>
+          <div className="text-right text-xs text-slate-500">
+            <p className="font-semibold uppercase tracking-wide">Emitido em</p>
+            <p>{emittedAt}</p>
           </div>
         ) : null}
       </div>
 
-      <h2 className="m-0 text-2xl font-bold leading-tight print:text-xl">
-        {title}
-      </h2>
-      {subtitle ? (
-        <p className="mt-1 text-sm text-slate-600">{subtitle}</p>
-      ) : null}
+      <div>
+        <h1 className="text-3xl font-bold text-slate-950 print:text-2xl">
+          {title}
+        </h1>
+
+        {subtitle ? (
+          <p className="mt-1 text-base text-slate-600 print:text-sm">
+            {subtitle}
+          </p>
+        ) : null}
+      </div>
 
       {activeFilters.length ? (
-        <dl className="mt-4 grid gap-2 sm:grid-cols-3 print:grid-cols-3">
+        <div className="mt-4 flex flex-wrap gap-2 print:mt-3">
           {activeFilters.map((filter) => (
-            <div
-              className="rounded-md border border-slate-200 bg-white px-3 py-2"
-              key={filter.label}
+            <span
+              className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-semibold text-slate-700"
+              key={`${filter.label}-${filter.value}`}
             >
-              <dt className="text-[11px] font-black uppercase text-slate-500">
-                {filter.label}
-              </dt>
-              <dd className="mt-1 text-sm font-bold text-slate-950">
-                {filter.value}
-              </dd>
-            </div>
+              <span className="text-slate-500">{filter.label}:</span>{" "}
+              {filter.value}
+            </span>
           ))}
-        </dl>
+        </div>
       ) : null}
     </header>
   );

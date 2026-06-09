@@ -3,9 +3,14 @@ import Modal from "@/shared/components/layout/Modal";
 import PaginationControls from "@/shared/components/navigation/PaginationControls";
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
-import type { PaginatedResponse, SalaryForm, SalaryRecord } from "@/shared/types";
+import type {
+  PaginatedResponse,
+  SalaryForm,
+  SalaryRecord,
+} from "@/shared/types";
 import { formatDateBR } from "@/shared/utils/date";
 import { dinheiro } from "../helpers";
+import { BadgeDollarSign } from "lucide-react";
 
 type SalaryRecordsModalProps = {
   editingId: number | null;
@@ -51,7 +56,12 @@ function SalaryRecordsModal({
     <Modal
       contentClassName="flex min-h-0 flex-col overflow-y-auto lg:overflow-hidden"
       onClose={onClose}
-      title="Registros salariais"
+      title={
+        <>
+          <BadgeDollarSign className="h-5 w-5" />
+          Registros salariais
+        </>
+      }
       width="xl"
     >
       <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -138,49 +148,57 @@ function SalaryRecordsModal({
           </div>
         </form>
 
-        <div className="grid min-h-0 gap-2 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-          {records.map((record) => (
-            <div
-              className="flex flex-col gap-3 rounded-lg border border-emerald-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
-              key={record.id_registro_salarial}
-            >
-              <span className="grid min-w-0 gap-1">
-                <strong className="text-sm text-slate-950">
-                  {dinheiro(record.salario)}
-                </strong>
-                <span className="text-xs font-semibold text-slate-600">
-                  {formatDateBR(record.inicio_vigencia)} a{" "}
-                  {record.fim_vigencia
-                    ? formatDateBR(record.fim_vigencia)
-                    : "Atual"}
-                  {record.percentual ? ` - ${record.percentual}%` : ""}
-                </span>
-              </span>
-              <span className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => onEdit(record)}
-                  size="sm"
-                  type="button"
-                  variant="secondary"
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-emerald-100 bg-white p-3 pr-2">
+          {records.length ? (
+            <div className="flex flex-col items-stretch justify-start gap-2">
+              {records.map((record) => (
+                <div
+                  className="flex shrink-0 flex-col gap-3 rounded-lg border border-emerald-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                  key={record.id_registro_salarial}
                 >
-                  Editar
-                </Button>
-                <Button
-                  onClick={() => onDelete(record)}
-                  size="sm"
-                  type="button"
-                  variant="destructive"
-                >
-                  Excluir
-                </Button>
-              </span>
+                  <span className="grid min-w-0 gap-1">
+                    <strong className="text-sm text-slate-950">
+                      {dinheiro(record.salario)}
+                    </strong>
+
+                    <span className="text-xs font-semibold text-slate-600">
+                      {formatDateBR(record.inicio_vigencia)} a{" "}
+                      {record.fim_vigencia
+                        ? formatDateBR(record.fim_vigencia)
+                        : "Atual"}
+                      {record.percentual ? ` - ${record.percentual}%` : ""}
+                    </span>
+                  </span>
+
+                  <span className="flex flex-wrap gap-2 sm:justify-end">
+                    <Button
+                      onClick={() => onEdit(record)}
+                      size="sm"
+                      type="button"
+                      variant="secondary"
+                    >
+                      Editar
+                    </Button>
+
+                    <Button
+                      onClick={() => onDelete(record)}
+                      size="sm"
+                      type="button"
+                      variant="destructive"
+                    >
+                      Excluir
+                    </Button>
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-          {!records.length ? (
-            <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
-              Nenhum registro salarial.
-            </p>
-          ) : null}
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <p className="rounded-lg border border-dashed border-emerald-100 p-4 text-sm font-semibold text-slate-500">
+                Nenhum registro salarial.
+              </p>
+            </div>
+          )}
         </div>
 
         <PaginationControls
