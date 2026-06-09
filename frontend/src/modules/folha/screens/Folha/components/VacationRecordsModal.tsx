@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Dispatch, FormEventHandler, SetStateAction } from "react";
+import FormErrorAlert from "@/shared/components/feedback/FormErrorAlert";
 import Modal from "@/shared/components/layout/Modal";
 import ConfirmDialog from "@/shared/components/layout/ConfirmDialog";
 import PaginationControls from "@/shared/components/navigation/PaginationControls";
@@ -26,6 +27,7 @@ import { CalendarDays } from "lucide-react";
 
 type VacationRecordsModalProps = {
   editingId: number | null;
+  errorMessage?: string | null;
   form: VacationForm;
   meta: PaginatedResponse<VacationRecord>;
   open: boolean;
@@ -43,6 +45,7 @@ type VacationRecordsModalProps = {
 
 function VacationRecordsModal({
   editingId,
+  errorMessage,
   form,
   meta,
   open,
@@ -106,6 +109,7 @@ function VacationRecordsModal({
         width="xl"
       >
         <div className="flex min-h-0 flex-1 flex-col gap-4">
+          <FormErrorAlert message={errorMessage} />
           <form
             className="grid shrink-0 grid-cols-1 gap-4 rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 sm:grid-cols-2 lg:grid-cols-12"
             onSubmit={onSubmit}

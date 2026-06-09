@@ -4,6 +4,12 @@ import DocumentosPanel from "@/shared/components/data-display/DocumentosPanel";
 import StatusMessage from "@/shared/components/feedback/StatusMessage";
 import { Button } from "@/shared/components/ui/button";
 import { normalizePaginated } from "@/shared/services/api";
+import { getApiErrorMessage } from "@/shared/services/api-error";
+import {
+  notifyError,
+  notifySuccess,
+  notifyWarning,
+} from "@/shared/services/feedback";
 import { formatDateTimeBR } from "@/shared/utils/date";
 import ImovelForm from "./components/ImovelForm";
 import ImoveisListPanel from "./components/ImoveisListPanel";
@@ -44,6 +50,7 @@ function ImoveisPage({ onBack }) {
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [status, setStatus] = useState(null);
+  const [formError, setFormError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [pendingPrint, setPendingPrint] = useState(false);
@@ -124,7 +131,9 @@ function ImoveisPage({ onBack }) {
           setForm(normalizeForm(imoveisPage.items[0]));
         }
       } catch (error) {
-        if (active) setStatus({ type: "error", message: error.message });
+        if (active) {
+          notifyError(getApiErrorMessage(error, "Erro ao carregar imóveis."));
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -161,7 +170,7 @@ function ImoveisPage({ onBack }) {
         setForm(normalizeForm(imoveisPage.items[0]));
       }
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao carregar imóveis."));
     } finally {
       setLoading(false);
     }
@@ -175,8 +184,9 @@ function ImoveisPage({ onBack }) {
       const imovel = await buscarImovel(id);
       setSelectedId(id);
       setForm(normalizeForm(imovel));
+      setFormError(null);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao carregar imóvel."));
     } finally {
       setLoading(false);
     }
@@ -186,13 +196,16 @@ function ImoveisPage({ onBack }) {
     setSelectedId(null);
     setForm(emptyForm);
     setStatus(null);
+    setFormError(null);
   }
 
   function updateField(field, value) {
+    setFormError(null);
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   function toggleEntidade(id) {
+    setFormError(null);
     setForm((current) => {
       const ids = current.proprietarios_ids;
       return {
@@ -205,11 +218,13 @@ function ImoveisPage({ onBack }) {
   }
 
   function selecionarEntidade(id) {
+    setFormError(null);
     toggleEntidade(id);
     setProprietarioTermo("");
   }
 
   function removerEntidadeSelecionada(id) {
+    setFormError(null);
     setForm((current) => ({
       ...current,
       proprietarios_ids: current.proprietarios_ids.filter(
@@ -221,6 +236,7 @@ function ImoveisPage({ onBack }) {
     event.preventDefault();
     setLoading(true);
     setStatus(null);
+    setFormError(null);
 
     try {
       const payload = montarPayload(form);
@@ -230,10 +246,12 @@ function ImoveisPage({ onBack }) {
 
       setSelectedId(saved.id_imovel);
       setForm(normalizeForm(saved));
-      setStatus({ type: "success", message: "Imóvel salvo." });
+      notifySuccess("Imóvel salvo.");
       await carregarDados({ page });
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setFormError(
+        getApiErrorMessage(error, "Não foi possível salvar o imóvel."),
+      );
     } finally {
       setLoading(false);
     }
@@ -244,15 +262,18 @@ function ImoveisPage({ onBack }) {
 
     setLoading(true);
     setStatus(null);
+    setFormError(null);
 
     try {
       await removerImovel(selectedId);
-      setStatus({ type: "success", message: "Imóvel removido." });
+      notifySuccess("Imóvel removido.");
       setSelectedId(null);
       setForm(emptyForm);
       await carregarDados();
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setFormError(
+        getApiErrorMessage(error, "Não foi possível remover o imóvel."),
+      );
     } finally {
       setLoading(false);
     }
@@ -280,10 +301,7 @@ function ImoveisPage({ onBack }) {
       );
 
       if (!data.items.length) {
-        setStatus({
-          type: "warning",
-          message: "Nenhum imóvel encontrado para os filtros selecionados.",
-        });
+        notifyWarning("Nenhum imóvel encontrado para os filtros selecionados.");
         return;
       }
 
@@ -304,7 +322,7 @@ function ImoveisPage({ onBack }) {
       setReportData(relatorio);
       setPendingPrint(true);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao gerar relatório."));
     } finally {
       setLoading(false);
     }
@@ -373,6 +391,7 @@ function ImoveisPage({ onBack }) {
             areaAlq={areaAlq}
             entidadesFiltradas={entidadesFiltradas}
             entidadesSelecionadas={entidadesSelecionadas}
+            errorMessage={formError}
             form={form}
             loading={loading}
             onFieldChange={updateField}

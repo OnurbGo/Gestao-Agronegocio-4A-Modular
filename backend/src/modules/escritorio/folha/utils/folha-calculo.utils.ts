@@ -127,7 +127,7 @@ export function calcularValorPeriodoComSalarios(
     if (!salario) {
       if (exigirSalario) {
         throw new BadRequestException(
-          `Nao existe salario vigente para ${data}.`,
+          `Não existe registro salarial para o período informado. Verifique a data ${data}.`,
         );
       }
       continue;
@@ -219,7 +219,7 @@ export function calcularSalarioProporcionalDiasMes(
 
   if (exigirSalario && diasCalculados < diasTrabalhados) {
     throw new BadRequestException(
-      `Nao existe salario vigente para todos os dias trabalhados em ${String(
+      `Não existe registro salarial para todos os dias trabalhados em ${String(
         mes,
       ).padStart(2, "0")}/${ano}.`,
     );

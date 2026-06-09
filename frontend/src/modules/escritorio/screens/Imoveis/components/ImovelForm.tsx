@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import FormErrorAlert from "@/shared/components/feedback/FormErrorAlert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +27,7 @@ type ImovelFormProps = {
   areaAlq: string;
   entidadesFiltradas: EntidadeResumo[];
   entidadesSelecionadas: EntidadeResumo[];
+  errorMessage?: string | null;
   form: ImovelFormData;
   loading: boolean;
   proprietarioTermo: string;
@@ -60,6 +62,7 @@ function ImovelForm({
   areaAlq,
   entidadesFiltradas,
   entidadesSelecionadas,
+  errorMessage,
   form,
   loading,
   proprietarioTermo,
@@ -79,6 +82,9 @@ function ImovelForm({
       </CardHeader>
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+          <div className="md:col-span-2">
+            <FormErrorAlert message={errorMessage} />
+          </div>
           <SectionTitle>Identificação do imóvel</SectionTitle>
 
           <Field className="md:col-span-2" label="Nome do imóvel">

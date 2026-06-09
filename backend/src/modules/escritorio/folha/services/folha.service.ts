@@ -1253,7 +1253,7 @@ export class FolhaService {
 
     if (exigirSalario && diasTrabalhados > 0 && salarioMensal <= 0) {
       throw new BadRequestException(
-        `Nao existe salario vigente para ${String(mes).padStart(2, "0")}/${ano}.`,
+        `Não existe registro salarial para ${String(mes).padStart(2, "0")}/${ano}.`,
       );
     }
 

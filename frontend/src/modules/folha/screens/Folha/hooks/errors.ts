@@ -1,3 +1,5 @@
+import { getApiErrorMessage } from "@/shared/services/api-error";
+
 export function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return getApiErrorMessage(error, fallback);
 }

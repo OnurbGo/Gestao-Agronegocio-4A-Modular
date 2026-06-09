@@ -12,6 +12,7 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import StatusMessage from '@/shared/components/feedback/StatusMessage'
+import FormErrorAlert from '@/shared/components/feedback/FormErrorAlert'
 import { Badge } from '@/shared/components/ui/badge'
 import { Button } from '@/shared/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card'
@@ -28,6 +29,11 @@ import {
   removerArquivo,
   visualizarArquivo,
 } from '@/shared/services/documentos.service'
+import { getApiErrorMessage } from '@/shared/services/api-error'
+import {
+  notifyError,
+  notifySuccess,
+} from '@/shared/services/feedback'
 import type {
   ArquivoDocumento,
   DocumentoOrigem,
@@ -66,6 +72,7 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [status, setStatus] = useState(null)
+  const [formError, setFormError] = useState(null)
   const [loading, setLoading] = useState(false)
   const [removendoId, setRemovendoId] = useState<number | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
@@ -94,7 +101,9 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
           (current) => current || String(loadedTipos[0]?.id_tipo_documento || ''),
         )
       } catch (error) {
-        if (active) setStatus({ type: 'error', message: error.message })
+        if (active) {
+          notifyError(getApiErrorMessage(error, 'Erro ao carregar anexos.'))
+        }
       } finally {
         if (active) setLoading(false)
       }
@@ -123,13 +132,14 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
         (current) => current || String(loadedTipos[0]?.id_tipo_documento || ''),
       )
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      notifyError(getApiErrorMessage(error, 'Erro ao carregar anexos.'))
     } finally {
       setLoading(false)
     }
   }
 
   function selecionarArquivos(fileList: FileList | null) {
+    setFormError(null)
     setSelectedFiles(Array.from(fileList || []))
   }
 
@@ -154,12 +164,13 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
       : Array.from(fileRef.current?.files || [])
 
     if (!arquivosSelecionados.length) {
-      setStatus({ type: 'warning', message: 'Selecione ao menos um arquivo.' })
+      setFormError('Selecione ao menos um arquivo.')
       return
     }
 
     setLoading(true)
     setStatus(null)
+    setFormError(null)
 
     try {
       for (const arquivo of arquivosSelecionados) {
@@ -178,16 +189,16 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
       setObservacao('')
       setSelectedFiles([])
       if (fileRef.current) fileRef.current.value = ''
-      setStatus({
-        type: 'success',
-        message:
-          arquivosSelecionados.length === 1
-            ? 'Arquivo anexado.'
-            : `${arquivosSelecionados.length} arquivos anexados.`,
-      })
+      notifySuccess(
+        arquivosSelecionados.length === 1
+          ? 'Arquivo anexado.'
+          : `${arquivosSelecionados.length} arquivos anexados.`,
+      )
       await carregar()
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      setFormError(
+        getApiErrorMessage(error, 'Não foi possível anexar o arquivo.'),
+      )
     } finally {
       setLoading(false)
     }
@@ -197,7 +208,7 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
     try {
       await baixarArquivo(getArquivoId(arquivo, origem), origem, arquivo.nome_original)
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      notifyError(getApiErrorMessage(error, 'Erro ao baixar arquivo.'))
     }
   }
 
@@ -205,7 +216,7 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
     try {
       await visualizarArquivo(getArquivoId(arquivo, origem), origem, arquivo.nome_original)
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      notifyError(getApiErrorMessage(error, 'Erro ao visualizar arquivo.'))
     }
   }
 
@@ -216,10 +227,10 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
 
     try {
       await removerArquivo(id, origem)
-      setStatus({ type: 'success', message: 'Arquivo removido.' })
+      notifySuccess('Arquivo removido.')
       await carregar()
     } catch (error) {
-      setStatus({ type: 'error', message: error.message })
+      notifyError(getApiErrorMessage(error, 'Erro ao remover arquivo.'))
     } finally {
       setRemovendoId(null)
     }
@@ -256,6 +267,7 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
           className="grid gap-3 rounded-lg border border-emerald-100 bg-emerald-50/30 p-4"
           onSubmit={enviar}
         >
+          <FormErrorAlert message={formError} />
           <label
             className={cn(
               'grid min-h-28 cursor-pointer place-items-center gap-2 rounded-lg border-2 border-dashed border-emerald-200 bg-white p-5 text-center transition',

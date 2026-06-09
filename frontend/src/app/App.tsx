@@ -7,6 +7,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { Lightbulb } from "lucide-react";
+import { Toaster } from "sonner";
 import AdminPage from "@/modules/admin/screens/Admin";
 import LoginPage from "@/modules/auth/screens/Login";
 import ProfilePage from "@/modules/auth/screens/Profile";
@@ -288,6 +289,7 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
+      <Toaster closeButton position="top-right" richColors />
       <AppRoutes />
     </BrowserRouter>
   );

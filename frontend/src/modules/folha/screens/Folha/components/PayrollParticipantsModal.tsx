@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import FormErrorAlert from "@/shared/components/feedback/FormErrorAlert";
 import Modal from "@/shared/components/layout/Modal";
 import PaginationControls from "@/shared/components/navigation/PaginationControls";
 import { Badge } from "@/shared/components/ui/badge";
@@ -8,6 +9,7 @@ import type { Entidade, PaginatedResponse } from "@/shared/types";
 
 type PayrollParticipantsModalProps = {
   entities: Entidade[];
+  errorMessage?: string | null;
   loading: boolean;
   meta: PaginatedResponse<Entidade>;
   open: boolean;
@@ -22,6 +24,7 @@ type PayrollParticipantsModalProps = {
 
 function PayrollParticipantsModal({
   entities,
+  errorMessage,
   loading,
   meta,
   open,
@@ -57,6 +60,7 @@ function PayrollParticipantsModal({
       width="lg"
     >
       <div className="grid gap-4">
+        <FormErrorAlert message={errorMessage} />
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <Input
             onChange={(event) => onSearchChange(event.target.value)}

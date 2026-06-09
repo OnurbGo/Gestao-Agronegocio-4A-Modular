@@ -1,4 +1,5 @@
 import type { FormEvent } from "react";
+import FormErrorAlert from "@/shared/components/feedback/FormErrorAlert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +22,7 @@ import { formatCpfCnpj, formatPhone, tipoOptions } from "../helpers";
 type EntidadeFormProps = {
   form: EntidadeFormData;
   loading: boolean;
+  errorMessage?: string | null;
   selected?: Entidade;
   selectedId: number | null;
   onFieldChange: (field: keyof EntidadeFormData, value: string) => void;
@@ -39,6 +41,7 @@ function Field({ children, className = "", label }) {
 }
 
 function EntidadeForm({
+  errorMessage,
   form,
   loading,
   selected,
@@ -55,6 +58,9 @@ function EntidadeForm({
       </CardHeader>
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
+          <div className="md:col-span-2">
+            <FormErrorAlert message={errorMessage} />
+          </div>
           <Field label="Nome">
             <Input
               onChange={(event) => onFieldChange("nome", event.target.value)}

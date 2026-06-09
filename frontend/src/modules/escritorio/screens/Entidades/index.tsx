@@ -3,6 +3,12 @@ import DocumentosPanel from "@/shared/components/data-display/DocumentosPanel";
 import StatusMessage from "@/shared/components/feedback/StatusMessage";
 import { Button } from "@/shared/components/ui/button";
 import { normalizePaginated } from "@/shared/services/api";
+import { getApiErrorMessage } from "@/shared/services/api-error";
+import {
+  notifyError,
+  notifySuccess,
+  notifyWarning,
+} from "@/shared/services/feedback";
 import { formatDateTimeBR } from "@/shared/utils/date";
 import EntidadeForm from "./components/EntidadeForm";
 import EntidadesListPanel from "./components/EntidadesListPanel";
@@ -39,6 +45,7 @@ function EntidadesPage({ onBack }) {
   const [selectedId, setSelectedId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [status, setStatus] = useState(null);
+  const [formError, setFormError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [pendingPrint, setPendingPrint] = useState(false);
@@ -85,7 +92,11 @@ function EntidadesPage({ onBack }) {
           setForm(normalizeForm(data.items[0]));
         }
       } catch (error) {
-        if (active) setStatus({ type: "error", message: error.message });
+        if (active) {
+          notifyError(
+            getApiErrorMessage(error, "Erro ao carregar cadastros."),
+          );
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -121,7 +132,7 @@ function EntidadesPage({ onBack }) {
         setForm(normalizeForm(data.items[0]));
       }
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao carregar cadastros."));
     } finally {
       setLoading(false);
     }
@@ -135,8 +146,9 @@ function EntidadesPage({ onBack }) {
       const entidade = await buscarEntidade(id);
       setSelectedId(id);
       setForm(normalizeForm(entidade));
+      setFormError(null);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao carregar cadastro."));
     } finally {
       setLoading(false);
     }
@@ -146,13 +158,16 @@ function EntidadesPage({ onBack }) {
     setSelectedId(null);
     setForm(emptyForm);
     setStatus(null);
+    setFormError(null);
   }
 
   function updateField(field, value) {
+    setFormError(null);
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   function toggleTipo(tipo) {
+    setFormError(null);
     setForm((current) => {
       const exists = current.tipos.includes(tipo);
       const tipos = exists
@@ -167,6 +182,7 @@ function EntidadesPage({ onBack }) {
     event.preventDefault();
     setLoading(true);
     setStatus(null);
+    setFormError(null);
 
     try {
       const payload = montarPayload(form);
@@ -176,10 +192,12 @@ function EntidadesPage({ onBack }) {
 
       setSelectedId(saved.id_entidade);
       setForm(normalizeForm(saved));
-      setStatus({ type: "success", message: "Cadastro salvo." });
+      notifySuccess("Cadastro salvo.");
       await carregarLista({ page });
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setFormError(
+        getApiErrorMessage(error, "Não foi possível salvar o cadastro."),
+      );
     } finally {
       setLoading(false);
     }
@@ -192,15 +210,18 @@ function EntidadesPage({ onBack }) {
 
     setLoading(true);
     setStatus(null);
+    setFormError(null);
 
     try {
       await removerEntidade(selectedId);
-      setStatus({ type: "success", message: "Cadastro removido." });
+      notifySuccess("Cadastro removido.");
       setSelectedId(null);
       setForm(emptyForm);
       await carregarLista();
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setFormError(
+        getApiErrorMessage(error, "Não foi possível remover o cadastro."),
+      );
     } finally {
       setLoading(false);
     }
@@ -227,10 +248,7 @@ function EntidadesPage({ onBack }) {
       );
 
       if (!data.items.length) {
-        setStatus({
-          type: "warning",
-          message: "Nenhum cadastro encontrado para os filtros selecionados.",
-        });
+        notifyWarning("Nenhum cadastro encontrado para os filtros selecionados.");
         return;
       }
 
@@ -254,7 +272,7 @@ function EntidadesPage({ onBack }) {
       setReportData(relatorio);
       setPendingPrint(true);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao gerar relatório."));
     } finally {
       setLoading(false);
     }
@@ -312,6 +330,7 @@ function EntidadesPage({ onBack }) {
 
         <section className="grid min-w-0 gap-5">
           <EntidadeForm
+            errorMessage={formError}
             form={form}
             loading={loading}
             onFieldChange={updateField}

@@ -7,6 +7,13 @@ import {
 import StatusMessage from "@/shared/components/feedback/StatusMessage";
 import { Button } from "@/shared/components/ui/button";
 import { normalizePaginated } from "@/shared/services/api";
+import { getApiErrorMessage } from "@/shared/services/api-error";
+import {
+  notifyError,
+  notifyInfo,
+  notifySuccess,
+  notifyWarning,
+} from "@/shared/services/feedback";
 import PayrollDiscountsModal from "./components/PayrollDiscountsModal";
 import PayrollMonthlyEntriesPanel from "./components/PayrollMonthlyEntriesPanel";
 import PayrollParticipantsModal from "./components/PayrollParticipantsModal";
@@ -78,6 +85,9 @@ function FolhaPage({ onBack }) {
   const [salvandoParticipante, setSalvandoParticipante] = useState(null);
   const [salarioForm, setSalarioForm] = useState(salarioInicial);
   const [feriasForm, setFeriasForm] = useState(feriasInicial);
+  const [salarioError, setSalarioError] = useState(null);
+  const [feriasError, setFeriasError] = useState(null);
+  const [participantesError, setParticipantesError] = useState(null);
   const [salarioEditandoId, setSalarioEditandoId] = useState(null);
   const [feriasEditandoId, setFeriasEditandoId] = useState(null);
   const [impactoSalarial, setImpactoSalarial] = useState(null);
@@ -85,7 +95,7 @@ function FolhaPage({ onBack }) {
 
   const limparStatus = useCallback(() => setStatus(null), []);
   const mostrarErro = useCallback((message) => {
-    setStatus({ type: "error", message });
+    notifyError(message);
   }, []);
 
   const {
@@ -169,6 +179,7 @@ function FolhaPage({ onBack }) {
     setSalarioForm(salarioInicial);
     setSalarioEditandoId(null);
     setImpactoSalarial(null);
+    setSalarioError(null);
   }
 
   function montarPayloadSalario() {
@@ -196,12 +207,11 @@ function FolhaPage({ onBack }) {
     const estavaEditando = Boolean(registroId);
     limparEdicaoSalario();
     await recarregarAposAlteracaoSalarial();
-    setStatus({
-      type: "success",
-      message: estavaEditando
+    notifySuccess(
+      estavaEditando
         ? "Registro salarial atualizado."
         : "Registro salarial criado.",
-    });
+    );
   }
 
   async function executarExcluirSalario(registro) {
@@ -217,7 +227,7 @@ function FolhaPage({ onBack }) {
     }
 
     await recarregarAposAlteracaoSalarial();
-    setStatus({ type: "success", message: "Registro salarial excluido." });
+    notifySuccess("Registro salarial excluído.");
   }
 
   function editarSalario(registro) {
@@ -230,12 +240,14 @@ function FolhaPage({ onBack }) {
       observacao: registro.observacao || "",
     });
     setStatus(null);
+    setSalarioError(null);
   }
 
   async function excluirSalario(registro) {
     if (!participanteId) return;
 
     setStatus(null);
+    setSalarioError(null);
     try {
       const impacto = await buscarImpactoExclusaoRegistroSalarial(
         participanteId,
@@ -255,7 +267,12 @@ function FolhaPage({ onBack }) {
 
       await executarExcluirSalario(registro);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setSalarioError(
+        getApiErrorMessage(
+          error,
+          "Não foi possível excluir o registro salarial.",
+        ),
+      );
     }
   }
 
@@ -275,7 +292,9 @@ function FolhaPage({ onBack }) {
         await executarExcluirSalario(impactoSalarial.registro);
       }
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(
+        getApiErrorMessage(error, "Não foi possível confirmar o impacto."),
+      );
     } finally {
       setProcessandoImpacto(false);
     }
@@ -284,6 +303,7 @@ function FolhaPage({ onBack }) {
   function limparEdicaoFerias() {
     setFeriasForm(feriasInicial);
     setFeriasEditandoId(null);
+    setFeriasError(null);
   }
 
   function editarFerias(item) {
@@ -294,12 +314,14 @@ function FolhaPage({ onBack }) {
       valor_abono: numero(item.valor_abono) > 0 ? String(item.valor_abono) : "",
     });
     setStatus(null);
+    setFeriasError(null);
   }
 
   async function excluirFerias(item) {
     if (!participanteId) return;
 
     setStatus(null);
+    setFeriasError(null);
     try {
       await removerFerias(participanteId, item.id_ferias);
       if (feriasEditandoId === item.id_ferias) {
@@ -309,9 +331,11 @@ function FolhaPage({ onBack }) {
       await recarregarDetalheELancamentos();
       await recarregarFerias(1);
       await carregarRelatorio();
-      setStatus({ type: "success", message: "Ferias excluidas." });
+      notifySuccess("Férias excluídas.");
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setFeriasError(
+        getApiErrorMessage(error, "Não foi possível excluir as férias."),
+      );
     }
   }
 
@@ -338,6 +362,7 @@ function FolhaPage({ onBack }) {
   async function carregarEntidadesFolha(pageToLoad = entidadesFolhaPage) {
     setCarregandoEntidadesFolha(true);
     setStatus(null);
+    setParticipantesError(null);
 
     try {
       const data = normalizePaginated(
@@ -353,7 +378,9 @@ function FolhaPage({ onBack }) {
       setEntidadesFolhaMeta(data);
       setEntidadesFolhaPage(data.page);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setParticipantesError(
+        getApiErrorMessage(error, "Erro ao carregar participantes."),
+      );
     } finally {
       setCarregandoEntidadesFolha(false);
     }
@@ -361,6 +388,7 @@ function FolhaPage({ onBack }) {
 
   async function abrirParticipantes() {
     setModalAberto("participantes");
+    setParticipantesError(null);
     setEntidadesFolhaPage(1);
     await carregarEntidadesFolha(1);
   }
@@ -371,6 +399,7 @@ function FolhaPage({ onBack }) {
 
     setSalvandoParticipante(id);
     setStatus(null);
+    setParticipantesError(null);
 
     try {
       const atualizada = await atualizarEntidade(id, {
@@ -385,8 +414,11 @@ function FolhaPage({ onBack }) {
       );
       await recarregarParticipantes();
       await carregarRelatorio();
+      notifySuccess("Participação na folha atualizada.");
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setParticipantesError(
+        getApiErrorMessage(error, "Não foi possível atualizar a participação."),
+      );
     } finally {
       setSalvandoParticipante(null);
     }
@@ -410,10 +442,10 @@ function FolhaPage({ onBack }) {
         meses.map((mes) => normalizarLinha(porMes.get(mes.valor), mes.valor)),
       );
       setAlterado(false);
-      setStatus({ type: "success", message: "Lançamentos salvos." });
+      notifySuccess("Lançamentos salvos.");
       await carregarRelatorio();
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao salvar lançamentos."));
     } finally {
       setSalvando(false);
     }
@@ -427,7 +459,7 @@ function FolhaPage({ onBack }) {
     try {
       await exportarLancamentosMensais(participanteId, ano, detalhe?.nome);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao exportar lançamentos."));
     } finally {
       setExportando(false);
     }
@@ -438,6 +470,7 @@ function FolhaPage({ onBack }) {
     if (!participanteId) return;
 
     setStatus(null);
+    setSalarioError(null);
     try {
       const payload = montarPayloadSalario();
 
@@ -463,7 +496,12 @@ function FolhaPage({ onBack }) {
 
       await executarSalvarSalario(payload);
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setSalarioError(
+        getApiErrorMessage(
+          error,
+          "Não foi possível salvar o registro salarial.",
+        ),
+      );
     }
   }
 
@@ -473,14 +511,12 @@ function FolhaPage({ onBack }) {
       !salarioForm.inicio_vigencia ||
       !salarioForm.salario
     ) {
-      setStatus({
-        type: "warning",
-        message: "Informe data e salário para calcular o percentual.",
-      });
+      setSalarioError("Informe data e salário para calcular o percentual.");
       return;
     }
 
     setStatus(null);
+    setSalarioError(null);
 
     try {
       const sugestao = await buscarPercentualSugerido(participanteId, {
@@ -489,10 +525,9 @@ function FolhaPage({ onBack }) {
       });
 
       if (sugestao.percentual_sugerido === null) {
-        setStatus({
-          type: "warning",
-          message: "Não existe salário anterior para sugerir o percentual.",
-        });
+        setSalarioError(
+          "Não existe salário anterior para sugerir o percentual.",
+        );
         return;
       }
 
@@ -500,12 +535,13 @@ function FolhaPage({ onBack }) {
         ...form,
         percentual: String(sugestao.percentual_sugerido),
       }));
-      setStatus({
-        type: "success",
-        message: `Percentual sugerido com base em ${dinheiro(sugestao.salario_base)}.`,
-      });
+      notifyInfo(
+        `Percentual sugerido com base em ${dinheiro(sugestao.salario_base)}.`,
+      );
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setSalarioError(
+        getApiErrorMessage(error, "Não foi possível calcular o percentual."),
+      );
     }
   }
 
@@ -514,6 +550,7 @@ function FolhaPage({ onBack }) {
     if (!participanteId) return;
 
     setStatus(null);
+    setFeriasError(null);
     try {
       const payload = {
         inicio_gozado: feriasForm.inicio_gozado,
@@ -535,12 +572,13 @@ function FolhaPage({ onBack }) {
       await recarregarDetalheELancamentos();
       await recarregarFerias(1);
       await carregarRelatorio();
-      setStatus({
-        type: "success",
-        message: estavaEditando ? "Ferias atualizadas." : "Ferias cadastradas.",
-      });
+      notifySuccess(
+        estavaEditando ? "Férias atualizadas." : "Férias cadastradas.",
+      );
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      setFeriasError(
+        getApiErrorMessage(error, "Não foi possível salvar as férias."),
+      );
     }
   }
 
@@ -549,12 +587,13 @@ function FolhaPage({ onBack }) {
     try {
       await exportarRelatorioMensal({ ano, mes: mesRelatorio });
     } catch (error) {
-      setStatus({ type: "error", message: error.message });
+      notifyError(getApiErrorMessage(error, "Erro ao exportar relatório."));
     }
   }
 
   function imprimirRelatorio() {
     if (!relatorio?.itens?.length) {
+      notifyWarning("Não há dados para imprimir neste relatório.");
       return;
     }
 
@@ -562,10 +601,7 @@ function FolhaPage({ onBack }) {
     try {
       window.print();
     } catch (error) {
-      setStatus({
-        type: "error",
-        message: error?.message || "Falha ao abrir impressão.",
-      });
+      notifyError(getApiErrorMessage(error, "Falha ao abrir impressão."));
     }
   }
 
@@ -637,6 +673,7 @@ function FolhaPage({ onBack }) {
             onSelect={(participante) => {
               limparEdicaoSalario();
               limparEdicaoFerias();
+              setParticipantesError(null);
               setParticipanteId(participante.id_entidade);
               setSalarioPage(1);
               setFeriasPage(1);
@@ -665,8 +702,14 @@ function FolhaPage({ onBack }) {
               year={ano}
             />
             <PayrollRecordsOverview
-              onOpenSalaryRecords={() => setModalAberto("salarios")}
-              onOpenVacationRecords={() => setModalAberto("ferias")}
+              onOpenSalaryRecords={() => {
+                setSalarioError(null);
+                setModalAberto("salarios");
+              }}
+              onOpenVacationRecords={() => {
+                setFeriasError(null);
+                setModalAberto("ferias");
+              }}
               participantId={participanteId}
               salaryMeta={salarioMeta}
               salaryRecords={registrosSalariais}
@@ -679,11 +722,18 @@ function FolhaPage({ onBack }) {
 
       <PayrollParticipantsModal
         entities={entidadesFolha}
+        errorMessage={participantesError}
         loading={carregandoEntidadesFolha}
         meta={entidadesFolhaMeta}
-        onClose={() => setModalAberto(null)}
+        onClose={() => {
+          setParticipantesError(null);
+          setModalAberto(null);
+        }}
         onLoadPage={carregarEntidadesFolha}
-        onSearchChange={setTermoEntidadesFolha}
+        onSearchChange={(value) => {
+          setParticipantesError(null);
+          setTermoEntidadesFolha(value);
+        }}
         onToggle={alternarParticipacao}
         open={modalAberto === "participantes"}
         page={entidadesFolhaPage}
@@ -697,11 +747,15 @@ function FolhaPage({ onBack }) {
       />
       <SalaryRecordsModal
         editingId={salarioEditandoId}
+        errorMessage={salarioError}
         form={salarioForm}
         meta={salarioMeta}
         onCalculatePercentage={calcularPercentualSalario}
         onCancelEdit={limparEdicaoSalario}
-        onClose={() => setModalAberto(null)}
+        onClose={() => {
+          limparEdicaoSalario();
+          setModalAberto(null);
+        }}
         onDelete={excluirSalario}
         onEdit={editarSalario}
         onSubmit={adicionarSalario}
@@ -719,10 +773,14 @@ function FolhaPage({ onBack }) {
       />
       <VacationRecordsModal
         editingId={feriasEditandoId}
+        errorMessage={feriasError}
         form={feriasForm}
         meta={feriasMeta}
         onCancelEdit={limparEdicaoFerias}
-        onClose={() => setModalAberto(null)}
+        onClose={() => {
+          limparEdicaoFerias();
+          setModalAberto(null);
+        }}
         onDelete={excluirFerias}
         onEdit={editarFerias}
         onSubmit={adicionarFerias}

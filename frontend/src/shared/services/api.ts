@@ -1,4 +1,5 @@
 import type { PaginatedResponse, QueryParams } from "@/shared/types";
+import { getApiErrorMessage } from "@/shared/services/api-error";
 
 export type { PaginatedResponse, QueryParams } from "@/shared/types";
 
@@ -173,77 +174,6 @@ export function normalizePaginated<TItem>(
   };
 }
 
-function traduzirErro(message: unknown): string {
-  if (typeof message !== "string") {
-    return String(message);
-  }
-
-  if (/property \w+ should not exist/.test(message)) {
-    return "Campo desconhecido enviado ao servidor";
-  }
-  if (/\w+ should not be empty/.test(message)) {
-    return "Campo obrigatorio nao preenchido";
-  }
-  if (/\w+ must be a string/.test(message)) {
-    return "Valor invalido: deve ser texto";
-  }
-  if (/\w+ must be an integer number/.test(message)) {
-    return "Deve ser um numero inteiro";
-  }
-  if (/\w+ must be a number/.test(message)) {
-    return "Deve ser um numero valido";
-  }
-  if (/\w+ must be a valid enum value/.test(message)) {
-    return "Valor selecionado invalido";
-  }
-  if (/\w+ must be a boolean/.test(message)) {
-    return "Valor deve ser verdadeiro ou falso";
-  }
-
-  return message;
-}
-
-function getIssueMessage(issue: unknown): string | null {
-  if (!issue) {
-    return null;
-  }
-
-  const field = isRecord(issue) ? issue.field || issue.path : undefined;
-  const message = isRecord(issue) ? issue.message || issue : issue;
-
-  return field ? `${field}: ${message}` : String(message);
-}
-
-function getErrorMessage(payload: unknown, fallback: string): string {
-  if (!isRecord(payload)) {
-    return fallback;
-  }
-
-  if (Array.isArray(payload.errors) && payload.errors.length) {
-    return payload.errors.map(getIssueMessage).filter(Boolean).join("\n");
-  }
-
-  if (Array.isArray(payload.message)) {
-    return [...new Set(payload.message.map(traduzirErro))]
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  if (payload.message && typeof payload.message === "object") {
-    return getErrorMessage(payload.message, fallback);
-  }
-
-  if (typeof payload.message === "string") {
-    return traduzirErro(payload.message);
-  }
-
-  if (typeof payload.error === "string") {
-    return payload.error;
-  }
-
-  return fallback;
-}
-
 export async function requestJson<TData = unknown>(
   path: string,
   options: RequestInit = {},
@@ -260,7 +190,7 @@ export async function requestJson<TData = unknown>(
 
   if (!response.ok) {
     throw new Error(
-      getErrorMessage(payload, "Nao foi possivel concluir a requisicao."),
+      getApiErrorMessage(payload, "Não foi possível concluir a requisição."),
     );
   }
 
@@ -286,7 +216,7 @@ export async function requestFormData<TData = unknown>(
 
   if (!response.ok) {
     throw new Error(
-      getErrorMessage(payload, "Nao foi possivel concluir a requisicao."),
+      getApiErrorMessage(payload, "Não foi possível concluir a requisição."),
     );
   }
 
@@ -304,7 +234,7 @@ export async function downloadFile(
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     throw new Error(
-      getErrorMessage(payload, "Nao foi possivel exportar o arquivo."),
+      getApiErrorMessage(payload, "Não foi possível exportar o arquivo."),
     );
   }
 
