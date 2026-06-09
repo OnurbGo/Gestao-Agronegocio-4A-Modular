@@ -1,40 +1,16 @@
 services:
-  front-login-home:
+  frontend:
     profiles:
-      - docker-fronts
+      - docker-front
 
-  front-escritorio:
-    profiles:
-      - docker-fronts
-
-  front-silo:
-    profiles:
-      - docker-fronts
-
-  core-service:
+  backend:
     environment:
+      NODE_ENV: development
       DB_SYNC_ALTER: "true"
-
-  escritorio-service:
-    environment:
-      DB_SYNC_ALTER: "true"
-
-  silo-service:
-    environment:
-      DB_SYNC_ALTER: "true"
-
-  swagger-service:
-    environment:
-      CORE_OPENAPI_URL: http://core-service:3000/openapi.json
-      ESCRITORIO_OPENAPI_URL: http://escritorio-service:3000/openapi.json
-      SILO_OPENAPI_URL: http://silo-service:3000/openapi.json
 
   nginx:
     depends_on:
-      - core-service
-      - escritorio-service
-      - silo-service
-      - swagger-service
+      - backend
     volumes:
       - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
     extra_hosts:
