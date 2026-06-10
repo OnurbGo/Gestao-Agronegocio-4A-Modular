@@ -10,8 +10,13 @@ import {
   Length,
   Min,
   MinLength,
+  Validate,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from "class-validator";
 import { PaginationQuery } from "../../shared/utils/pagination";
+import { isValidDocumentoPessoa } from "../utils/documento-pessoa.utils";
 
 export const ENTIDADE_TIPOS = [
   "FUNCIONARIO",
@@ -21,6 +26,27 @@ export const ENTIDADE_TIPOS = [
 ] as const;
 
 type EntidadeTipo = (typeof ENTIDADE_TIPOS)[number];
+
+@ValidatorConstraint({ name: "documentoPessoaValido", async: false })
+class DocumentoPessoaValidoConstraint implements ValidatorConstraintInterface {
+  validate(value: unknown, args: ValidationArguments) {
+    const object = args.object as { tipo_pessoa?: string };
+
+    if (!object.tipo_pessoa) {
+      return true;
+    }
+
+    return isValidDocumentoPessoa(value, object.tipo_pessoa);
+  }
+
+  defaultMessage(args: ValidationArguments) {
+    const object = args.object as { tipo_pessoa?: string };
+
+    return object.tipo_pessoa === "JURIDICA"
+      ? "CNPJ invalido para Pessoa Juridica."
+      : "CPF invalido para Pessoa Fisica.";
+  }
+}
 
 export class EntidadeDto {
   @IsString()
@@ -32,6 +58,7 @@ export class EntidadeDto {
   )
   @IsString()
   @MinLength(11)
+  @Validate(DocumentoPessoaValidoConstraint)
   cpf_cnpj!: string;
 
   @Transform(({ value }) =>
@@ -82,6 +109,10 @@ export class EntidadeDto {
   @IsOptional()
   @IsString()
   complemento?: string | null;
+
+  @IsOptional()
+  @IsString()
+  rg?: string | null;
 
   @IsOptional()
   @IsString()
@@ -136,6 +167,7 @@ export class AtualizarEntidadeDto {
   @IsOptional()
   @IsString()
   @MinLength(11)
+  @Validate(DocumentoPessoaValidoConstraint)
   cpf_cnpj?: string;
 
   @Transform(({ value }) =>
@@ -187,6 +219,10 @@ export class AtualizarEntidadeDto {
   @IsOptional()
   @IsString()
   complemento?: string | null;
+
+  @IsOptional()
+  @IsString()
+  rg?: string | null;
 
   @IsOptional()
   @IsString()

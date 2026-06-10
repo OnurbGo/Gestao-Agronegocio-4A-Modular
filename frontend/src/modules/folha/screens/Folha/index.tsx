@@ -725,6 +725,7 @@ function FolhaPage({ onBack }) {
         errorMessage={participantesError}
         loading={carregandoEntidadesFolha}
         meta={entidadesFolhaMeta}
+        onClearError={() => setParticipantesError(null)}
         onClose={() => {
           setParticipantesError(null);
           setModalAberto(null);
@@ -752,6 +753,7 @@ function FolhaPage({ onBack }) {
         meta={salarioMeta}
         onCalculatePercentage={calcularPercentualSalario}
         onCancelEdit={limparEdicaoSalario}
+        onClearError={() => setSalarioError(null)}
         onClose={() => {
           limparEdicaoSalario();
           setModalAberto(null);
@@ -777,6 +779,7 @@ function FolhaPage({ onBack }) {
         form={feriasForm}
         meta={feriasMeta}
         onCancelEdit={limparEdicaoFerias}
+        onClearError={() => setFeriasError(null)}
         onClose={() => {
           limparEdicaoFerias();
           setModalAberto(null);

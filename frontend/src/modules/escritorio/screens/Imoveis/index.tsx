@@ -394,6 +394,7 @@ function ImoveisPage({ onBack }) {
             errorMessage={formError}
             form={form}
             loading={loading}
+            onClearError={() => setFormError(null)}
             onFieldChange={updateField}
             onProprietarioRemove={removerEntidadeSelecionada}
             onProprietarioSearchChange={setProprietarioTermo}

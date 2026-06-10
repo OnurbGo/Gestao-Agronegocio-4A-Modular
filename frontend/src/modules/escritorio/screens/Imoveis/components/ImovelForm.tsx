@@ -33,6 +33,7 @@ type ImovelFormProps = {
   proprietarioTermo: string;
   selected?: Imovel;
   selectedId: number | null;
+  onClearError?: () => void;
   onFieldChange: (field: keyof ImovelFormData, value: string) => void;
   onProprietarioRemove: (id: number) => void;
   onProprietarioSearchChange: (value: string) => void;
@@ -68,6 +69,7 @@ function ImovelForm({
   proprietarioTermo,
   selected,
   selectedId,
+  onClearError,
   onFieldChange,
   onProprietarioRemove,
   onProprietarioSearchChange,
@@ -83,7 +85,7 @@ function ImovelForm({
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <div className="md:col-span-2">
-            <FormErrorAlert message={errorMessage} />
+            <FormErrorAlert message={errorMessage} onDismiss={onClearError} />
           </div>
           <SectionTitle>Identificação do imóvel</SectionTitle>
 

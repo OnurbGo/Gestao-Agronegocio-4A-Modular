@@ -16,6 +16,7 @@ type PayrollParticipantsModalProps = {
   page: number;
   savingId: number | null;
   search: string;
+  onClearError?: () => void;
   onClose: () => void;
   onLoadPage: (page: number) => void;
   onSearchChange: (value: string) => void;
@@ -30,6 +31,7 @@ function PayrollParticipantsModal({
   open,
   savingId,
   search,
+  onClearError,
   onClose,
   onLoadPage,
   onSearchChange,
@@ -60,7 +62,7 @@ function PayrollParticipantsModal({
       width="lg"
     >
       <div className="grid gap-4">
-        <FormErrorAlert message={errorMessage} />
+        <FormErrorAlert message={errorMessage} onDismiss={onClearError} />
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
           <Input
             onChange={(event) => onSearchChange(event.target.value)}

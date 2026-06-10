@@ -7,7 +7,7 @@ import { Input } from "@/shared/components/ui/input";
 import type { Entidade, PageMeta } from "@/shared/types";
 import { cn } from "@/shared/utils/cn";
 import {
-  formatCpfCnpj,
+  formatDocumentoPorTipo,
   tipoOptions,
   tipoPessoaOptions,
 } from "../helpers";
@@ -119,7 +119,10 @@ function EntidadesListPanel({
                 {entidade.nome}
               </strong>
               <span className="truncate text-xs font-semibold text-slate-600">
-                {formatCpfCnpj(entidade.cpf_cnpj || "")}
+                {formatDocumentoPorTipo(
+                  entidade.cpf_cnpj || "",
+                  entidade.tipo_pessoa,
+                )}
               </span>
               <small className="truncate text-xs font-bold text-emerald-900">
                 {entidade.tipos?.join(", ") || "Sem tipo"}

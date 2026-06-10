@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { Op } from "sequelize";
 import { AuditService } from "../../auditoria/services/audit.service";
 import { AuthContext } from "../../auth-client/types/auth.types";
@@ -14,6 +18,10 @@ import {
   ListarEntidadesQuery,
 } from "../dto/entidades.dto";
 import { EntidadesRepository } from "../repositories/entidades.repository";
+import {
+  TipoPessoa,
+  isValidDocumentoPessoa,
+} from "../utils/documento-pessoa.utils";
 
 @Injectable()
 export class EntidadesService {
@@ -130,7 +138,7 @@ export class EntidadesService {
     try {
       await this.entidadesRepository.atualizar(
         entidade,
-        this.getDados(data),
+        this.getDados(data, entidade),
         transaction,
       );
 
@@ -185,9 +193,44 @@ export class EntidadesService {
     });
   }
 
-  private getDados(data: Partial<EntidadeInput>) {
+  private getDados(data: Partial<EntidadeInput>, entidadeAtual?: Entidade) {
     const { tipos, ...dados } = data;
+    const tipoPessoa = (dados.tipo_pessoa ||
+      entidadeAtual?.tipo_pessoa) as TipoPessoa | undefined;
+    const cpfCnpj = dados.cpf_cnpj ?? entidadeAtual?.cpf_cnpj;
+    const deveValidarDocumento =
+      !entidadeAtual ||
+      Object.prototype.hasOwnProperty.call(dados, "cpf_cnpj") ||
+      Object.prototype.hasOwnProperty.call(dados, "tipo_pessoa");
+
+    if (deveValidarDocumento) {
+      this.validarDocumentoPessoa(cpfCnpj, tipoPessoa);
+    }
+
+    if (
+      tipoPessoa === "JURIDICA" &&
+      (dados.tipo_pessoa === "JURIDICA" ||
+        Object.prototype.hasOwnProperty.call(dados, "rg") ||
+        Object.prototype.hasOwnProperty.call(dados, "data_nascimento"))
+    ) {
+      dados.rg = null;
+      dados.data_nascimento = null;
+    }
+
     return dados;
+  }
+
+  private validarDocumentoPessoa(
+    cpfCnpj: unknown,
+    tipoPessoa: TipoPessoa | undefined,
+  ) {
+    if (!tipoPessoa || !isValidDocumentoPessoa(cpfCnpj, tipoPessoa)) {
+      throw new BadRequestException(
+        tipoPessoa === "JURIDICA"
+          ? "CNPJ invalido para Pessoa Juridica."
+          : "CPF invalido para Pessoa Fisica.",
+      );
+    }
   }
 
   private toResponse(entidade: Entidade) {

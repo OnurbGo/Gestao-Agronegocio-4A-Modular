@@ -9,7 +9,12 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 import type { EntidadeReportData } from "@/shared/types";
-import { formatCpfCnpj, formatPhone, tipoPessoaLabel } from "../helpers";
+import { formatDateBR } from "@/shared/utils/date";
+import {
+  formatDocumentoPorTipo,
+  formatPhone,
+  tipoPessoaLabel,
+} from "../helpers";
 
 type EntidadesPrintReportProps = {
   reportData: EntidadeReportData;
@@ -31,6 +36,8 @@ function EntidadesPrintReport({ reportData }: EntidadesPrintReportProps) {
             <TableHead>Nome</TableHead>
             <TableHead>CPF/CNPJ</TableHead>
             <TableHead>Tipo pessoa</TableHead>
+            <TableHead>RG</TableHead>
+            <TableHead>Nascimento</TableHead>
             <TableHead>Vínculos</TableHead>
             <TableHead>Cidade/UF</TableHead>
             <TableHead>Telefone</TableHead>
@@ -40,8 +47,19 @@ function EntidadesPrintReport({ reportData }: EntidadesPrintReportProps) {
           {reportData.rows.map((item) => (
             <TableRow key={item.id_entidade}>
               <TableCell>{item.nome || "-"}</TableCell>
-              <TableCell>{formatCpfCnpj(item.cpf_cnpj || "") || "-"}</TableCell>
+              <TableCell>
+                {formatDocumentoPorTipo(item.cpf_cnpj || "", item.tipo_pessoa) ||
+                  "-"}
+              </TableCell>
               <TableCell>{tipoPessoaLabel(item.tipo_pessoa) || "-"}</TableCell>
+              <TableCell>
+                {item.tipo_pessoa === "FISICA" ? item.rg || "-" : "-"}
+              </TableCell>
+              <TableCell>
+                {item.tipo_pessoa === "FISICA"
+                  ? formatDateBR(item.data_nascimento)
+                  : "-"}
+              </TableCell>
               <TableCell>{item.tipos?.join(", ") || "-"}</TableCell>
               <TableCell>
                 {[item.cidade, item.estado].filter(Boolean).join("/") || "-"}

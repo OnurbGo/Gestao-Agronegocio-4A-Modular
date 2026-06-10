@@ -271,6 +271,85 @@ describe("Backend API integration", () => {
       expect(entidadesService.criar).not.toHaveBeenCalled();
     });
 
+    it("deve aceitar pessoa fisica com CPF valido sem RG e nascimento", async () => {
+      const { data_nascimento, rg, ...payload } = makeEntidadePayload();
+
+      await request(app.getHttpServer())
+        .post("/api/escritorio/entidades")
+        .set(authHeader())
+        .send(payload)
+        .expect(201);
+
+      expect(data_nascimento).toBeDefined();
+      expect(rg).toBeDefined();
+      expect(entidadesService.criar).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          data_nascimento: expect.anything(),
+          rg: expect.anything(),
+        }),
+        expect.objectContaining({ conta_id: 1 }),
+        expect.any(String),
+      );
+    });
+
+    it("deve aceitar pessoa juridica com CNPJ valido", async () => {
+      await request(app.getHttpServer())
+        .post("/api/escritorio/entidades")
+        .set(authHeader())
+        .send(
+          makeEntidadePayload({
+            cpf_cnpj: "11222333000181",
+            data_nascimento: null,
+            rg: null,
+            tipo_pessoa: "JURIDICA",
+          }),
+        )
+        .expect(201);
+
+      expect(entidadesService.criar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cpf_cnpj: "11222333000181",
+          tipo_pessoa: "JURIDICA",
+        }),
+        expect.objectContaining({ conta_id: 1 }),
+        expect.any(String),
+      );
+    });
+
+    it("deve rejeitar documento incompativel com o tipo de pessoa", async () => {
+      const fisicaResponse = await request(app.getHttpServer())
+        .post("/api/escritorio/entidades")
+        .set(authHeader())
+        .send(makeEntidadePayload({ cpf_cnpj: "11222333000181" }))
+        .expect(400);
+
+      const juridicaResponse = await request(app.getHttpServer())
+        .post("/api/escritorio/entidades")
+        .set(authHeader())
+        .send(
+          makeEntidadePayload({
+            cpf_cnpj: "52998224725",
+            tipo_pessoa: "JURIDICA",
+          }),
+        )
+        .expect(400);
+
+      expectMessageContaining(fisicaResponse.body, "CPF invalido");
+      expectMessageContaining(juridicaResponse.body, "CNPJ invalido");
+      expect(entidadesService.criar).not.toHaveBeenCalled();
+    });
+
+    it("deve rejeitar CPF com digitos verificadores invalidos", async () => {
+      const response = await request(app.getHttpServer())
+        .post("/api/escritorio/entidades")
+        .set(authHeader())
+        .send(makeEntidadePayload({ cpf_cnpj: "12345678901" }))
+        .expect(400);
+
+      expectMessageContaining(response.body, "CPF invalido");
+      expect(entidadesService.criar).not.toHaveBeenCalled();
+    });
+
     it("deve retornar 403 quando usuário não tem permissão de criação", async () => {
       await request(app.getHttpServer())
         .post("/api/escritorio/entidades")

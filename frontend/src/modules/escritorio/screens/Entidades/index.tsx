@@ -23,6 +23,9 @@ import {
 import {
   PAGE_SIZE,
   emptyForm,
+  formatDocumentoPorTipo,
+  getDocumentoValidationMessage,
+  isDocumentoLengthCompatible,
   montarPayload,
   normalizeForm,
   tipoPessoaLabel,
@@ -163,7 +166,27 @@ function EntidadesPage({ onBack }) {
 
   function updateField(field, value) {
     setFormError(null);
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => {
+      if (field === "tipo_pessoa") {
+        const documentoCompativel = isDocumentoLengthCompatible(
+          current.cpf_cnpj,
+          value,
+        );
+
+        return {
+          ...current,
+          tipo_pessoa: value,
+          cpf_cnpj: documentoCompativel
+            ? formatDocumentoPorTipo(current.cpf_cnpj, value)
+            : "",
+          rg: value === "JURIDICA" ? "" : current.rg,
+          data_nascimento:
+            value === "JURIDICA" ? "" : current.data_nascimento,
+        };
+      }
+
+      return { ...current, [field]: value };
+    });
   }
 
   function toggleTipo(tipo) {
@@ -180,9 +203,20 @@ function EntidadesPage({ onBack }) {
 
   async function salvar(event) {
     event.preventDefault();
-    setLoading(true);
     setStatus(null);
     setFormError(null);
+
+    const documentoError = getDocumentoValidationMessage(
+      form.cpf_cnpj,
+      form.tipo_pessoa,
+    );
+
+    if (documentoError) {
+      setFormError(documentoError);
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const payload = montarPayload(form);
@@ -333,6 +367,7 @@ function EntidadesPage({ onBack }) {
             errorMessage={formError}
             form={form}
             loading={loading}
+            onClearError={() => setFormError(null)}
             onFieldChange={updateField}
             onRemove={remover}
             onSubmit={salvar}

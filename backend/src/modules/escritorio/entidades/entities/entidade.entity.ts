@@ -33,6 +33,9 @@ export class Entidade extends Model {
   @Column({ type: DataType.STRING, allowNull: false, unique: true })
   declare cpf_cnpj: string;
 
+  @Column({ type: DataType.STRING, allowNull: true })
+  declare rg: string | null;
+
   @Column({ type: DataType.ENUM("FISICA", "JURIDICA"), allowNull: false })
   declare tipo_pessoa: "FISICA" | "JURIDICA";
 

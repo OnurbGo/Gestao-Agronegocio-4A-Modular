@@ -37,6 +37,7 @@ type VacationRecordsModalProps = {
   setPage: Dispatch<SetStateAction<number>>;
   summary: VacationSummary;
   onCancelEdit: () => void;
+  onClearError?: () => void;
   onClose: () => void;
   onDelete: (record: VacationRecord) => void | Promise<void>;
   onEdit: (record: VacationRecord) => void;
@@ -54,6 +55,7 @@ function VacationRecordsModal({
   setPage,
   summary,
   onCancelEdit,
+  onClearError,
   onClose,
   onDelete,
   onEdit,
@@ -109,7 +111,7 @@ function VacationRecordsModal({
         width="xl"
       >
         <div className="flex min-h-0 flex-1 flex-col gap-4">
-          <FormErrorAlert message={errorMessage} />
+          <FormErrorAlert message={errorMessage} onDismiss={onClearError} />
           <form
             className="grid shrink-0 grid-cols-1 gap-4 rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 sm:grid-cols-2 lg:grid-cols-12"
             onSubmit={onSubmit}

@@ -1,4 +1,5 @@
 import { Test } from "@nestjs/testing";
+import { BadRequestException } from "@nestjs/common";
 import { EntidadesService } from "./entidades.service";
 import { EntidadesRepository } from "../repositories/entidades.repository";
 import { AuditService } from "../../auditoria/services/audit.service";
@@ -82,6 +83,61 @@ describe("EntidadesService", () => {
       }),
     );
     expect(result).toMatchObject({ id_entidade: 1, tipos: ["FUNCIONARIO"] });
+  });
+
+  it("deve limpar RG e data de nascimento ao atualizar para pessoa juridica", async () => {
+    const entidade = makeEntidadeModel();
+    repository.buscarPorId
+      .mockResolvedValueOnce(entidade)
+      .mockResolvedValueOnce(makeEntidadeModel())
+      .mockResolvedValueOnce(
+        makeEntidadeModel({
+          cpf_cnpj: "11222333000181",
+          data_nascimento: null,
+          rg: null,
+          tipo_pessoa: "JURIDICA",
+        }),
+      );
+
+    await service.atualizar(
+      1,
+      {
+        cpf_cnpj: "11222333000181",
+        data_nascimento: "1990-01-01",
+        rg: "1234567",
+        tipo_pessoa: "JURIDICA",
+      },
+      makeAuthContext(),
+      "127.0.0.1",
+    );
+
+    expect(repository.atualizar).toHaveBeenCalledWith(
+      entidade,
+      expect.objectContaining({
+        cpf_cnpj: "11222333000181",
+        data_nascimento: null,
+        rg: null,
+        tipo_pessoa: "JURIDICA",
+      }),
+      transaction,
+    );
+  });
+
+  it("deve rejeitar troca de tipo quando documento salvo nao e compativel", async () => {
+    repository.buscarPorId
+      .mockResolvedValueOnce(makeEntidadeModel())
+      .mockResolvedValueOnce(makeEntidadeModel());
+
+    await expect(
+      service.atualizar(
+        1,
+        { tipo_pessoa: "JURIDICA" },
+        makeAuthContext(),
+        "127.0.0.1",
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(transaction.rollback).toHaveBeenCalled();
   });
 
   it("deve fazer soft delete e registrar auditoria ao remover", async () => {

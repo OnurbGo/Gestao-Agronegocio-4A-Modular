@@ -4,8 +4,10 @@ export function makeEntidadePlain(overrides: Record<string, unknown> = {}) {
   return {
     id_entidade: 1,
     nome: "João da Silva",
-    cpf_cnpj: "12345678901",
+    cpf_cnpj: "52998224725",
+    rg: "1234567",
     tipo_pessoa: "FISICA" as const,
+    data_nascimento: "1990-01-01",
     participa_folha: true,
     data_admissao: "2024-01-01",
     ativo: true,
@@ -30,8 +32,10 @@ export function makeEntidadePayload(
 ): EntidadeInput {
   return {
     nome: "João da Silva",
-    cpf_cnpj: "12345678901",
+    cpf_cnpj: "52998224725",
+    rg: "1234567",
     tipo_pessoa: "FISICA",
+    data_nascimento: "1990-01-01",
     participa_folha: true,
     ativo: true,
     tipos: ["FUNCIONARIO"],

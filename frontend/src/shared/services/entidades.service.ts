@@ -20,7 +20,9 @@ export function buscarEntidade(id: number): Promise<Entidade> {
   return requestJson<Entidade>(`${BASE}/${id}`)
 }
 
-export function criarEntidade(payload: EntidadeFormData): Promise<Entidade> {
+export function criarEntidade(
+  payload: Partial<EntidadeFormData> & Record<string, unknown>,
+): Promise<Entidade> {
   return requestJson<Entidade>(BASE, {
     method: 'POST',
     body: JSON.stringify(payload),

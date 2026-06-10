@@ -267,7 +267,10 @@ function DocumentosPanel({ origem, ownerId }: DocumentosPanelProps) {
           className="grid gap-3 rounded-lg border border-emerald-100 bg-emerald-50/30 p-4"
           onSubmit={enviar}
         >
-          <FormErrorAlert message={formError} />
+          <FormErrorAlert
+            message={formError}
+            onDismiss={() => setFormError(null)}
+          />
           <label
             className={cn(
               'grid min-h-28 cursor-pointer place-items-center gap-2 rounded-lg border-2 border-dashed border-emerald-200 bg-white p-5 text-center transition',

@@ -102,12 +102,14 @@ export type Entidade = {
   id_entidade: number;
   nome?: string;
   cpf_cnpj?: string;
+  rg?: string | null;
   tipo_pessoa?: string;
   email?: string;
   telefone?: string;
   celular?: string;
   cidade?: string;
   estado?: string;
+  data_nascimento?: string | null;
   data_admissao?: string;
   observacao?: string;
   tipos?: string[];
@@ -117,12 +119,14 @@ export type Entidade = {
 export type EntidadeFormData = {
   nome: string;
   cpf_cnpj: string;
+  rg: string;
   tipo_pessoa: string;
   email: string;
   telefone: string;
   celular: string;
   cidade: string;
   estado: string;
+  data_nascimento: string;
   data_admissao: string;
   observacao: string;
   tipos: string[];

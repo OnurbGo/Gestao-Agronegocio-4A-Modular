@@ -17,7 +17,13 @@ import { Checkbox } from "@/shared/components/ui/checkbox";
 import { Input } from "@/shared/components/ui/input";
 import { Textarea } from "@/shared/components/ui/textarea";
 import type { Entidade, EntidadeFormData } from "@/shared/types";
-import { formatCpfCnpj, formatPhone, tipoOptions } from "../helpers";
+import {
+  formatDocumentoPorTipo,
+  formatPhone,
+  getDocumentoLabel,
+  getDocumentoMaxLength,
+  tipoOptions,
+} from "../helpers";
 
 type EntidadeFormProps = {
   form: EntidadeFormData;
@@ -25,6 +31,7 @@ type EntidadeFormProps = {
   errorMessage?: string | null;
   selected?: Entidade;
   selectedId: number | null;
+  onClearError?: () => void;
   onFieldChange: (field: keyof EntidadeFormData, value: string) => void;
   onRemove: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -46,11 +53,14 @@ function EntidadeForm({
   loading,
   selected,
   selectedId,
+  onClearError,
   onFieldChange,
   onRemove,
   onSubmit,
   onToggleTipo,
 }: EntidadeFormProps) {
+  const isPessoaFisica = form.tipo_pessoa !== "JURIDICA";
+
   return (
     <Card className="border-emerald-100">
       <CardHeader>
@@ -59,7 +69,7 @@ function EntidadeForm({
       <CardContent>
         <form className="grid gap-4 md:grid-cols-2" onSubmit={onSubmit}>
           <div className="md:col-span-2">
-            <FormErrorAlert message={errorMessage} />
+            <FormErrorAlert message={errorMessage} onDismiss={onClearError} />
           </div>
           <Field label="Nome">
             <Input
@@ -68,12 +78,15 @@ function EntidadeForm({
               value={form.nome}
             />
           </Field>
-          <Field label="CPF/CNPJ">
+          <Field label={getDocumentoLabel(form.tipo_pessoa)}>
             <Input
               inputMode="numeric"
-              maxLength={18}
+              maxLength={getDocumentoMaxLength(form.tipo_pessoa)}
               onChange={(event) =>
-                onFieldChange("cpf_cnpj", formatCpfCnpj(event.target.value))
+                onFieldChange(
+                  "cpf_cnpj",
+                  formatDocumentoPorTipo(event.target.value, form.tipo_pessoa),
+                )
               }
               required
               value={form.cpf_cnpj}
@@ -89,6 +102,25 @@ function EntidadeForm({
               <option value="JURIDICA">Jurídica</option>
             </select>
           </Field>
+          {isPessoaFisica ? (
+            <>
+              <Field label="RG">
+                <Input
+                  onChange={(event) => onFieldChange("rg", event.target.value)}
+                  value={form.rg}
+                />
+              </Field>
+              <Field label="Data de nascimento">
+                <Input
+                  onChange={(event) =>
+                    onFieldChange("data_nascimento", event.target.value)
+                  }
+                  type="date"
+                  value={form.data_nascimento}
+                />
+              </Field>
+            </>
+          ) : null}
           <Field label="E-mail">
             <Input
               onChange={(event) => onFieldChange("email", event.target.value)}
